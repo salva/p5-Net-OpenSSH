@@ -151,6 +151,9 @@ sub new {
     my $target_os = delete $opts{target_os};
     $target_os = 'unix' unless defined $target_os;
 
+    my $expand_vars = delete $opts{expand_vars};
+    my $vars = delete $opts{vars} || {};
+
     my $master_stdout_fh = delete $opts{master_stdout_fh};
     my $master_stderr_fh = delete $opts{master_stderr_fh};
 
@@ -195,21 +198,27 @@ sub new {
 		     local $SIG{__WARN__};
 		     local $@;
 		     eval { Cwd::realpath((getpwuid $>)[7]) } },
-                 _ssh_opts => \@ssh_opts,
 		 _default_stdin_fh => $default_stdin_fh,
 		 _default_stdout_fh => $default_stdout_fh,
 		 _default_stderr_fh => $default_stderr_fh,
-		 _master_opts => \@master_opts,
 		 _master_stdout_fh => $master_stdout_fh,
 		 _master_stderr_fh => $master_stderr_fh,
 		 _master_stdout_discard => $master_stdout_discard,
 		 _master_stderr_discard => $master_stderr_discard,
-		 _target_os => $target_os };
+		 _target_os => $target_os,
+		 _expand_vars => $expand_vars,
+		 _vars => $vars };
     bless $self, $class;
+
+    $self->{_ssh_opts} = [$self->_expand_vars(@ssh_opts)];
+    $self->{_master_opts} = [$self->_expand_vars(@master_opts)];
+
+    $ctl_path = $self->_expand_vars($ctl_path);
+    $ctl_dir = $self->_expand_vars($ctl_dir);
 
     unless (defined $ctl_path) {
         $ctl_dir = File::Spec->catdir($self->{_home}, ".libnet-openssh-perl")
-            unless defined $ctl_dir;
+	    unless defined $ctl_dir;
 
 	my $old_umask = umask 077;
         mkdir $ctl_dir;
@@ -248,6 +257,39 @@ sub get_user { shift->{_user} }
 sub get_host { shift->{_host} }
 sub get_port { shift->{_port} }
 sub get_ctl_path { shift->{_ctl_path} }
+sub get_expand_vars { shift->{_expand_vars} }
+
+sub set_expand_vars {
+    my $self = shift;
+    $self->{_expand_vars} = !!shift;
+}
+
+sub set_var {
+    my $self = shift;
+    my $k = shift;
+    $k =~ /^(?:USER|HOST|PORT)$/
+	and croak "internal variable %$k% can not be set";
+    $self->{_vars}{$k} = shift;
+}
+
+sub get_var {
+    my ($self, $k) = @_;
+    my $v = ( $k =~ /^(?:USER|HOST|PORT)$/
+	      ? $self->{lc "_$k"}
+	      : $self->{_vars}{$k} );
+    (defined $v ? $v : '');
+}
+
+sub _expand_vars {
+    my ($self, @str) = @_;
+    if ($self->{_expand_vars}) {
+	for (@str) {
+	    s{%(\w*)%}{length ($1) ? $self->get_var($1) : '%'}ge
+		if defined $_;
+	}
+    }
+    wantarray ? @str : $str[0]
+}
 
 sub error { shift->{_error} }
 
@@ -442,7 +484,7 @@ sub _waitpid {
 		return undef
 	    }
 	    warn "Internal error: unexpected error (".($!+0).": $!) from waitpid($pid) = $r. Report it, please!";
-	    
+
 	    # wait a bit before trying again
 	    select(undef, undef, undef, 0.1);
 	}
@@ -636,7 +678,7 @@ sub _quote_args {
     my $quote_extended = delete $opts->{quote_args_extended};
     my $glob_quoting = delete $opts->{glob_quoting};
     $quote = (@_ > 1) unless defined $quote;
-    
+
     if ($quote) {
 	my $quoter_glob = $self->_arg_quoter_glob;
 	my $quoter = ($glob_quoting
@@ -650,10 +692,10 @@ sub _quote_args {
 	for (@_) {
 	    if (ref $_) {
 		if (ref $_ eq 'SCALAR') {
-		    push @quoted, $quoter_glob->($$_);
+		    push @quoted, $quoter_glob->($self->_expand_vars($$_));
 		}
 		if (ref $_ eq 'REF' and ref $$_ eq 'SCALAR') {
-		    push @quoted, $$$_;
+		    push @quoted, $self->_expand_vars($$$_);
 		    undef $quote_extended;
 		}
 		else {
@@ -661,7 +703,7 @@ sub _quote_args {
 		}
 	    }
 	    else {
-		push @quoted, $quoter->($_);
+		push @quoted, $quoter->($self->_expand_vars($_));
 	    }
 	}
 
@@ -681,7 +723,8 @@ sub _quote_args {
 	croak "reference found in argument list when argument quoting is disabled"
 	    if (grep ref, @_);
 
-	wantarray ? @_ : join(" ", @_);
+	my @args = $self->_expand_vars(@_);
+	wantarray ? @args : join(" ", @args);
     }
 }
 
@@ -721,6 +764,7 @@ sub _open_file {
     my ($mode, @args) = (ref $name_or_args
 			 ? @$name_or_args
 			 : ($default_mode, $name_or_args));
+    @args = $self->_expand_vars(@args);
     if (open my $fh, $mode, @args) {
 	return $fh;
     }
@@ -779,7 +823,7 @@ sub open_ex {
         $close_slave_pty = delete $opts{close_slave_pty};
         $close_slave_pty = 1 unless defined $close_slave_pty;
     }
-    my @ssh_opts = _array_or_scalar delete $opts{ssh_opts};
+    my @ssh_opts = $self->_expand_vars(_array_or_scalar delete $opts{ssh_opts});
 
     my $cmd = delete $opts{_cmd};
     $cmd = 'ssh' unless defined $cmd;
@@ -1708,6 +1752,16 @@ Redirect corresponding stdio streams to given filehandles.
 
 Discard corresponding stdio streams.
 
+=item expand_vars => $bool
+
+Activates variable expansion inside command arguments and file paths.
+
+See L</"Variable expansion"> below.
+
+=item vars => \%vars
+
+Initial set of variables.
+
 =back
 
 =item $ssh->error
@@ -1846,7 +1900,7 @@ explicitly closed (see L<IO::Pty>)
 
 =item quote_args => $bool
 
-See "Shell quoting" below.
+See L</"Shell quoting"> below.
 
 =item ssh_opts => \@opts
 
@@ -2247,13 +2301,28 @@ their original form when parsed by the remote shell.
 
 In scalar context returns the list of arguments quoted and joined.
 
-Usually this task is done automatically by the module. See "Shell
-quoting" below.
+Usually this task is done automatically by the module. See L</"Shell
+quoting"> below.
 
 =item $ssh->shell_quote_glob(@args)
 
 This method is like the previous C<shell_quote> but leaves wildcard
 characters unquoted.
+
+=item $ssh->set_expand_vars($bool)
+
+Enables/disables variable expansion feature.
+
+=item $ssh->get_expand_vars
+
+Returns current state of variable expansion feature.
+
+=item $ssh->set_var($name, $value)
+
+=item $ssh->get_var($name, $value)
+
+These methods allow to change and to retrieve the value of the logical
+value of the given name.
 
 =back
 
@@ -2360,6 +2429,33 @@ instance:
 
 I plan to add support for different quoting mechanisms in the
 future... if you need it now, just ask for it!!!
+
+=head2 Variable expansion
+
+The variable expansion feature allows to define variables that are
+expanded automatically inside command arguments and file paths.
+
+This feature is disabled by default as it is intended to be used with
+L<Net::OpenSSH::Parallel> and other similar modules.
+
+Variables are delimited by a pair of percent signs (C<%>), for
+instance C<%LABEL%>. Also, two consecutive percent signs are replaced
+by a single one.
+
+The special variables C<HOST>, C<USER> and C<PORT> are maintained
+internally by the module and take the obvious values.
+
+Variable expansion is performed before shell quoting (see L</"Shell
+quoting">).
+
+Some usage example:
+
+  my $ssh = Net::OpenSSH->new('server.foo.com', expand_vars => 1);
+  $ssh->set_var(ID => 42);
+  $ssh->system("ls >/tmp/ls.out-%HOST%-%ID%");
+
+will redirect the output of the C<ls> command to
+C</tmp/ls.out-server.foo.com-42> on the remote host.
 
 =head1 TROUBLESHOOTING
 
@@ -2516,7 +2612,7 @@ remote machines through SSH.
 
 =head1 BUGS AND SUPPORT
 
-SCP and rsync file transfer support is still highly experimental.
+Variable expansion feature is highly experimental.
 
 Does not work on Windows. OpenSSH multiplexing feature requires
 passing file handles through sockets but that is not supported by
@@ -2525,7 +2621,7 @@ Windows.
 Doesn't work on VMS either... well, actually, it probably doesn't work
 on anything not resembling a modern Linux/Unix OS.
 
-Tested on Linux and NetBSD with OpenSSH 5.1p1
+Tested on Linux, OpenBSD and NetBSD with OpenSSH 5.1 and 5.2.
 
 To report bugs or give me some feedback, send an email to the address
 that appear below or use the CPAN bug tracking system at
@@ -2541,8 +2637,6 @@ request for help I get by email!
 - *** add tests for scp, rsync and sftp methods
 
 - *** add support for more target OSs (quoting, OpenVMS, Windows & others)
-
-- add expect method
 
 - passphrase handling
 
