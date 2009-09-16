@@ -1,6 +1,9 @@
 Revision history for Perl extension Net::OpenSSH.
 
-0.37  Sep 16, 2009
+0.38  Sep 16, 2009
+        - add variable expansion feature
+
+0.37  Sep 15, 2009
         - add support for stdout_file, stderr_file and stdin_file
           options
 
