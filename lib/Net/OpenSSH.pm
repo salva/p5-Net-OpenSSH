@@ -503,7 +503,7 @@ sub wait_for_master {
 	return $self->_wait_for_master(@_);
     $self->{_error} == OSSH_MASTER_FAILED and
 	return undef;
-    
+
     unless (-S $self->{_ctl_path}) {
 	$self->_set_error(OSSH_MASTER_FAILED, "master ssh connection broken");
 	return undef;
@@ -1449,7 +1449,10 @@ sub DESTROY {
     if ($pid) {
         local $?;
 	local $!;
-        $self->_master_ctl('exit');
+        $self->_master_ctl('exit')
+	    unless $self->{_wfm_status}; # we have not yet
+                                         # successfully created the
+                                         # master connection
 	$self->_kill_master;
     }
 }

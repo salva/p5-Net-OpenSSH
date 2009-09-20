@@ -1,6 +1,8 @@
 Revision history for Perl extension Net::OpenSSH.
 
 0.38  Sep 16, 2009
+        - DESTROY was generating warnings when called before the
+          master connection had been established successfully
         - add variable expansion feature
 
 0.37  Sep 15, 2009
