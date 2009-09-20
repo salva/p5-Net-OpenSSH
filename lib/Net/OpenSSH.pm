@@ -804,7 +804,7 @@ sub open_ex {
       $stderr_to_stdout = delete $opts{stderr_to_stdout} or
       $stderr_file = delete $opts{stderr_file} );
 
-    my @error_prefix = @{delete $opts{_error_prefix} || []};
+    my @error_prefix = _array_or_scalar delete $opts{_error_prefix};
 
     if (defined $stdin_file) {
 	$stdin_fh = $self->_open_file('<', $stdin_file, @error_prefix) or return
@@ -1075,8 +1075,9 @@ sub _io3 {
     return ($bout, $berr);
 }
 
-_sub_options spawn => qw(stderr_to_stdout stdin_discard stdin_fh stdout_discard stdout_fh
-                         stderr_discard stderr_fh quote_args tty ssh_opts);
+_sub_options spawn => qw(stderr_to_stdout stdin_discard stdin_fh stdin_file stdout_discard
+                         stdout_fh stdout_file stderr_discard stderr_fh stderr_file
+                         quote_args tty ssh_opts);
 sub spawn {
     my $self = shift;
     my %opts =  (ref $_[0] eq 'HASH' ? %{shift()} : ());
@@ -1085,8 +1086,8 @@ sub spawn {
     return scalar $self->open_ex(\%opts, @_);
 }
 
-_sub_options open2 => qw(stderr_to_stdout stderr_discard stderr_fh
-                         stderr_file quote_args tty ssh_opts);
+_sub_options open2 => qw(stderr_to_stdout stderr_discard stderr_fh stderr_file quote_args
+                         tty ssh_opts);
 sub open2 {
     my $self = shift;
     my %opts = (ref $_[0] eq 'HASH' ? %{shift()} : ());
@@ -1099,9 +1100,8 @@ sub open2 {
     return ($in, $out, $pid);
 }
 
-_sub_options open2pty => qw(stderr_to_stdout stderr_discard stderr_fh
-                            stderr_file quote_args tty close_slave_pty
-                            ssh_opts);
+_sub_options open2pty => qw(stderr_to_stdout stderr_discard stderr_fh stderr_file
+                            quote_args tty close_slave_pty ssh_opts);
 sub open2pty {
     my $self = shift;
     my %opts = (ref $_[0] eq 'HASH' ? %{shift()} : ());
@@ -1146,9 +1146,8 @@ sub open3pty {
     return ($pty, $err, $pid);
 }
 
-_sub_options system => qw(stdout_discard stdout_fh stdin_discard
-                          stdout_file stdin_fh stdin_file quote_args
-                          stderr_to_stdout stderr_discard stderr_fh
+_sub_options system => qw(stdout_discard stdout_fh stdin_discard stdout_file stdin_fh
+                          stdin_file quote_args stderr_to_stdout stderr_discard stderr_fh
                           stderr_file tty ssh_opts);
 sub system {
     my $self = shift;
@@ -1170,9 +1169,8 @@ sub system {
     $self->_waitpid($pid);
 }
 
-_sub_options capture => qw(stderr_to_stdout stderr_discard stderr_fh
-                           stderr_file stdin_discard stdin_fh
-                           stdin_file quote_args tty ssh_opts);
+_sub_options capture => qw(stderr_to_stdout stderr_discard stderr_fh stderr_file
+                           stdin_discard stdin_fh stdin_file quote_args tty ssh_opts);
 sub capture {
     my $self = shift;
     my %opts = (ref $_[0] eq 'HASH' ? %{shift()} : ());
@@ -1195,8 +1193,7 @@ sub capture {
     $output
 }
 
-_sub_options capture2 => qw(stdin_discard stdin_fh stdin_file
-			    quote_args tty ssh_opts);
+_sub_options capture2 => qw(stdin_discard stdin_fh stdin_file quote_args tty ssh_opts);
 sub capture2 {
     my $self = shift;
     my %opts = (ref $_[0] eq 'HASH' ? %{shift()} : ());
