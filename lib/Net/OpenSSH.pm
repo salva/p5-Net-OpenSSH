@@ -372,6 +372,7 @@ sub _kill_master {
     my $self = shift;
     my $pid = delete $self->{_pid};
     if ($pid) {
+	local $SIG{CHLD} = sub {};
         for my $sig (0, 0, 1, 1, 1, 9, 9) {
             if ($sig) {
 		kill $sig, $pid
