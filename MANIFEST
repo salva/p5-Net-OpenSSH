@@ -12,4 +12,3 @@ t/test_server_key.pub
 t/test_user_key
 t/test_user_key.pub
 sample/expect.pl
-META.yml                                 Module meta-data (added by MakeMaker)
