@@ -15,7 +15,7 @@ use Scalar::Util ();
 use Errno ();
 use Net::OpenSSH::Constants qw(:error);
 
-sub _debug { print STDERR '# ', @_, "\n" }
+sub _debug { print STDERR '# ', (map { defined($_) ? $_ : '<undef>' } @_), "\n" }
 
 sub _debug_dump {
     require Data::Dumper;
@@ -371,14 +371,16 @@ sub _make_rsync_call {
 sub _kill_master {
     my $self = shift;
     my $pid = delete $self->{_pid};
+    $debug and $debug & 32 and _debug '_kill_master: ', $pid;
     if ($pid) {
 	local $SIG{CHLD} = sub {};
         for my $sig (0, 0, 1, 1, 1, 9, 9) {
             if ($sig) {
+		$debug and $debug & 32 and _debug "killing master with signal $sig";
 		kill $sig, $pid
 		    or return;
 	    }
-	    for (1..10) {
+	    for (0..5) {
 		my $r = waitpid($pid, WNOHANG);
 		return if ($r == $pid or $! == Errno::ECHILD);
 		select(undef, undef, undef, 0.2);
@@ -1447,10 +1449,13 @@ sub DESTROY {
     if ($pid) {
         local $?;
 	local $!;
-        $self->_master_ctl('exit')
-	    unless $self->{_wfm_status}; # we have not yet
-                                         # successfully created the
-                                         # master connection
+
+	unless ($self->{_wfm_status}) {
+	    # we have successfully created the master connection so we
+	    # can send control commands:
+	    $debug and $debug & 32 and _debug("sending exit control to master");
+	    $self->_master_ctl('exit');
+	}
 	$self->_kill_master;
     }
 }
@@ -1589,7 +1594,7 @@ instance, these two method calls are equivalent:
 
 Most methods return undef (or an empty list) to indicate failure.
 
-The C<error> method can always be used to explicitly check for
+The L</error> method can always be used to explicitly check for
 errors. For instace:
 
   my ($output, $errput) = $ssh->capture2({timeout => 1}, "find /");
@@ -1977,7 +1982,7 @@ Note that when this option is combined with C<stdin_data>, the given
 data will be transferred to the remote side before returning control
 to the caller.
 
-See also the C<spawn> method documentation below.
+See also the L</spawn> method documentation below.
 
 =item stdin_fh => $fh
 
@@ -1995,7 +2000,7 @@ See also the C<spawn> method documentation below.
 
 =item tty => $bool
 
-See the C<open_ex> method documentation for an explanation of these
+See the L</open_ex> method documentation for an explanation of these
 options.
 
 =back
@@ -2014,7 +2019,7 @@ L<perlvar/"$/">).
 
 When an error happens while capturing (for instance, the operation
 times out), the partial captured output will be returned. Error
-conditions have to be explicitly checked using the C<error>
+conditions have to be explicitly checked using the L</error>
 method. For instance:
 
   my $output = $ssh->capture({ timeout => 10 },
@@ -2033,7 +2038,7 @@ Accepted options:
 
 =item timeout => $timeout
 
-See the C<system> method documentation for an explanation of these
+See the L</system> method documentation for an explanation of these
 options.
 
 =item stdin_fh => $fh
@@ -2048,7 +2053,7 @@ options.
 
 =item tty => $bool
 
-See the C<open_ex> method documentation for an explanation of these
+See the L</open_ex> method documentation for an explanation of these
 options.
 
 =back
@@ -2068,7 +2073,7 @@ The accepted options are:
 
 =item timeout => $timeout
 
-See the C<system> method documentation for an explanation of these
+See the L</system> method documentation for an explanation of these
 options.
 
 =item stdin_fh => $fh
@@ -2077,7 +2082,7 @@ options.
 
 =item tty => $bool
 
-See the C<open_ex> method documentation for an explanation of these
+See the L</open_ex> method documentation for an explanation of these
 options.
 
 =back
@@ -2120,11 +2125,11 @@ No options are currently accepted.
 
 =item ($pty, $err, $pid) = $ssh->open3pty(\%opts, @cmd)
 
-Shortcuts around C<open_ex> method.
+Shortcuts around L</open_ex> method.
 
-=item $pid = $ssh->spawn(\%opts, @_)
+=item X<spawn>$pid = $ssh->spawn(\%opts, @_)
 
-Another C<open_ex> shortcut, it launches a new remote process in the
+Another L</open_ex> shortcut, it launches a new remote process in the
 background and returns its PID.
 
 For instance, you can run some command on several host in parallel
@@ -2156,7 +2161,7 @@ instance:
   $ssh->scp_get({glob => 1}, '/var/tmp/foo*', '/var/tmp/bar*', '/tmp');
   $ssh->scp_put('/etc/passwd');
 
-Both C<scp_get> and C<scp_put> methods return a true value when all
+Both L</scp_get> and L</scp_put> methods return a true value when all
 the files are transferred correctly, otherwise they return undef.
 
 Accepted options:
@@ -2180,8 +2185,8 @@ wildcards can be used to select files.
 
 =item glob_flags => $flags
 
-Second argument passed to L<File::Glob> C<bsd_glob> function. Only
-available for C<scp_put> method.
+Second argument passed to L<File::Glob::bsd_glob|File::Glob/bsd_glob> function. Only
+available for L</scp_put> method.
 
 =item copy_attrs => 1
 
@@ -2228,7 +2233,7 @@ parallel as follows:
 
 =item stderr_to_stdout => 1
 
-These options are passed unchanged to method C<open_ex>, allowing
+These options are passed unchanged to method L</open_ex>, allowing
 capture of the output of the scp program.
 
 Note that C<scp> will not generate progress reports unless its stdout
@@ -2260,7 +2265,7 @@ For instance:
 
 =item $sftp = $ssh->sftp(%sftp_opts)
 
-Creates a new L<Net::SFTP::Foreign> object for SFTP interaction that
+Creates a new L<Net::SFTP::Foreign|Net::SFTP::Foreign> object for SFTP interaction that
 runs through the ssh master connection.
 
 =item @call = $ssh->make_remote_command(%opts, @cmd)
@@ -2292,8 +2297,8 @@ process and wait until the multiplexing socket is available.
 
 It returns a true value after the connection has been succesfully
 established. False is returned if the connection process fails or if
-it has not yet completed (C<$ssh-E<gt>error> can be used to
-distinguish between those cases).
+it has not yet completed (then, the L</error> method can be used to
+distinguish between both cases).
 
 =item $ssh->shell_quote(@args)
 
@@ -2342,7 +2347,7 @@ L<perlfunc/system>:
   to the system's command shell for parsing (this is "/bin/sh -c" on
   Unix platforms, but varies on other platforms).
 
-Take for example Net::OpenSSH C<system> method:
+Take for example Net::OpenSSH L</system> method:
 
   $ssh->system("ls -l *");
   $ssh->system('ls', '-l', '/');
@@ -2643,9 +2648,9 @@ request for help I get by email!
 
 - better timeout handling in system and capture methods
 
-- make C<pipe_in> and C<pipe_out> methods C<open_ex> based
+- make L</pipe_in> and L</pipe_out> methods L</open_ex> based
 
-- add scp_cat and similar methods
+- add C<scp_cat> and similar methods
 
 - write some kind of parallel queue manager module
 
