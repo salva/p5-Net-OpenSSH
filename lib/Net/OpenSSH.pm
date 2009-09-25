@@ -2635,6 +2635,9 @@ L<http://perlmoks.org/>> (that I read frequently). This module is
 becoming increasingly popular and I am unable to cope with all the
 request for help I get by email!
 
+The source code of this module is hosted at GitHub:
+L<http://github.com/salva/p5-Net-OpenSSH>
+
 =head1 TODO
 
 - *** add tests for scp, rsync and sftp methods
