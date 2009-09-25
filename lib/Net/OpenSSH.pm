@@ -1604,9 +1604,6 @@ errors. For instace:
 
 These are the methods provided by the package:
 
-  *** Note that this is an early release, the ***
-  *** module API has not yet stabilized!!!    ***
-
 =over 4
 
 =item Net::OpenSSH->new($host, %opts)
@@ -2445,7 +2442,7 @@ This feature is disabled by default as it is intended to be used with
 L<Net::OpenSSH::Parallel> and other similar modules.
 
 Variables are delimited by a pair of percent signs (C<%>), for
-instance C<%LABEL%>. Also, two consecutive percent signs are replaced
+instance C<%HOST%>. Also, two consecutive percent signs are replaced
 by a single one.
 
 The special variables C<HOST>, C<USER> and C<PORT> are maintained
