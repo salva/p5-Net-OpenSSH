@@ -1,9 +1,12 @@
 Revision history for Perl extension Net::OpenSSH.
 
-0.38  Sep 16, 2009
+0.38  Sep 25, 2009
+        - remove alpha-status warning from docs!
+	- add debug support to master killing
         - DESTROY was generating warnings when called before the
           master connection had been established successfully
         - add variable expansion feature
+	- minor doc corrections
 
 0.37  Sep 15, 2009
         - add support for stdout_file, stderr_file and stdin_file
