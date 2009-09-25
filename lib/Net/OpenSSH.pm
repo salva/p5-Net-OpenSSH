@@ -2127,7 +2127,7 @@ No options are currently accepted.
 
 Shortcuts around L</open_ex> method.
 
-=item X<spawn>$pid = $ssh->spawn(\%opts, @_)
+=item $pid = $ssh->spawn(\%opts, @_)
 
 Another L</open_ex> shortcut, it launches a new remote process in the
 background and returns its PID.
