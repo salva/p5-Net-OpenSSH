@@ -1,6 +1,6 @@
 package Net::OpenSSH::Constants;
 
-our $VERSION = '0.14';
+our $VERSION = '0.39';
 
 use strict;
 use warnings;
@@ -26,6 +26,7 @@ for my $key (keys %error) {
 }
 
 our @EXPORT_OK = map { @{$EXPORT_TAGS{$_}} } keys %EXPORT_TAGS;
+$EXPORT_TAGS{all} = [@EXPORT_OK];
 
 1;
 
