@@ -1,6 +1,6 @@
 Revision history for Perl extension Net::OpenSSH.
 
-0.29
+0.39
 	- check SSH client version from Makefile.PL
 	- work around L<Foo::Bar> links in POD being rendered as the
           Foo::Bar manpage by some POD backends.
