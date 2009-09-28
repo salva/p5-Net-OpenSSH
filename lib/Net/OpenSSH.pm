@@ -1585,7 +1585,9 @@ L<rsync(1)|rsync(1)|>).
 
 =head1 API
 
-Several of the methods in this package accept as first argument an
+=head2 Optional arguments
+
+Almost all methods in this package accept as first argument an
 optional reference to a hash containing parameters (C<\%opts>). For
 instance, these two method calls are equivalent:
 
@@ -1959,7 +1961,7 @@ process.
 
 For example, the following code creates a file on the remote side:
 
-  $ssh->system({stdin_data => @data}, "cat >/tmp/foo")
+  $ssh->system({stdin_data => \@data}, "cat >/tmp/foo")
     or die "unable to write file: " . $ssh->error;
 
 =item timeout => $timeout
