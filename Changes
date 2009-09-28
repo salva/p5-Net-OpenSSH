@@ -2,6 +2,9 @@ Revision history for Perl extension Net::OpenSSH.
 
 0.39
 	- add 'all' tag to Net::OpenSSH::Constants
+	- check SSH client version from Makefile.PL
+	- work around L<Foo::Bar> links in POD being rendered as the
+          Foo::Bar manpage by some POD backends.
 
 0.38  Sep 25, 2009
         - remove alpha-status warning from docs!

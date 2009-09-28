@@ -1534,19 +1534,20 @@ clients available?
 
 Well, this is my (biased) opinion:
 
-L<Net::SSH::Perl> is not well maintained nowadays (update: a new
-maintainer has stepped in so this situation could change!!!), requires
-a bunch of modules (some of them very difficult to install) to be
-acceptably efficient and has an API that is limited in some ways.
+L<Net::SSH::Perl|Net::SSH::Perl> is not well maintained nowadays
+(update: a new maintainer has stepped in so this situation could
+change!!!), requires a bunch of modules (some of them very difficult
+to install) to be acceptably efficient and has an API that is limited
+in some ways.
 
-L<Net::SSH2> is much better than Net::SSH::Perl, but not completely
-stable yet. It can be very difficult to install on some specific
-operative systems and its API is also limited, in the same way as
-L<Net::SSH::Perl>.
+L<Net::SSH2|Net::SSH2> is much better than Net::SSH::Perl, but not
+completely stable yet. It can be very difficult to install on some
+specific operative systems and its API is also limited, in the same
+way as L<Net::SSH::Perl|Net::SSH::Perl>.
 
-Using L<Net::SSH::Expect>, in general, is a bad idea. Handling
-interaction with a shell via Expect in a generic way just can not be
-reliably done.
+Using L<Net::SSH::Expect|Net::SSH::Expect>, in general, is a bad
+idea. Handling interaction with a shell via Expect in a generic way
+just can not be reliably done.
 
 Net::SSH is just a wrapper around any SSH binary commands available on
 the machine. It can be very slow as they establish a new SSH
@@ -1558,7 +1559,7 @@ binaries).
 
 Net::OpenSSH has a very perlish interface. Most operations are
 performed in a fashion very similar to that of the Perl builtins and
-common modules (i.e. L<IPC::Open2>).
+common modules (i.e. L<IPC::Open2|IPC::Open2>).
 
 It is also very fast. The overhead introduced by launching a new ssh
 process for every operation is not appreciable (at least on my Linux
@@ -1576,10 +1577,11 @@ multiplexing feature is not available from any other SSH
 client). However, note that it will interact with any server software,
 not just servers running OpenSSH C<sshd>.
 
-For password authentication, L<IO::Pty> has to be installed. Other
-modules and binaries are also required to implement specific
-functionality (for instance L<Net::SFTP::Foreign>, L<Expect> or
-L<rsync(1)>).
+For password authentication, L<IO::Pty|IO::Pty> has to be
+installed. Other modules and binaries are also required to implement
+specific functionality (for instance
+L<Net::SFTP::Foreign|Net::SFTP::Foreign>, L<Expect|Expect> or
+L<rsync(1)|rsync(1)|>).
 
 =head1 API
 
@@ -1774,7 +1776,7 @@ Returns the error condition for the last performed operation.
 The returned value is a dualvar as $! (see L<perlvar/"$!">) that
 renders an informative message when used in string context or an error
 number in numeric context (error codes appear in
-L<Net::OpenSSH::Constants>).
+L<Net::OpenSSH::Constants|Net::OpenSSH::Constants>).
 
 =item $ssh->get_user
 
@@ -1898,8 +1900,8 @@ automatically closed on the parent process after forking the ssh
 command.
 
 This option dissables that feature, so that the slave pty can be
-accessed on the parent process as C<$pty-E<gt>slave>. It will have to be
-explicitly closed (see L<IO::Pty>)
+accessed on the parent process as C<$pty-E<gt>slave>. It will have to
+be explicitly closed (see L<IO::Pty|IO::Pty>)
 
 =item quote_args => $bool
 
@@ -2439,7 +2441,8 @@ The variable expansion feature allows to define variables that are
 expanded automatically inside command arguments and file paths.
 
 This feature is disabled by default as it is intended to be used with
-L<Net::OpenSSH::Parallel> and other similar modules.
+L<Net::OpenSSH::Parallel|Net::OpenSSH::Parallel> and other similar
+modules.
 
 Variables are delimited by a pair of percent signs (C<%>), for
 instance C<%HOST%>. Also, two consecutive percent signs are replaced
@@ -2562,7 +2565,8 @@ but you should not use it unless you understand its implications.
 =head1 3rd PARTY MODULE INTEGRATION
 
 CPAN contains several modules that rely on SSH to perform their duties
-as for example L<IPC::PerlSSH> or L<GRID::Machine>.
+as for example L<IPC::PerlSSH|IPC::PerlSSH> or
+L<GRID::Machine|GRID::Machine>.
 
 Often, it is possible to instruct them to go through a Net::OpenSSH
 multiplexed connection employing some available constructor
@@ -2595,23 +2599,28 @@ OpenSSH client documentation: L<ssh(1)>, L<ssh_config(5)>.
 Core perl documentation L<perlipc>, L<perlfunc/open>,
 L<perlfunc/waitpid>.
 
-L<IO::Pty> to known how to use the pseudo tty objects returned by
-several methods on this package.
+L<IO::Pty|IO::Pty> to known how to use the pseudo tty objects returned
+by several methods on this package.
 
-L<Net::SFTP::Foreign> provides a compatible SFTP implementation.
+L<Net::SFTP::Foreign|Net::SFTP::Foreign> provides a compatible SFTP
+implementation.
 
-L<Expect> can be used to interact with commands run through this
-module on the remote machine (see also the C<expect.pl> script in the
-sample directory).
+L<Expect|Expect> can be used to interact with commands run through
+this module on the remote machine (see also the C<expect.pl> script in
+the sample directory).
 
-L<SSH::Batch> allows to run remote commands in parallel in a
-cluster. It is build on top on C<Net::OpenSSH>.
+L<SSH::Batch|SSH::Batch> allows to run remote commands in parallel in
+a cluster. It is build on top on C<Net::OpenSSH>.
 
-Other Perl SSH clients: L<Net::SSH::Perl>, L<Net::SSH2>, L<Net::SSH>,
-L<Net::SSH::Expect>, L<Net::SCP>.
+Other Perl SSH clients: L<Net::SSH::Perl|Net::SSH::Perl>,
+L<Net::SSH2|Net::SSH2>, L<Net::SSH|Net::SSH>,
+L<Net::SSH::Expect|Net::SSH::Expect>, L<Net::SCP|Net::SCP>.
 
-L<IPC::PerlSSH>, L<GRID::Machine> allow execution of Perl code in
-remote machines through SSH.
+L<IPC::PerlSSH|IPC::PerlSSH>, L<GRID::Machine|GRID::Machine> allow
+execution of Perl code in remote machines through SSH.
+
+L<SSH::RPC|SSH::RPC> implements an RPC mechanism on top of SSH using
+C<Net::OpenSSH> to handle the connections.
 
 =head1 BUGS AND SUPPORT
 
