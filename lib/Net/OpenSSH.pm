@@ -256,6 +256,7 @@ sub new {
 sub get_user { shift->{_user} }
 sub get_host { shift->{_host} }
 sub get_port { shift->{_port} }
+sub get_master_pid { shift->{_pid} }
 sub get_ctl_path { shift->{_ctl_path} }
 sub get_expand_vars { shift->{_expand_vars} }
 
@@ -366,6 +367,14 @@ sub _make_rsync_call {
 
     $debug and $debug & 8 and _debug_dump 'rsync call args' => \@args;
     @args;
+}
+
+sub master_exited {
+    my $self = shift;
+    my $pid = delete $self->{_pid};
+    delete $self->{_wfm_status};
+    $self->_set_error(OSSH_MASTER_FAILED, "master ssh connection broken");
+    undef;
 }
 
 sub _kill_master {
@@ -578,7 +587,6 @@ sub _wait_for_master {
         if (waitpid($pid, WNOHANG) == $pid or $! == Errno::ECHILD) {
             $self->_set_error(OSSH_MASTER_FAILED, $wfm_error_prefix,
                               "ssh master exited unexpectely");
-            $self->{_master_status} = 'failed';
             return undef;
         }
         my $rv1 = $rv;
@@ -2330,6 +2338,33 @@ Returns current state of variable expansion feature.
 
 These methods allow to change and to retrieve the value of the logical
 value of the given name.
+
+=item $ssh->get_master_pid
+
+Returns the PID of the master SSH process
+
+=item $ssh->master_exited
+
+This methods allows to tell the module that the master process has
+exited when we get its PID from some external wait or waitpid
+call. For instance:
+
+  my $ssh = Net::OpenSSH->new('foo', async => 1);
+
+  # create new processes
+  # ...
+
+  # rip them...
+  my $master_pid = $ssh->master_pid;
+  while ((my $pid = wait) > 0) {
+    if ($pid == $master_pid) {
+      $ssh->master_exited;
+    }
+  }
+
+If your program rips the master process and this method is not called,
+the OS could reassign the PID to a new unrelated process and the
+module would try to kill it at object destruction time.
 
 =back
 

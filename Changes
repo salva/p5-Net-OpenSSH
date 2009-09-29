@@ -1,6 +1,7 @@
 Revision history for Perl extension Net::OpenSSH.
 
 0.39
+	- add methods for external master PID handling
 	- add 'all' tag to Net::OpenSSH::Constants
 	- check SSH client version from Makefile.PL
 	- work around L<Foo::Bar> links in POD being rendered as the
