@@ -586,7 +586,7 @@ sub _wait_for_master {
         }
         if (waitpid($pid, WNOHANG) == $pid or $! == Errno::ECHILD) {
             $self->_set_error(OSSH_MASTER_FAILED, $wfm_error_prefix,
-                              "ssh master exited unexpectely");
+                              "ssh master exited unexpectedly");
             return undef;
         }
         my $rv1 = $rv;
