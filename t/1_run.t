@@ -77,8 +77,8 @@ is((stat $muxs)[2] & 0777, 0600, "mux socket permissions");
 my $cwd = cwd;
 my $sq_cwd = shell_quote $cwd;
 
-my @ls_good= sort `ls $sq_cwd`;
-my @ls = sort $ssh->capture({stderr_to_stdout => 1}, "ls $sq_cwd");
+my @ls_good= sort `/bin/ls $sq_cwd`;
+my @ls = sort $ssh->capture({stderr_to_stdout => 1}, "/bin/ls $sq_cwd");
 is("@ls", "@ls_good");
 
 my @lines = map "foo $_\n", 1..10;
