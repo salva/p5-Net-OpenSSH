@@ -2472,6 +2472,10 @@ instance:
 I plan to add support for different quoting mechanisms in the
 future... if you need it now, just ask for it!!!
 
+The current quoting mechanism does not handle possible aliases defined
+by the remote shell. In that case, to force execution of the command
+instead of the alias, the full path to the command must be used.
+
 =head2 Variable expansion
 
 The variable expansion feature allows to define variables that are
