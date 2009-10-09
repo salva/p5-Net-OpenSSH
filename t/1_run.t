@@ -12,10 +12,16 @@ use common;
 use Net::OpenSSH;
 my $timeout = 15;
 
-my $PS_P = ($^O =~ /sunos|solaris/i ? 'ps -p' : 'ps p');
+my $PS = find_cmd 'ps';
+defined $PS or plan skip_all => "ps command not found";
+my $LS = find_cmd('ls');
+defined $LS or plan skip_all => "ls command not found";
+my $CAT = find_cmd('cat');
+defined $CAT or plan skip_all => "cat command not found";
+
+my $PS_P = ($^O =~ /sunos|solaris/i ? "$PS -p" : "$PS p");
 
 # $Net::OpenSSH::debug = -1;
-
 
 my $V = `ssh -V 2>&1`;
 my ($ver, $num) = $V =~ /^(OpenSSH_(\d+\.\d+).*)$/msi;
@@ -77,14 +83,14 @@ is((stat $muxs)[2] & 0777, 0600, "mux socket permissions");
 my $cwd = cwd;
 my $sq_cwd = shell_quote $cwd;
 
-my @ls_good= sort `ls $sq_cwd`;
-my @ls = sort $ssh->capture({stderr_to_stdout => 1}, "ls $sq_cwd");
+my @ls_good= sort `$LS $sq_cwd`;
+my @ls = sort $ssh->capture({stderr_to_stdout => 1}, "$LS $sq_cwd");
 is("@ls", "@ls_good");
 
 my @lines = map "foo $_\n", 1..10;
 my $lines = join('', @lines);
 
-my ($in, $pid) = $ssh->pipe_in("cat > $sq_cwd/test.dat");
+my ($in, $pid) = $ssh->pipe_in("$CAT > $sq_cwd/test.dat");
 ok($ssh->error == 0);
 ok($in);
 ok(defined $pid);
@@ -98,21 +104,21 @@ ok(!grep(/ssh/i, @ps));
 
 ok(-f "$cwd/test.dat");
 
-my ($output, $errput) = $ssh->capture2("cat $sq_cwd/test.dat");
+my ($output, $errput) = $ssh->capture2("$CAT $sq_cwd/test.dat");
 is($errput, '', "errput");
 is($output, $lines, "output") or diag $output;
 
-$output = $ssh->capture({stdin_data => \@lines}, "cat");
+$output = $ssh->capture({stdin_data => \@lines}, $CAT);
 is ($output, $lines);
 
-$output = $ssh->capture({stdin_data => \@lines, stderr_to_stdout => 1}, "cat >&2");
+$output = $ssh->capture({stdin_data => \@lines, stderr_to_stdout => 1}, "$CAT >&2");
 is ($output, $lines);
 
-($output, $errput) = $ssh->capture2("cat $sq_cwd/test.dat 1>&2");
+($output, $errput) = $ssh->capture2("$CAT $sq_cwd/test.dat 1>&2");
 is ($errput, $lines);
 is ($output, '');
 
-my $fh = $ssh->pipe_out("cat $sq_cwd/test.dat");
+my $fh = $ssh->pipe_out("$CAT $sq_cwd/test.dat");
 ok($fh, "pipe_out");
 $output = join('', <$fh>);
 is($output, $lines, "pipe_out lines");

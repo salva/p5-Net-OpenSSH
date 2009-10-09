@@ -1,6 +1,8 @@
 Revision history for Perl extension Net::OpenSSH.
 
 0.39
+	- on 1_run.t remote commands could be aliased bug (report and
+          patch by Danijel Tasov)
 	- add methods for external master PID handling
 	- add 'all' tag to Net::OpenSSH::Constants
 	- check SSH client version from Makefile.PL
