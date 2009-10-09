@@ -382,8 +382,11 @@ sub _kill_master {
     my $pid = delete $self->{_pid};
     $debug and $debug & 32 and _debug '_kill_master: ', $pid;
     if ($pid) {
+	require POSIX;
+	my $KILL = POSIX::SIGKILL();
+	my $TERM = POSIX::SIGTERM();
 	local $SIG{CHLD} = sub {};
-        for my $sig (0, 0, 1, 1, 1, 9, 9) {
+        for my $sig (0, 0, $TERM, $TERM, $TERM, $KILL, $KILL) {
             if ($sig) {
 		$debug and $debug & 32 and _debug "killing master with signal $sig";
 		kill $sig, $pid
