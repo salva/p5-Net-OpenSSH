@@ -1,14 +1,14 @@
 Revision history for Perl extension Net::OpenSSH.
 
-0.39
+0.39  Oct 10, 2009
 	- use SIGTERM instead of SIGHUP to kill lazy SSH master
 	- on 1_run.t remote commands could be aliased bug (report and
           patch by Danijel Tasov)
 	- add methods for external master PID handling
 	- add 'all' tag to Net::OpenSSH::Constants
 	- check SSH client version from Makefile.PL
-	- work around L<Foo::Bar> links in POD being rendered as the
-          Foo::Bar manpage by some POD backends.
+	- work around L<Foo::Bar> links in POD being rendered as "the
+          Foo::Bar manpage" by some POD backends.
 
 0.38  Sep 25, 2009
         - remove alpha-status warning from docs!
