@@ -1,6 +1,6 @@
 package Net::OpenSSH;
 
-our $VERSION = '0.39';
+our $VERSION = '0.40';
 
 use strict;
 use warnings;
@@ -2705,7 +2705,7 @@ L<http://github.com/salva/p5-Net-OpenSSH>
 
 - add C<scp_cat> and similar methods
 
-- write some kind of parallel queue manager module
+- async disconnect
 
 Send your feature requests, ideas or any feedback, please!
 
