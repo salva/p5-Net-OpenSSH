@@ -2707,6 +2707,8 @@ L<http://github.com/salva/p5-Net-OpenSSH>
 
 - async disconnect
 
+- currently wait_for_master does not honor timeout
+
 Send your feature requests, ideas or any feedback, please!
 
 =head1 COPYRIGHT AND LICENSE
