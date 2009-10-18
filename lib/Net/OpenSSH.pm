@@ -2484,7 +2484,7 @@ instead of the alias, the full path to the command must be used.
 The variable expansion feature allows to define variables that are
 expanded automatically inside command arguments and file paths.
 
-This feature is disabled by default as it is intended to be used with
+This feature is disabled by default. It is intended to be used with
 L<Net::OpenSSH::Parallel|Net::OpenSSH::Parallel> and other similar
 modules.
 
@@ -2510,8 +2510,8 @@ C</tmp/ls.out-server.foo.com-42> on the remote host.
 =head1 TROUBLESHOOTING
 
 Usually, Net::OpenSSH works out of the box, but when it fails, some
-users have a hard time finding the root of the problem. This
-mini troubleshooting guide should help to find it.
+users have a hard time finding the cause of the problem. This mini
+troubleshooting guide should help to find and solve it.
 
 =over 4
 
@@ -2653,8 +2653,12 @@ L<Expect|Expect> can be used to interact with commands run through
 this module on the remote machine (see also the C<expect.pl> script in
 the sample directory).
 
+L<SSH::OpenSSH::Parallel> is an advanced scheduler that allows to run
+commands in remote hosts in parallel. It is obviously based on
+L<Net::OpenSSH>.
+
 L<SSH::Batch|SSH::Batch> allows to run remote commands in parallel in
-a cluster. It is build on top on C<Net::OpenSSH>.
+a cluster. It is build on top on C<Net::OpenSSH> also.
 
 Other Perl SSH clients: L<Net::SSH::Perl|Net::SSH::Perl>,
 L<Net::SSH2|Net::SSH2>, L<Net::SSH|Net::SSH>,
