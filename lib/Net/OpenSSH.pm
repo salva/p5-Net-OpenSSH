@@ -317,8 +317,7 @@ sub _make_call {
     my @before = @{shift || []};
     my @args = ($self->{_ssh_cmd}, @before,
 		-S => $self->{_ctl_path},
-                @{$self->{_ssh_opts}}, '--', $self->{_host_ssh},
-                (@_ ? "@_" : ()));
+                @{$self->{_ssh_opts}}, '--', $self->{_host_ssh}, @_);
     $debug and $debug & 8 and _debug_dump 'call args' => \@args;
     @args;
 }
@@ -389,7 +388,7 @@ sub _kill_master {
         for my $sig (0, 0, $TERM, $TERM, $TERM, $KILL, $KILL) {
             if ($sig) {
 		$debug and $debug & 32 and _debug "killing master with signal $sig";
-		kill $sig, $pid
+		CORE::kill $sig, $pid
 		    or return;
 	    }
 	    for (0..5) {
@@ -628,8 +627,8 @@ sub _wait_for_master {
 }
 
 sub _master_ctl {
-    my ($self, $cmd) = @_;
-    $self->capture({stderr_to_stdout => 1, ssh_opts => [-O => $cmd]});
+    my ($self, $cmd, @args) = @_;
+    $self->capture({stderr_to_stdout => 1, ssh_opts => [-O => $cmd]}, @args);
 }
 
 sub _make_pipe {
@@ -1225,6 +1224,24 @@ sub capture2 {
     my @capture = $self->_io3($out, $err, $in, $stdin_data, $timeout);
     $self->_waitpid($pid);
     wantarray ? @capture : $capture[0];
+}
+
+sub kill {
+    my ($self, $signal, $pid) = @_;
+    $self->_master_ctl(kill => $signal, $pid);
+    return $? == 0;
+}
+
+sub ps {
+    my $self = shift;
+    my $ps = $self->_master_ctl('ps');
+    if (defined $ps and not $?) {
+	my @ps = split /\r?\n/, $ps;
+	wantarray ? @ps : scalar @ps;
+    }
+    else {
+	wantarray ? () : undef;
+    }
 }
 
 sub _calling_method {
