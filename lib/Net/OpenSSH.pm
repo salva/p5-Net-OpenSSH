@@ -2617,7 +2617,8 @@ running in the remote host. You can do it as follows:
       or die "unable to run remote command @cmd";
   my $expect = Expect->init($pty);
 
-Then, you will be able to use the new C<$expect> object as usual.
+Then, you will be able to use the new Expect object in C<$expect> as
+usual.
 
 =head2 Other modules
 
