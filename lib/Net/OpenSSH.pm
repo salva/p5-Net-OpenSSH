@@ -2608,6 +2608,19 @@ but you should not use it unless you understand its implications.
 
 =head1 3rd PARTY MODULE INTEGRATION
 
+=head2 Expect
+
+Sometimes you would like to use L<Expect> to control some program
+running in the remote host. You can do it as follows:
+
+  my ($pty, $pid) = $ssh->open2pty(@cmd)
+      or die "unable to run remote command @cmd";
+  my $expect = Expect->init($pty);
+
+Then, you will be able to use the new C<$expect> object as usual.
+
+=head2 Other modules
+
 CPAN contains several modules that rely on SSH to perform their duties
 as for example L<IPC::PerlSSH|IPC::PerlSSH> or
 L<GRID::Machine|GRID::Machine>.

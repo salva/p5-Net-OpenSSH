@@ -1,5 +1,8 @@
 Revision history for Perl extension Net::OpenSSH.
 
+0.40
+	- document how to integrate Net::OpenSSH with Expect
+
 0.39  Oct 10, 2009
 	- use SIGTERM instead of SIGHUP to kill lazy SSH master
 	- on 1_run.t remote commands could be aliased bug (report and
