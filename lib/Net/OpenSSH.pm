@@ -434,13 +434,17 @@ sub _connect {
     my ($self, $async) = @_;
     $self->_set_error;
 
+    my @master_opts = (@{$self->{_master_opts}}, '-xMN');
+
     my $mpty;
     if (defined $self->{_passwd}) {
         _load_module('IO::Pty');
         $self->{_mpty} = $mpty = IO::Pty->new;
+	push @master_opts, (-o => 'NumberOfPasswordPrompts=1',
+			    -o => 'PreferredAuthentications=password');
     }
 
-    my @call = $self->_make_call([@{$self->{_master_opts}}, '-xMN']);
+    my @call = $self->_make_call(\@master_opts);
 
     local $SIG{CHLD};
     my $pid = fork;

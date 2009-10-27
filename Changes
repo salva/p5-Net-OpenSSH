@@ -1,6 +1,8 @@
 Revision history for Perl extension Net::OpenSSH.
 
 0.40
+	- when password authentication is requested add flags to ssh
+          master command to disable other auth. options
 	- document how to integrate Net::OpenSSH with Expect
 
 0.39  Oct 10, 2009
