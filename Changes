@@ -2,6 +2,9 @@ Revision history for Perl extension Net::OpenSSH.
 
 0.40  Nov 14, 2009
         - DESTROY was clobbering $@ (bug report by Todd E. Rinaldo)
+	- when password authentication is requested add flags to ssh
+          master command to disable other auth. options
+	- document how to integrate Net::OpenSSH with Expect
 
 0.39  Oct 10, 2009
 	- use SIGTERM instead of SIGHUP to kill lazy SSH master

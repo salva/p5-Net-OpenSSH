@@ -434,13 +434,17 @@ sub _connect {
     my ($self, $async) = @_;
     $self->_set_error;
 
+    my @master_opts = (@{$self->{_master_opts}}, '-xMN');
+
     my $mpty;
     if (defined $self->{_passwd}) {
         _load_module('IO::Pty');
         $self->{_mpty} = $mpty = IO::Pty->new;
+	push @master_opts, (-o => 'NumberOfPasswordPrompts=1',
+			    -o => 'PreferredAuthentications=password');
     }
 
-    my @call = $self->_make_call([@{$self->{_master_opts}}, '-xMN']);
+    my @call = $self->_make_call(\@master_opts);
 
     local $SIG{CHLD};
     my $pid = fork;
@@ -2611,6 +2615,20 @@ but you should not use it unless you understand its implications.
 =back
 
 =head1 3rd PARTY MODULE INTEGRATION
+
+=head2 Expect
+
+Sometimes you would like to use L<Expect> to control some program
+running in the remote host. You can do it as follows:
+
+  my ($pty, $pid) = $ssh->open2pty(@cmd)
+      or die "unable to run remote command @cmd";
+  my $expect = Expect->init($pty);
+
+Then, you will be able to use the new Expect object in C<$expect> as
+usual.
+
+=head2 Other modules
 
 CPAN contains several modules that rely on SSH to perform their duties
 as for example L<IPC::PerlSSH|IPC::PerlSSH> or
