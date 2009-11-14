@@ -659,6 +659,9 @@ sub _load_module {
         1
     };
     if (defined $version) {
+	local $SIG{__DIE__};
+	local $SIG{__WARN__};
+	local $@;
 	my $mv = eval "\$${module}::VERSION" || 0;
 	(my $mv1 = $mv) =~ s/_\d*$//;
 	croak "$module version $version required, $mv is available"
@@ -1460,6 +1463,7 @@ sub DESTROY {
     if ($pid) {
         local $?;
 	local $!;
+	local $@;
 
 	unless ($self->{_wfm_status}) {
 	    # we have successfully created the master connection so we
