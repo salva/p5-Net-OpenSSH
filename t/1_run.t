@@ -47,17 +47,19 @@ if ($ssh->error and $num > 4.7) {
 	chmod 0600, "$here/test_user_key", "$here/test_server_key";;
 
 	my @sshd_cmd = ($sshd_cmd, '-i',
-			 -h => "$here/test_server_key",
-			 -o => "AuthorizedKeysFile $here/test_user_key.pub",
-			 -o => "StrictModes no",
-			 -o => "PasswordAuthentication no",
-			 -o => "PermitRootLogin yes");
+			-h => "$here/test_server_key",
+			-o => "AuthorizedKeysFile $here/test_user_key.pub",
+			-o => "StrictModes no",
+			-o => "PasswordAuthentication no",
+			-o => "PermitRootLogin yes");
 	s/(\W)/\\$1/g for @sshd_cmd;
 
 	$ssh = Net::OpenSSH->new('localhost', timeout => $timeout, strict_mode => 0,
 				 master_opts => [-o => "ProxyCommand @sshd_cmd",
 						 -o => "StrictHostKeyChecking no",
 						 -o => "NoHostAuthenticationForLocalhost yes",
+						 -o => "UserKnownHostsFile $here/known_hosts",
+						 -o => "GlobalKnownHostsFile $here/known_hosts",
 						 -i => "$here/test_user_key"]);
     }
     else {
