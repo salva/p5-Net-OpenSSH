@@ -1,7 +1,9 @@
 Revision history for Perl extension Net::OpenSSH.
 
-0.41_01 Nov 16, 2009
-	- Allow also keyboard-interactive authentication when password
+0.41_03 Nov 16, 2009
+	- add testing known_hosts to MANIFEST
+	- some bits where missing from 0.40
+	- allow also keyboard-interactive authentication when password
           is given (bug report by Todd E. Rinaldo)
 
 0.40  Nov 14, 2009

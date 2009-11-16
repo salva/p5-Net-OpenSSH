@@ -11,4 +11,5 @@ t/test_server_key
 t/test_server_key.pub
 t/test_user_key
 t/test_user_key.pub
+t/known_hosts
 sample/expect.pl
