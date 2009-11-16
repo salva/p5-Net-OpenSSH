@@ -1,6 +1,6 @@
 package Net::OpenSSH;
 
-our $VERSION = '0.40';
+our $VERSION = '0.41_01';
 
 use strict;
 use warnings;
@@ -441,7 +441,7 @@ sub _connect {
         _load_module('IO::Pty');
         $self->{_mpty} = $mpty = IO::Pty->new;
 	push @master_opts, (-o => 'NumberOfPasswordPrompts=1',
-			    -o => 'PreferredAuthentications=password');
+			    -o => 'PreferredAuthentications=keyboard-interactive,password');
     }
 
     my @call = $self->_make_call(\@master_opts);

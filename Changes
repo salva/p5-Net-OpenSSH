@@ -1,5 +1,9 @@
 Revision history for Perl extension Net::OpenSSH.
 
+0.41_01 Nov 16, 2009
+	- Allow also keyboard-interactive authentication when password
+          is given (bug report by Todd E. Rinaldo)
+
 0.40  Nov 14, 2009
         - DESTROY was clobbering $@ (bug report by Todd E. Rinaldo)
 	- when password authentication is requested add flags to ssh
