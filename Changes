@@ -1,5 +1,9 @@
 Revision history for Perl extension Net::OpenSSH.
 
+0.42_03
+	- add commercial support offering
+	- add pointer to my wishlist :-)
+
 0.41_03 Nov 16, 2009
 	- add testing known_hosts to MANIFEST
 	- some bits where missing from 0.40
