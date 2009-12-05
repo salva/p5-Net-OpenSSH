@@ -1,6 +1,7 @@
 Revision history for Perl extension Net::OpenSSH.
 
-0.42_03
+0.42  Dec 5, 2009
+        - add FAQ section
 	- add commercial support offering
 	- add pointer to my wishlist :-)
 

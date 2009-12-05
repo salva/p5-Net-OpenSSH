@@ -1,6 +1,6 @@
 package Net::OpenSSH;
 
-our $VERSION = '0.41_03';
+our $VERSION = '0.42';
 
 use strict;
 use warnings;
@@ -1589,7 +1589,8 @@ Being based on OpenSSH is also an advantage: a proved, stable, secure
 (to paranoic levels), interoperable and well maintained implementation
 of the SSH protocol is used.
 
-On the other hand, Net::OpenSSH does not work on Windows.
+On the other hand, Net::OpenSSH does not work on Windows, not even
+under Cygwin.
 
 Net::OpenSSH specifically requires the OpenSSH SSH client (AFAIK, the
 multiplexing feature is not available from any other SSH
@@ -2658,6 +2659,72 @@ In other cases, some kind of plugin mechanism is provided by the 3rd
 party modules to allow for different transports. The method C<open2>
 may be used to create a pair of pipes for transport in these cases.
 
+=head1 FAQ
+
+Frequent question about the module:
+
+=over
+
+=item Connecting to switches, routers, etc.
+
+B<Q>: I can't get the method C<system>, C<capture>, etc., to work when
+connecting to some router, switch, etc. What I am doing wrong?
+
+B<A>: Roughly, the SSH protocol allows for two modes of operation:
+command mode and interactive mode.
+
+Command mode is designed to run single commands on the remote host. It
+opens an SSH channel between both hosts, ask the remote computer to
+run some given command and when it finnish the channel is closed. It
+is what you get, for instance, when you run somthing as...
+
+  $ ssh my.unix.box cat foo.txt
+
+... and it is also the way Net::OpenSSH runs commands on the remote
+host.
+
+Interactive mode launches a shell on the remote hosts with its stdio
+streams redirected to the local ones so that the user can
+transparently interact with it.
+
+Some devices (as probably the one you are using) do not run an
+standard, general purpose shell (i.e. C<bash>, C<csh> or C<ksh>) but
+some custom program specially targeted and limited to the task of
+configuring the device.
+
+Usually, the SSH server running on these devices does not support
+command mode. It unconditionally attachs the restricted shell to any
+incomming SSH connection and waits for the user to enter commands
+through the redirected stdin stream.
+
+The only way to workaround this limitation is to make your script talk
+to the restricted shell (1-open a new SSH session, 2-wait for the
+shell prompt, 3-send a command, 4-read the output until you get to the
+shell prompt again, repeat from 3). The best tool for this task is
+probably L<Expect>, used alone, as wrapped by L<Net::SSH::Expect> or
+combined with Net::OpenSSH (see L</Expect>).
+
+=item Connection fails
+
+B<Q>: I am unable to make the module connect to the remote host...
+
+B<A>: Have you read the trubleshooting section? (see L</troubleshooting>).
+
+=item Disable StrictHostKeyChecking
+
+B<Q>: Why don't you run C<ssh> with C<StrictHostKeyChecking=no>?
+
+B<A>: Using C<StrictHostKeyChecking=no> relaxes the default security
+level of SSH and it will be relatively easy to end with a
+misconfigured SSH (for instance, when C<known_hosts> is unwriteable)
+that could be forged to connect to a bad host in order to perform
+man-in-the-middle attacks, etc.
+
+I advice you to do not use that option unless you fully understand its
+implications from a security point of view.
+
+=back
+
 =head1 SEE ALSO
 
 OpenSSH client documentation: L<ssh(1)>, L<ssh_config(5)>.
@@ -2697,8 +2764,8 @@ C<Net::OpenSSH> to handle the connections.
 Variable expansion feature is highly experimental.
 
 Does not work on Windows. OpenSSH multiplexing feature requires
-passing file handles through sockets but that is not supported by
-Windows.
+passing file handles through sockets something that is not supported
+by any version of Windows.
 
 Doesn't work on VMS either... well, actually, it probably doesn't work
 on anything not resembling a modern Linux/Unix OS.
