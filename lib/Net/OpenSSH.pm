@@ -45,7 +45,7 @@ sub _hexdump {
         $good{__PACKAGE__ . "::$sub"} = { map { $_ => 1 } @_ };
     }
 
-    sub _croak_bad_options (\%;$) {
+    sub _croak_bad_options (\%) {
         my $opts = shift;
         if (%$opts) {
 	    my $sub = (caller 1)[3];
@@ -1653,7 +1653,7 @@ has to be performed explicitly afterwards:
   $ssh->error and die "Can't ssh to $host: " . $ssh->error;
 
 If you have problems getting Net::OpenSSH to connect to the remote
-host read the troubleshotting chapter near the end of this document.
+host read the troubleshooting chapter near the end of this document.
 
 Accepted options:
 
@@ -2676,7 +2676,7 @@ command mode and interactive mode.
 Command mode is designed to run single commands on the remote host. It
 opens an SSH channel between both hosts, ask the remote computer to
 run some given command and when it finnish the channel is closed. It
-is what you get, for instance, when you run somthing as...
+is what you get, for instance, when you run something as...
 
   $ ssh my.unix.box cat foo.txt
 
@@ -2708,7 +2708,8 @@ combined with Net::OpenSSH (see L</Expect>).
 
 B<Q>: I am unable to make the module connect to the remote host...
 
-B<A>: Have you read the trubleshooting section? (see L</troubleshooting>).
+B<A>: Have you read the trubleshooting section? (see
+L</TROUBLESHOOTING>).
 
 =item Disable StrictHostKeyChecking
 
