@@ -1,5 +1,10 @@
 Revision history for Perl extension Net::OpenSSH.
 
+0.43  Dec 14, 2009
+        - call ssh with -tt instead of -t to force remote tty
+          allocation even when stdin is not attached to one locally
+          (bug report by Todd E. Rinaldo)
+
 0.42  Dec 5, 2009
         - add FAQ section
 	- add commercial support offering

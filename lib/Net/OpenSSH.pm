@@ -1,6 +1,6 @@
 package Net::OpenSSH;
 
-our $VERSION = '0.42';
+our $VERSION = '0.43';
 
 use strict;
 use warnings;
@@ -767,7 +767,7 @@ sub make_remote_command {
     my @args = $self->_quote_args(\%opts, @_);
     _croak_bad_options %opts;
     my @ssh_opts;
-    push @ssh_opts, ($tty ? '-qt' : '-T') if defined $tty;
+    push @ssh_opts, ($tty ? '-qtt' : '-T') if defined $tty;
     my @call = $self->_make_call(\@ssh_opts, @args);
     if (wantarray) {
 	$debug and $debug & 16 and _debug_dump make_remote_command => \@call;
@@ -858,7 +858,7 @@ sub open_ex {
 
     my ($rin, $win, $rout, $wout, $rerr, $werr);
 
-    push @ssh_opts, ($tty ? '-qt' : '-T') if defined $tty;
+    push @ssh_opts, ($tty ? '-qtt' : '-T') if defined $tty;
 
     if ($stdin_pipe) {
         ($rin, $win) = $self->_make_pipe(@error_prefix) or return;
