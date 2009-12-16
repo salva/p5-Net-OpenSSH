@@ -1,6 +1,6 @@
 package Net::OpenSSH;
 
-our $VERSION = '0.43';
+our $VERSION = '0.44';
 
 use strict;
 use warnings;
@@ -1916,7 +1916,7 @@ a tty is allocated if remote command stdin stream is attached to a
 tty.
 
 When this flag is set and stdin is not attached to a tty, the ssh
-master and slave processes may generate spourios warnings about failed
+master and slave processes may generate spurious warnings about failed
 tty operations. This is a bug on OpenSSH.
 
 =item close_slave_pty => 0
