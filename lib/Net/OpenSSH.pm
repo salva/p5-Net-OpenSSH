@@ -1915,6 +1915,10 @@ Tells ssh to allocate a pseudo-tty for the remote process. By default,
 a tty is allocated if remote command stdin stream is attached to a
 tty.
 
+When this flag is set and stdin is not attached to a tty, the ssh
+master and slave processes may generate spourios warnings about failed
+tty operations. This is a bug on OpenSSH.
+
 =item close_slave_pty => 0
 
 When a pseudo pty is used for the stdin stream, the slave side is
