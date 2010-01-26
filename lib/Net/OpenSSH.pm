@@ -1,6 +1,6 @@
 package Net::OpenSSH;
 
-our $VERSION = '0.40';
+our $VERSION = '0.44';
 
 use strict;
 use warnings;
@@ -45,7 +45,7 @@ sub _hexdump {
         $good{__PACKAGE__ . "::$sub"} = { map { $_ => 1 } @_ };
     }
 
-    sub _croak_bad_options (\%;$) {
+    sub _croak_bad_options (\%) {
         my $opts = shift;
         if (%$opts) {
 	    my $sub = (caller 1)[3];
@@ -441,7 +441,7 @@ sub _connect {
         _load_module('IO::Pty');
         $self->{_mpty} = $mpty = IO::Pty->new;
 	push @master_opts, (-o => 'NumberOfPasswordPrompts=1',
-			    -o => 'PreferredAuthentications=password');
+			    -o => 'PreferredAuthentications=keyboard-interactive,password');
     }
 
     my @call = $self->_make_call(\@master_opts);
@@ -663,6 +663,9 @@ sub _load_module {
         1
     };
     if (defined $version) {
+	local $SIG{__DIE__};
+	local $SIG{__WARN__};
+	local $@;
 	my $mv = eval "\$${module}::VERSION" || 0;
 	(my $mv1 = $mv) =~ s/_\d*$//;
 	croak "$module version $version required, $mv is available"
@@ -764,7 +767,7 @@ sub make_remote_command {
     my @args = $self->_quote_args(\%opts, @_);
     _croak_bad_options %opts;
     my @ssh_opts;
-    push @ssh_opts, ($tty ? '-qt' : '-T') if defined $tty;
+    push @ssh_opts, ($tty ? '-qtt' : '-T') if defined $tty;
     my @call = $self->_make_call(\@ssh_opts, @args);
     if (wantarray) {
 	$debug and $debug & 16 and _debug_dump make_remote_command => \@call;
@@ -855,7 +858,7 @@ sub open_ex {
 
     my ($rin, $win, $rout, $wout, $rerr, $werr);
 
-    push @ssh_opts, ($tty ? '-qt' : '-T') if defined $tty;
+    push @ssh_opts, ($tty ? '-qtt' : '-T') if defined $tty;
 
     if ($stdin_pipe) {
         ($rin, $win) = $self->_make_pipe(@error_prefix) or return;
@@ -1471,6 +1474,7 @@ sub DESTROY {
     if ($pid) {
         local $?;
 	local $!;
+	local $@;
 
 	unless ($self->{_wfm_status}) {
 	    # we have successfully created the master connection so we
@@ -1592,7 +1596,8 @@ Being based on OpenSSH is also an advantage: a proved, stable, secure
 (to paranoic levels), interoperable and well maintained implementation
 of the SSH protocol is used.
 
-On the other hand, Net::OpenSSH does not work on Windows.
+On the other hand, Net::OpenSSH does not work on Windows, not even
+under Cygwin.
 
 Net::OpenSSH specifically requires the OpenSSH SSH client (AFAIK, the
 multiplexing feature is not available from any other SSH
@@ -1655,7 +1660,7 @@ has to be performed explicitly afterwards:
   $ssh->error and die "Can't ssh to $host: " . $ssh->error;
 
 If you have problems getting Net::OpenSSH to connect to the remote
-host read the troubleshotting chapter near the end of this document.
+host read the troubleshooting chapter near the end of this document.
 
 Accepted options:
 
@@ -1916,6 +1921,10 @@ Makes stderr point to stdout.
 Tells ssh to allocate a pseudo-tty for the remote process. By default,
 a tty is allocated if remote command stdin stream is attached to a
 tty.
+
+When this flag is set and stdin is not attached to a tty, the ssh
+master and slave processes may generate spurious warnings about failed
+tty operations. This is a bug on OpenSSH.
 
 =item close_slave_pty => 0
 
@@ -2495,7 +2504,7 @@ instead of the alias, the full path to the command must be used.
 The variable expansion feature allows to define variables that are
 expanded automatically inside command arguments and file paths.
 
-This feature is disabled by default as it is intended to be used with
+This feature is disabled by default. It is intended to be used with
 L<Net::OpenSSH::Parallel|Net::OpenSSH::Parallel> and other similar
 modules.
 
@@ -2521,8 +2530,8 @@ C</tmp/ls.out-server.foo.com-42> on the remote host.
 =head1 TROUBLESHOOTING
 
 Usually, Net::OpenSSH works out of the box, but when it fails, some
-users have a hard time finding the root of the problem. This
-mini troubleshooting guide should help to find it.
+users have a hard time finding the cause of the problem. This mini
+troubleshooting guide should help to find and solve it.
 
 =over 4
 
@@ -2661,6 +2670,73 @@ In other cases, some kind of plugin mechanism is provided by the 3rd
 party modules to allow for different transports. The method C<open2>
 may be used to create a pair of pipes for transport in these cases.
 
+=head1 FAQ
+
+Frequent question about the module:
+
+=over
+
+=item Connecting to switches, routers, etc.
+
+B<Q>: I can't get the method C<system>, C<capture>, etc., to work when
+connecting to some router, switch, etc. What I am doing wrong?
+
+B<A>: Roughly, the SSH protocol allows for two modes of operation:
+command mode and interactive mode.
+
+Command mode is designed to run single commands on the remote host. It
+opens an SSH channel between both hosts, ask the remote computer to
+run some given command and when it finnish the channel is closed. It
+is what you get, for instance, when you run something as...
+
+  $ ssh my.unix.box cat foo.txt
+
+... and it is also the way Net::OpenSSH runs commands on the remote
+host.
+
+Interactive mode launches a shell on the remote hosts with its stdio
+streams redirected to the local ones so that the user can
+transparently interact with it.
+
+Some devices (as probably the one you are using) do not run an
+standard, general purpose shell (i.e. C<bash>, C<csh> or C<ksh>) but
+some custom program specially targeted and limited to the task of
+configuring the device.
+
+Usually, the SSH server running on these devices does not support
+command mode. It unconditionally attachs the restricted shell to any
+incomming SSH connection and waits for the user to enter commands
+through the redirected stdin stream.
+
+The only way to workaround this limitation is to make your script talk
+to the restricted shell (1-open a new SSH session, 2-wait for the
+shell prompt, 3-send a command, 4-read the output until you get to the
+shell prompt again, repeat from 3). The best tool for this task is
+probably L<Expect>, used alone, as wrapped by L<Net::SSH::Expect> or
+combined with Net::OpenSSH (see L</Expect>).
+
+=item Connection fails
+
+B<Q>: I am unable to make the module connect to the remote host...
+
+B<A>: Have you read the trubleshooting section? (see
+L</TROUBLESHOOTING>).
+
+=item Disable StrictHostKeyChecking
+
+B<Q>: Why don't you run C<ssh> with C<StrictHostKeyChecking=no>?
+
+B<A>: Using C<StrictHostKeyChecking=no> relaxes the default security
+level of SSH and it will be relatively easy to end with a
+misconfigured SSH (for instance, when C<known_hosts> is unwriteable)
+that could be forged to connect to a bad host in order to perform
+man-in-the-middle attacks, etc.
+
+I advice you to do not use that option unless you fully understand its
+implications from a security point of view.
+
+=back
+
 =head1 SEE ALSO
 
 OpenSSH client documentation: L<ssh(1)>, L<ssh_config(5)>.
@@ -2678,8 +2754,12 @@ L<Expect|Expect> can be used to interact with commands run through
 this module on the remote machine (see also the C<expect.pl> script in
 the sample directory).
 
+L<SSH::OpenSSH::Parallel> is an advanced scheduler that allows to run
+commands in remote hosts in parallel. It is obviously based on
+L<Net::OpenSSH>.
+
 L<SSH::Batch|SSH::Batch> allows to run remote commands in parallel in
-a cluster. It is build on top on C<Net::OpenSSH>.
+a cluster. It is build on top on C<Net::OpenSSH> also.
 
 Other Perl SSH clients: L<Net::SSH::Perl|Net::SSH::Perl>,
 L<Net::SSH2|Net::SSH2>, L<Net::SSH|Net::SSH>,
@@ -2696,8 +2776,8 @@ C<Net::OpenSSH> to handle the connections.
 Variable expansion feature is highly experimental.
 
 Does not work on Windows. OpenSSH multiplexing feature requires
-passing file handles through sockets but that is not supported by
-Windows.
+passing file handles through sockets something that is not supported
+by any version of Windows.
 
 Doesn't work on VMS either... well, actually, it probably doesn't work
 on anything not resembling a modern Linux/Unix OS.
@@ -2715,6 +2795,18 @@ request for help I get by email!
 
 The source code of this module is hosted at GitHub:
 L<http://github.com/salva/p5-Net-OpenSSH>
+
+=head2 Commercial support
+
+Commercial support, professional services and custom software
+development around this module are available through my current
+company. Drop me an email with a rough description of your
+requirements and we will get back to you ASAP.
+
+=head2 My wishlist
+
+If you like this module and you're feeling generous, take a look at my
+Amazon Wish List: L<http://amzn.com/w/1WU1P6IR5QZ42>
 
 =head1 TODO
 

@@ -47,17 +47,19 @@ if ($ssh->error and $num > 4.7) {
 	chmod 0600, "$here/test_user_key", "$here/test_server_key";;
 
 	my @sshd_cmd = ($sshd_cmd, '-i',
-			 -h => "$here/test_server_key",
-			 -o => "AuthorizedKeysFile $here/test_user_key.pub",
-			 -o => "StrictModes no",
-			 -o => "PasswordAuthentication no",
-			 -o => "PermitRootLogin yes");
+			-h => "$here/test_server_key",
+			-o => "AuthorizedKeysFile $here/test_user_key.pub",
+			-o => "StrictModes no",
+			-o => "PasswordAuthentication no",
+			-o => "PermitRootLogin yes");
 	s/(\W)/\\$1/g for @sshd_cmd;
 
 	$ssh = Net::OpenSSH->new('localhost', timeout => $timeout, strict_mode => 0,
 				 master_opts => [-o => "ProxyCommand @sshd_cmd",
 						 -o => "StrictHostKeyChecking no",
 						 -o => "NoHostAuthenticationForLocalhost yes",
+						 -o => "UserKnownHostsFile $here/known_hosts",
+						 -o => "GlobalKnownHostsFile $here/known_hosts",
 						 -i => "$here/test_user_key"]);
     }
     else {
@@ -68,7 +70,7 @@ if ($ssh->error and $num > 4.7) {
 plan skip_all => 'Unable to establish SSH connection to localhost!'
     if $ssh->error;
 
-plan tests => 26;
+plan tests => 27;
 
 sub shell_quote {
     my $txt = shift;
@@ -142,3 +144,10 @@ is ($ssh->shell_quote(\\'foo%FOO%foo%%foo'), 'fooBarfoo%foo');
 is ($ssh->shell_quote('foo%FOO%foo%%foo'), 'fooBarfoo\%foo');
 $ssh->set_expand_vars(0);
 is ($ssh->shell_quote(\\'foo%FOO%foo%%foo'), 'foo%FOO%foo%%foo');
+
+eval {
+    my $ssh2 = $ssh;
+    undef $ssh;
+    die "some text";
+};
+like($@, qr/^some text/, 'DESTROY should not clobber $@');
