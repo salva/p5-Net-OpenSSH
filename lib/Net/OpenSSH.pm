@@ -499,7 +499,7 @@ sub _waitpid {
 	    next if $! == Errno::EINTR();
 	    if ($! == Errno::ECHILD) {
 		$self->_or_set_error(OSSH_SLAVE_FAILED,
-				     @_, "child process $pid does not exists", $!);
+				     @_, "child process $pid does not exist", $!);
 		return undef
 	    }
 	    warn "Internal error: unexpected error (".($!+0).": $!) from waitpid($pid) = $r. Report it, please!";
