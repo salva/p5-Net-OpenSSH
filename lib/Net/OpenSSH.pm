@@ -1385,8 +1385,15 @@ sub _rsync {
 
     my @opts = qw(--blocking-io) ;
     push @opts, '-q' if $quiet;
-    push @opts, '-v' if $verbose;
     push @opts, '-p' if $copy_attrs;
+    if ($verbose) {
+	if ($verbose =~ /^\d+$/) {
+	    push @opts, '-' . ('v' x $verbose);
+	}
+	else {
+	    push @opts, '-v';
+	}
+    }
 
     my %opts_open_ex = ( _cmd => 'rsync',
 			 _error_prefix => 'rsync command failed',
@@ -1402,7 +1409,7 @@ sub _rsync {
 		my $opt1 = $opt;
 		$opt1 =~ tr/_/-/;
 		$rsync_opt_forbiden{$opt1} and croak "forbiden rsync option '$opt' used";
-		if ($rsync_opt_with_arg{$opt}) {
+		if ($rsync_opt_with_arg{$opt1}) {
 		    push @opts, "--$opt1=$_" for _array_or_scalar($value)
 		}
 		else {
