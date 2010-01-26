@@ -1969,8 +1969,10 @@ Example:
   $ssh->system('ls -R /')
     or die "ls failed: " . $ssh->error";
 
-As for C<system> builtin, C<SIGINT> and C<SIGQUIT> signals are blocked
-(see L<perlfunc/system>).
+As for C<system> builtin, C<SIGINT> and C<SIGQUIT> signals are
+blocked.  (see L<perlfunc/system>). Also, setting C<$SIG{CHLD}> to
+C<IGNORE> or to a custom signal handler will interfere with this
+method.
 
 Accepted options:
 
@@ -2053,6 +2055,9 @@ method. For instance:
       warn "operation didn't complete successfully: ". $ssh->error;
   print $output;
 
+Setting C<$SIG{CHLD}> to a custom signal handler or to C<IGNORE> will
+interfere with this method.
+
 Accepted options:
 
 =over 4
@@ -2087,6 +2092,9 @@ options.
 
 captures the output sent to both stdout and stderr by C<@cmd> on the
 remote machine.
+
+Setting C<$SIG{CHLD}> to a custom signal handler or to C<IGNORE> will
+also interfere with this method.
 
 The accepted options are:
 
@@ -2726,6 +2734,18 @@ man-in-the-middle attacks, etc.
 
 I advice you to do not use that option unless you fully understand its
 implications from a security point of view.
+
+=item child process 14947 does not exist: No child processes
+
+B<Q>: Calls to C<system>, C<capture> or C<capture2> fail with the
+previous error, what I am doing wrong?
+
+B<A>: That usually happens when C<$SIG{CHLD}> is set to C<IGNORE> or
+to some custom handler reaping child processes by itself. In order to
+solve the problem just disable the handler during the method call:
+
+  local $SIG{CHLD};
+  $ssh->system($cmd);
 
 =back
 

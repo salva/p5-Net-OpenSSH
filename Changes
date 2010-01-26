@@ -1,6 +1,7 @@
 Revision history for Perl extension Net::OpenSSH.
 
 0.45
+        - document how $SIG{CHLD} can break some methods and add FAQ
         - some typos corrected
 	- update copyright notices
 
