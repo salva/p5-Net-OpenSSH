@@ -1389,14 +1389,7 @@ sub _rsync {
     my @opts = qw(--blocking-io) ;
     push @opts, '-q' if $quiet;
     push @opts, '-p' if $copy_attrs;
-    if ($verbose) {
-	if ($verbose =~ /^\d+$/) {
-	    push @opts, '-' . ('v' x $verbose);
-	}
-	else {
-	    push @opts, '-v';
-	}
-    }
+    push @opts, '-' . ($verbose =~ /^\d+$/ ? 'v' x $verbose : 'v') if $verbose;
 
     my %opts_open_ex = ( _cmd => 'rsync',
 			 _error_prefix => 'rsync command failed',
@@ -2294,7 +2287,6 @@ For instance:
                    safe_links => 1},
                   '/remote/dir', '/local/dir');
 
-
 =item $sftp = $ssh->sftp(%sftp_opts)
 
 Creates a new L<Net::SFTP::Foreign|Net::SFTP::Foreign> object for SFTP interaction that
@@ -2830,7 +2822,8 @@ Send your feature requests, ideas or any feedback, please!
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright (C) 2008, 2009 by Salvador FandiE<ntilde>o (sfandino@yahoo.com)
+Copyright (C) 2008-2010 by Salvador FandiE<ntilde>o
+(sfandino@yahoo.com)
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself, either Perl version 5.10.0 or,

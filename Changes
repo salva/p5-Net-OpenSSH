@@ -1,6 +1,10 @@
 Revision history for Perl extension Net::OpenSSH.
 
-0.44
+0.44  Jan 26, 2009
+	- solve bug on rsync methods not correctly handling
+          pass-through options carrying an argument (bug report by
+          Daiju Kito)
+	- support several verbose levels in rsync methods
 	- document spurious warnings that appear when tty => 1 is
           given and stdin is not attached to a tty
 

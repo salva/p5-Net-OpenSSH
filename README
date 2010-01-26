@@ -21,12 +21,12 @@ This module requires these other modules and libraries:
   IO::Pty (optional, required for password authentication)
   Net::SFTP::Foreign (optional, required for SFTP support)
 
-  OpenSSH binary client version 4.1 or later, 5.1 recommended.
+  OpenSSH binary client version 4.1 or later, 5.3 recommended.
 
 
 COPYRIGHT AND LICENCE
 
-Copyright (C) 2008, 2009 by Salvador Fandino
+Copyright (C) 2008-2010 by Salvador Fandino
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself, either Perl version 5.10.0 or,
