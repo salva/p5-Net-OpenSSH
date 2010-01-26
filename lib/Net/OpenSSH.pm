@@ -1,6 +1,6 @@
 package Net::OpenSSH;
 
-our $VERSION = '0.42';
+our $VERSION = '0.44';
 
 use strict;
 use warnings;
@@ -767,7 +767,7 @@ sub make_remote_command {
     my @args = $self->_quote_args(\%opts, @_);
     _croak_bad_options %opts;
     my @ssh_opts;
-    push @ssh_opts, ($tty ? '-qt' : '-T') if defined $tty;
+    push @ssh_opts, ($tty ? '-qtt' : '-T') if defined $tty;
     my @call = $self->_make_call(\@ssh_opts, @args);
     if (wantarray) {
 	$debug and $debug & 16 and _debug_dump make_remote_command => \@call;
@@ -858,7 +858,7 @@ sub open_ex {
 
     my ($rin, $win, $rout, $wout, $rerr, $werr);
 
-    push @ssh_opts, ($tty ? '-qt' : '-T') if defined $tty;
+    push @ssh_opts, ($tty ? '-qtt' : '-T') if defined $tty;
 
     if ($stdin_pipe) {
         ($rin, $win) = $self->_make_pipe(@error_prefix) or return;
@@ -1388,8 +1388,8 @@ sub _rsync {
 
     my @opts = qw(--blocking-io) ;
     push @opts, '-q' if $quiet;
-    push @opts, '-v' if $verbose;
     push @opts, '-p' if $copy_attrs;
+    push @opts, '-' . ($verbose =~ /^\d+$/ ? 'v' x $verbose : 'v') if $verbose;
 
     my %opts_open_ex = ( _cmd => 'rsync',
 			 _error_prefix => 'rsync command failed',
@@ -1405,7 +1405,7 @@ sub _rsync {
 		my $opt1 = $opt;
 		$opt1 =~ tr/_/-/;
 		$rsync_opt_forbiden{$opt1} and croak "forbiden rsync option '$opt' used";
-		if ($rsync_opt_with_arg{$opt}) {
+		if ($rsync_opt_with_arg{$opt1}) {
 		    push @opts, "--$opt1=$_" for _array_or_scalar($value)
 		}
 		else {
@@ -1915,6 +1915,10 @@ Tells ssh to allocate a pseudo-tty for the remote process. By default,
 a tty is allocated if remote command stdin stream is attached to a
 tty.
 
+When this flag is set and stdin is not attached to a tty, the ssh
+master and slave processes may generate spurious warnings about failed
+tty operations. This is a bug on OpenSSH.
+
 =item close_slave_pty => 0
 
 When a pseudo pty is used for the stdin stream, the slave side is
@@ -2282,7 +2286,6 @@ For instance:
                    verbose => 1,
                    safe_links => 1},
                   '/remote/dir', '/local/dir');
-
 
 =item $sftp = $ssh->sftp(%sftp_opts)
 
@@ -2819,7 +2822,8 @@ Send your feature requests, ideas or any feedback, please!
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright (C) 2008, 2009 by Salvador FandiE<ntilde>o (sfandino@yahoo.com)
+Copyright (C) 2008-2010 by Salvador FandiE<ntilde>o
+(sfandino@yahoo.com)
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself, either Perl version 5.10.0 or,
