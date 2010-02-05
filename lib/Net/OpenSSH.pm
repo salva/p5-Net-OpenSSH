@@ -1463,11 +1463,11 @@ sub sftp {
 sub DESTROY {
     my $self = shift;
     my $pid = $self->{_pid};
-    $debug and $debug & 2 and _debug("DESTROY($self, pid => ".(defined $pid ? $pid : undef).")");
+    local $@;
+    $debug and $debug & 2 and _debug("DESTROY($self, pid => ".(defined $pid ? $pid : '<undef>').")");
     if ($pid) {
         local $?;
 	local $!;
-	local $@;
 
 	unless ($self->{_wfm_status}) {
 	    # we have successfully created the master connection so we
