@@ -686,6 +686,7 @@ sub _arg_quoter {
 sub _arg_quoter_glob {
     sub {
 	my $arg = shift;
+	return "''" if $arg eq '';
         $arg =~ s|(?<!\\)([^\w/\-+=*?\[\],{}:\@!.^\\~])|\\$1|g;
 	$arg;
     }
@@ -2404,13 +2405,12 @@ Take for example Net::OpenSSH L</system> method:
   $ssh->system("ls -l *");
   $ssh->system('ls', '-l', '/');
 
-The first call passes the argument unchanged to ssh, so that it is
-executed in the remote side through the shell which interprets shell
-metacharacters.
+The first call passes the argument unchanged to ssh and it is executed
+in the remote side through the shell which interprets metacharacters.
 
-The second call escapes especial shell characters so that,
-effectively, it is equivalent to calling the command directly and not
-through the shell.
+The second call escapes any shell metacharacters so that, effectively,
+it is equivalent to calling the command directly and not through the
+shell.
 
 Under the hood, as the Secure Shell protocol does not provide for this
 mode of operation and always spawns a new shell where it runs the

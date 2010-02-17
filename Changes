@@ -1,6 +1,8 @@
 Revision history for Perl extension Net::OpenSSH.
 
 0.44
+
+	- bug in glob_quoter incorrectly handling empty strings solved
 	- document spurious warnings that appear when tty => 1 is
           given and stdin is not attached to a tty
 
