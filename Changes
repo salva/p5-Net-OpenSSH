@@ -1,8 +1,6 @@
 Revision history for Perl extension Net::OpenSSH.
 
-
-
-0.45
+0.45  Feb 17, 2010
 	- support for taint mode
 	- use better IPv6 regexp
 	- bug in glob_quoter incorrectly handling empty strings solved
@@ -10,7 +8,7 @@ Revision history for Perl extension Net::OpenSSH.
         - some typos corrected
 	- update copyright notices
 
-0.44  Jan 26, 2009
+0.44  Jan 26, 2010
 	- solve bug on rsync methods not correctly handling
           pass-through options carrying an argument (bug report by
           Daiju Kito)
