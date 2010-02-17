@@ -499,7 +499,7 @@ sub _waitpid {
 	    next if $! == Errno::EINTR();
 	    if ($! == Errno::ECHILD) {
 		$self->_or_set_error(OSSH_SLAVE_FAILED,
-				     @_, "child process $pid does not exists", $!);
+				     @_, "child process $pid does not exist", $!);
 		return undef
 	    }
 	    warn "Internal error: unexpected error (".($!+0).": $!) from waitpid($pid) = $r. Report it, please!";
@@ -1389,8 +1389,8 @@ sub _rsync {
 
     my @opts = qw(--blocking-io) ;
     push @opts, '-q' if $quiet;
-    push @opts, '-v' if $verbose;
     push @opts, '-p' if $copy_attrs;
+    push @opts, '-' . ($verbose =~ /^\d+$/ ? 'v' x $verbose : 'v') if $verbose;
 
     my %opts_open_ex = ( _cmd => 'rsync',
 			 _error_prefix => 'rsync command failed',
@@ -1406,7 +1406,7 @@ sub _rsync {
 		my $opt1 = $opt;
 		$opt1 =~ tr/_/-/;
 		$rsync_opt_forbiden{$opt1} and croak "forbiden rsync option '$opt' used";
-		if ($rsync_opt_with_arg{$opt}) {
+		if ($rsync_opt_with_arg{$opt1}) {
 		    push @opts, "--$opt1=$_" for _array_or_scalar($value)
 		}
 		else {
@@ -1464,11 +1464,11 @@ sub sftp {
 sub DESTROY {
     my $self = shift;
     my $pid = $self->{_pid};
-    $debug and $debug & 2 and _debug("DESTROY($self, pid => ".(defined $pid ? $pid : undef).")");
+    local $@;
+    $debug and $debug & 2 and _debug("DESTROY($self, pid => ".(defined $pid ? $pid : '<undef>').")");
     if ($pid) {
         local $?;
 	local $!;
-	local $@;
 
 	unless ($self->{_wfm_status}) {
 	    # we have successfully created the master connection so we
@@ -1970,8 +1970,10 @@ Example:
   $ssh->system('ls -R /')
     or die "ls failed: " . $ssh->error";
 
-As for C<system> builtin, C<SIGINT> and C<SIGQUIT> signals are blocked
-(see L<perlfunc/system>).
+As for C<system> builtin, C<SIGINT> and C<SIGQUIT> signals are
+blocked.  (see L<perlfunc/system>). Also, setting C<$SIG{CHLD}> to
+C<IGNORE> or to a custom signal handler will interfere with this
+method.
 
 Accepted options:
 
@@ -2054,6 +2056,9 @@ method. For instance:
       warn "operation didn't complete successfully: ". $ssh->error;
   print $output;
 
+Setting C<$SIG{CHLD}> to a custom signal handler or to C<IGNORE> will
+interfere with this method.
+
 Accepted options:
 
 =over 4
@@ -2088,6 +2093,9 @@ options.
 
 captures the output sent to both stdout and stderr by C<@cmd> on the
 remote machine.
+
+Setting C<$SIG{CHLD}> to a custom signal handler or to C<IGNORE> will
+also interfere with this method.
 
 The accepted options are:
 
@@ -2287,7 +2295,6 @@ For instance:
                    verbose => 1,
                    safe_links => 1},
                   '/remote/dir', '/local/dir');
-
 
 =item $sftp = $ssh->sftp(%sftp_opts)
 
@@ -2728,6 +2735,18 @@ man-in-the-middle attacks, etc.
 I advice you to do not use that option unless you fully understand its
 implications from a security point of view.
 
+=item child process 14947 does not exist: No child processes
+
+B<Q>: Calls to C<system>, C<capture> or C<capture2> fail with the
+previous error, what I am doing wrong?
+
+B<A>: That usually happens when C<$SIG{CHLD}> is set to C<IGNORE> or
+to some custom handler reaping child processes by itself. In order to
+solve the problem just disable the handler during the method call:
+
+  local $SIG{CHLD};
+  $ssh->system($cmd);
+
 =back
 
 =head1 SEE ALSO
@@ -2823,7 +2842,8 @@ Send your feature requests, ideas or any feedback, please!
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright (C) 2008, 2009 by Salvador FandiE<ntilde>o (sfandino@yahoo.com)
+Copyright (C) 2008-2010 by Salvador FandiE<ntilde>o
+(sfandino@yahoo.com)
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself, either Perl version 5.10.0 or,
