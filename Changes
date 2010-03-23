@@ -1,5 +1,9 @@
 Revision history for Perl extension Net::OpenSSH.
 
+0.46
+        - error in example in documentation solved (reported by Slaven
+          Rezic)
+
 0.45  Feb 17, 2010
 	- support for taint mode
 	- use better IPv6 regexp

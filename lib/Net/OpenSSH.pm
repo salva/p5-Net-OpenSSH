@@ -439,6 +439,7 @@ sub _kill_master {
 	    }
 	    for (0..5) {
 		my $r = waitpid($pid, WNOHANG);
+                $debug and $debug & 32 and _debug "waitpid(master: $pid) => pid: $r, rc: $!";
 		return if ($r == $pid or $! == Errno::ECHILD);
 		select(undef, undef, undef, 0.2);
 	    }
@@ -527,6 +528,7 @@ sub _waitpid {
     if ($pid) {
 	while (1) {
 	    my $r = waitpid($pid, 0);
+            $debug and $debug & 16 and _debug "_waitpid($pid) => pid: $r, rc: $!";
 	    if ($r == $pid) {
 		if ($?) {
 		    my $signal = ($? & 255);
@@ -2234,7 +2236,7 @@ with the following code:
   my @pid;
   for my $host (@hosts) {
       open my($fh), '>', "/tmp/out-$host.txt"
-        or die "unable to create file: $!;
+        or die "unable to create file: $!";
       push @pid, $conn{$host}->spawn({stdout_fh => $fh}, $cmd);
   }
 
