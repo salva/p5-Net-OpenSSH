@@ -1,6 +1,7 @@
 Revision history for Perl extension Net::OpenSSH.
 
 0.46
+        - better debugging for waitpid
         - error in example in documentation solved (reported by Slaven
           Rezic)
 
