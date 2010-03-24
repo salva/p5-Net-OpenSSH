@@ -1,6 +1,6 @@
 package Net::OpenSSH;
 
-our $VERSION = '0.45';
+our $VERSION = '0.46_01';
 
 use strict;
 use warnings;
@@ -680,7 +680,7 @@ sub _wait_for_master {
 
 sub _master_ctl {
     my ($self, $cmd) = @_;
-    $self->capture({stderr_to_stdout => 1, ssh_opts => [-O => $cmd]});
+    $self->capture({stderr_to_stdout => 1, stdin_discard => 1, ssh_opts => [-O => $cmd]});
 }
 
 sub _make_pipe {
@@ -844,6 +844,19 @@ sub _open_file {
     }
 }
 
+sub _fileno_dup_dangerous {
+    my ($good_fn, $fh) = @_;
+    if (defined $fh) {
+        my $fn = fileno $fh;
+        for (1..5) {
+            $fn >= $good_fn and return $fn;
+            $fn = POSIX::dup($fn);
+        }
+        POSIX::_exit(255);
+    }
+    undef;
+}
+
 sub open_ex {
     ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
@@ -956,26 +969,6 @@ sub open_ex {
 	_check_is_system_fh STDERR => $werr;
     }
 
-    if (defined $wout and fileno $wout < 1) {
-	my $wout_dup;
-	unless (open $wout_dup, '>>&', $wout) {
-	    $self->_set_error(OSSH_SLAVE_FAILED, @error_prefix,
-			      "unable to dup child STDOUT: $!");
-	    return ()
-	}
-	$wout = $wout_dup;
-    }
-
-    if (defined $werr and fileno $werr < 2) {
-	my $werr_dup;
-	unless (open $werr_dup, '>>&', $werr) {
-	    $self->_set_error(OSSH_SLAVE_FAILED, @error_prefix,
-			      "unable to dup child STDERR: $!");
-	    return ()
-	}
-	$werr = $werr_dup;
-    }
-
     my @call = ( $cmd eq 'ssh'   ? $self->_make_call(\@ssh_opts, @args)       :
 		 $cmd eq 'scp'   ? $self->_make_scp_call(\@ssh_opts, @args)   :
 		 $cmd eq 'rsync' ? $self->_make_rsync_call(\@ssh_opts, @args) :
@@ -990,36 +983,26 @@ sub open_ex {
         return ();
     }
     unless ($pid) {
-	if (defined $stdin_discard) {
-	    open STDIN, '<', '/dev/null' or POSIX::_exit(255);
-	}
-        elsif (defined $rin) {
+        $stdin_discard  and (open $rin,  '<', '/dev/null' or POSIX::_exit(255));
+        $stdout_discard and (open $wout, '>', '/dev/null' or POSIX::_exit(255));
+        $stderr_discard and (open $werr, '>', '/dev/null' or POSIX::_exit(255));
+
+        my $rin_fd = _fileno_dup_dangerous(0 => $rin);
+        my $wout_fd = _fileno_dup_dangerous(1 => $wout);
+        my $werr_fd = _fileno_dup_dangerous(2 => $werr);
+
+        if (defined $rin_fd) {
             $win->make_slave_controlling_terminal if $stdin_pty;
-	    unless (fileno $rin == 0) {
-		open STDIN, '<&', $rin or POSIX::_exit(255);
-	    }
-	    $win and close $win;
+	    $rin_fd == 0 or POSIX::dup2($rin_fd, 0) or POSIX::_exit(255);
         }
-        if ($stdout_discard) {
-	    open STDOUT, '>', '/dev/null' or POSIX::_exit(255);
-	}
-	elsif (defined $wout) {
-	    unless (fileno $wout == 1) {
-		open STDOUT, '>>&', $wout or POSIX::_exit(255);
-	    }
-            $rout and close $rout;
+	if (defined $wout_fd) {
+            $wout_fd == 1 or POSIX::dup2($wout_fd, 1) or POSIX::_exit(255);
         }
-	if ($stderr_discard) {
-	    open STDERR, '>', '/dev/null' or POSIX::_exit(255);
-	}
-        elsif (defined $werr) {
-	    unless (fileno $werr == 2) {
-		open STDERR, '>>&', $werr or POSIX::_exit(255);
-	    }
-	    $rerr and close $rerr;
+        if (defined $werr_fd) {
+            $werr_fd == 2 or POSIX::dup2($werr_fd, 2) or POSIX::_exit(255);
         }
         elsif ($stderr_to_stdout) {
-	    open STDERR, '>>&STDOUT' or POSIX::_exit(255);
+            POSIX::dup2(1, 2) or POSIX::_exit(255);
         }
         do { exec @call };
         POSIX::_exit(255);
@@ -1076,6 +1059,8 @@ sub _io3 {
     local $SIG{PIPE} = 'IGNORE';
 
  MLOOP: while ($cout or $cerr or $cin) {
+        $debug and $debug & 64 and _debug "io3 mloop, cin: " . ($cin || 0) .
+            ", cout: " . ($cout || 0) . ", cerr: " . ($cerr || 0);
         my ($rv, $wv);
 
         if ($cout or $cerr) {
@@ -1098,11 +1083,19 @@ sub _io3 {
 
         my $recalc_vecs;
     FAST: until ($recalc_vecs) {
+            $debug and $debug & 64 and
+                _debug "io3 fast, cin: " . ($cin || 0) .
+                    ", cout: " . ($cout || 0) . ", cerr: " . ($cerr || 0);
             my ($rv1, $wv1) = ($rv, $wv);
             my $n = select ($rv1, $wv1, undef, $timeout);
             if ($n > 0) {
                 if ($cout and vec($rv1, $fnoout, 1)) {
-                    my $read = sysread($out, $bout, 20480, length($bout));
+                    my $offset = length $bout;
+                    my $read = sysread($out, $bout, 20480, $offset);
+                    if ($debug and $debug & 64) {
+                        _debug "stdout, bytes read: " . (defined $read ? $read : '<undef>') . " at offset $offset";
+                        $debug & 128 and _hexdump substr $bout, $offset;
+                    }
                     unless ($read) {
                         close $out;
                         undef $cout;
@@ -1112,6 +1105,7 @@ sub _io3 {
                 }
                 if ($cerr and vec($rv1, $fnoerr, 1)) {
                     my $read = sysread($err, $berr, 20480, length($berr));
+                    $debug and $debug & 64 and _debug "stderr, bytes read: " . (defined $read ? $read : '<undef>');
                     unless ($read) {
                         close $err;
                         undef $cerr;
@@ -1120,6 +1114,7 @@ sub _io3 {
                 }
                 if ($cin and vec($wv1, $fnoin, 1)) {
                     my $written = syswrite($in, $data[0], 20480);
+                    $debug and $debug & 64 and _debug "stdin, bytes written: " . (defined $written ? $written : '<undef>');
                     if ($written) {
                         substr($data[0], 0, $written, '');
                         while (@data) {
@@ -1143,7 +1138,7 @@ sub _io3 {
     close $out if $cout;
     close $err if $cerr;
     close $in if $cin;
-
+    $debug and $debug & 64 and _debug "leaving _io3()";
     return ($bout, $berr);
 }
 
