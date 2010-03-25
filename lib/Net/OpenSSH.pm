@@ -2612,14 +2612,14 @@ Ensure that you have a version of C<ssh> recent enough:
 
 OpenSSH version 4.1 was the first to support the multiplexing feature
 and is the minimal required by the module to work. I advise you to use
-the latest OpenSSH (currently 5.1) or at least a more recent
+the latest OpenSSH (currently 5.4) or at least a more recent
 version.
 
 The C<ssh_cmd> constructor option lets you select the C<ssh> binary to
 use. For instance:
 
   $ssh = Net::OpenSSH->new($host,
-                           ssh_cmd => "/opt/OpenSSH/5.1/bin/ssh")
+                           ssh_cmd => "/opt/OpenSSH/5.4/bin/ssh")
 
 Some hardware vendors (i.e. Sun) include custom versions of OpenSSH
 bundled with the operative system. In priciple, Net::OpenSSH should
@@ -2698,6 +2698,35 @@ running in the remote host. You can do it as follows:
 Then, you will be able to use the new Expect object in C<$expect> as
 usual.
 
+=head2 mod_perl and mod_perl2
+
+L<mod_perl> and L<mod_perl2> tie STDIN and STDOUT to objects that are
+not backed up by real file descriptors at the operative system
+level. Net::OpenSSH will fail if any of these handles is used
+explicetly or implicitly when calling some remote command.
+
+The workaround is to redirect them to C</dev/null> or to some file:
+
+  open my $def_in, '<', '/dev/null' or die "unable to open /dev/null";
+  my $ssh = Net::OpenSSH->new($host,
+                              default_stdin_fh => $def_in);
+
+  my $out = $ssh->capture($cmd1);
+  $ssh->system({stdout_discard => 1}, $cmd2);
+  $ssh->system({stdout_to_file => '/tmp/output'}, $cmd3);
+
+Also, note that from a security stand point, running ssh from inside
+the webserver process is not a great idea. An attacker exploiting some
+Apache bug would be able to access the ssh keys and passwords and gain
+unlimited access to the remote systems.
+
+If you can, use a queue (as L<TheSchwartz|TheSchwartz>) or any other
+mechanism to execute the ssh commands from another process running
+under a different user account.
+
+At a minimum, ensure that C<~www-data/.ssh> (or similar) is not
+accessible through the web server!
+
 =head2 Other modules
 
 CPAN contains several modules that rely on SSH to perform their duties
@@ -2730,7 +2759,7 @@ may be used to create a pair of pipes for transport in these cases.
 
 =head1 FAQ
 
-Frequent question about the module:
+Frequent questions about the module:
 
 =over
 
@@ -2805,11 +2834,27 @@ solve the problem just disable the handler during the method call:
   local $SIG{CHLD};
   $ssh->system($cmd);
 
+=item child process STDIN/STDOUT/STDERR is not a real system file
+handle
+
+B<Q>: Calls to C<system>, C<capture>, etc. fail with the previous
+error, what's happening?
+
+B<A>: The reported stdio stream is closed or is not attached to a real
+file handle (i.e. it is a tied handle). Redirect it to C</dev/null> or
+to a real file:
+
+  my $out = $ssh->capture({discard_stdin => 1, stderr_to_stdout => 1},
+                          $cmd);
+
+See also the L<mod_perl> entry above.
+
 =back
 
 =head1 SEE ALSO
 
-OpenSSH client documentation: L<ssh(1)>, L<ssh_config(5)>.
+OpenSSH client documentation L<ssh(1)>, L<ssh_config(5)> and the
+project web: L<http://www.openssh.org>.
 
 Core perl documentation L<perlipc>, L<perlfunc/open>,
 L<perlfunc/waitpid>.
@@ -2852,7 +2897,7 @@ by any version of Windows.
 Doesn't work on VMS either... well, actually, it probably doesn't work
 on anything not resembling a modern Linux/Unix OS.
 
-Tested on Linux, OpenBSD and NetBSD with OpenSSH 5.1 and 5.2.
+Tested on Linux, OpenBSD and NetBSD with OpenSSH 5.1 to 5.4.
 
 To report bugs or give me some feedback, send an email to the address
 that appear below or use the CPAN bug tracking system at
@@ -2864,7 +2909,7 @@ becoming increasingly popular and I am unable to cope with all the
 request for help I get by email!
 
 The source code of this module is hosted at GitHub:
-L<http://github.com/salva/p5-Net-OpenSSH>
+L<http://github.com/salva/p5-Net-OpenSSH>.
 
 =head2 Commercial support
 
@@ -2876,7 +2921,10 @@ requirements and we will get back to you ASAP.
 =head2 My wishlist
 
 If you like this module and you're feeling generous, take a look at my
-Amazon Wish List: L<http://amzn.com/w/1WU1P6IR5QZ42>
+Amazon Wish List: L<http://amzn.com/w/1WU1P6IR5QZ42>.
+
+Also consider contributing to the OpenSSH project this module builds
+upon: L<http://www.openssh.org/donations.html>.
 
 =head1 TODO
 

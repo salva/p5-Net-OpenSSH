@@ -1,5 +1,10 @@
 Revision history for Perl extension Net::OpenSSH.
 
+0.46_02
+	- document mod_perl/mod_perl2 integration
+	- document not-a-real-file-handle errors
+	- some minor doc updates
+
 0.46_01  Mar 25, 2010
         - do not depend on STDIN, STDOUT and STDERR being file
           descriptors 0, 1, and 2 respectively as it happens, for
@@ -10,8 +15,8 @@ Revision history for Perl extension Net::OpenSSH.
         - set stdin_discard to when running control commands as it may
           be closed or tied
         - better debugging for waitpid and _io3
-        - error in example in documentation solved (reported by Slaven
-          Rezic)
+        - error in example in documentation corrected (reported by
+          Slaven Rezic)
 
 0.45  Feb 17, 2010
 	- support for taint mode
