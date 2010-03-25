@@ -1,9 +1,11 @@
 Revision history for Perl extension Net::OpenSSH.
 
 0.46_02
+	- add support for tunnel feature
 	- document mod_perl/mod_perl2 integration
 	- document not-a-real-file-handle errors
 	- some minor doc updates
+	- run tests with StrictHostKeyChecking=no
 
 0.46_01  Mar 25, 2010
         - do not depend on STDIN, STDOUT and STDERR being file

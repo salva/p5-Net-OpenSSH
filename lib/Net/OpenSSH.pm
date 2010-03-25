@@ -414,6 +414,17 @@ sub _make_rsync_call {
     @args;
 }
 
+sub _make_tunnel_call {
+    @_ == 4 or croak "bad number of arguments for creating a tunnel";
+    my $self = shift;
+    my @before = @{shift||[]};
+    my $dest = join(':', @_);
+    push @before, "-W$dest";
+    my @args = $self->_make_call(\@before);
+    $debug and $debug & 8 and _debug_dump 'tunnel call args' => \@args;
+    @args;
+}
+
 sub master_exited {
     my $self = shift;
     my $pid = delete $self->{_pid};
@@ -863,19 +874,21 @@ sub open_ex {
     $self->_check_master_and_clear_error or return ();
     my %opts = (ref $_[0] eq 'HASH' ? %{shift()} : ());
 
+    my $tunnel = delete $opts{tunnel};
+
     my ($stdin_discard, $stdin_pipe, $stdin_fh, $stdin_file, $stdin_pty);
     ( $stdin_discard = delete $opts{stdin_discard} or
       $stdin_pipe = delete $opts{stdin_pipe} or
-      $stdin_pty = delete $opts{stdin_pty} or
       $stdin_fh = delete $opts{stdin_fh} or
-      $stdin_file = delete $opts{stdin_file} );
+      $stdin_file = delete $opts{stdin_file} or
+      (not $tunnel and $stdin_pty = delete $opts{stdin_pty}) );
 
     my ($stdout_discard, $stdout_pipe, $stdout_fh, $stdout_file, $stdout_pty);
     ( $stdout_discard = delete $opts{stdout_discard} or
       $stdout_pipe = delete $opts{stdout_pipe} or
-      $stdout_pty = delete $opts{stdout_pty} or
       $stdout_fh = delete $opts{stdout_fh} or
-      $stdout_file = delete $opts{stdout_file} );
+      $stdout_file = delete $opts{stdout_file} or
+      (not $tunnel and $stdout_pty = delete $opts{stdout_pty}) );
 
     $stdout_pty and !$stdin_pty
         and croak "option stdout_pty requires stdin_pty set";
@@ -899,28 +912,32 @@ sub open_ex {
 	$stderr_fh = $self->_open_file('>', $stderr_file, @error_prefix) or return
     }
 
-    my $tty = delete $opts{tty};
-    my $close_slave_pty;
-    if ($stdin_pty) {
-        # $tty = 1 unless defined $tty;
-        $close_slave_pty = delete $opts{close_slave_pty};
-        $close_slave_pty = 1 unless defined $close_slave_pty;
-    }
     my @ssh_opts = $self->_expand_vars(_array_or_scalar delete $opts{ssh_opts});
 
-    my $cmd = delete $opts{_cmd};
-    $cmd = 'ssh' unless defined $cmd;
+    my ($cmd, $close_slave_pty, @args);
+    if ($tunnel) {
+	$cmd = 'tunnel';
+	@_ == 2 or croak 'bad number of arguments for tunnel, use $ssh->method(\\%opts, $host, $port)';
+	@args = @_;
+    }
+    else {
+	if ($stdin_pty) {
+	    $close_slave_pty = delete $opts{close_slave_pty};
+	    $close_slave_pty = 1 unless defined $close_slave_pty;
+	}
 
-    $opts{quote_args_extended} = 1
-	if (!defined $opts{quote_args_extended} and $cmd eq 'ssh');
+	my $tty = delete $opts{tty};
+	push @ssh_opts, ($tty ? '-qtt' : '-T') if defined $tty;
 
-    my @args = $self->_quote_args(\%opts, @_);
+	$cmd = delete $opts{_cmd} || 'ssh';
+	$opts{quote_args_extended} = 1
+	    if (not defined $opts{quote_args_extended} and $cmd eq 'ssh');
+	@args = $self->_quote_args(\%opts, @_);
+    }
 
     _croak_bad_options %opts;
 
     my ($rin, $win, $rout, $wout, $rerr, $werr);
-
-    push @ssh_opts, ($tty ? '-qtt' : '-T') if defined $tty;
 
     if ($stdin_pipe) {
         ($rin, $win) = $self->_make_pipe(@error_prefix) or return;
@@ -969,9 +986,10 @@ sub open_ex {
 	_check_is_system_fh STDERR => $werr;
     }
 
-    my @call = ( $cmd eq 'ssh'   ? $self->_make_call(\@ssh_opts, @args)       :
-		 $cmd eq 'scp'   ? $self->_make_scp_call(\@ssh_opts, @args)   :
-		 $cmd eq 'rsync' ? $self->_make_rsync_call(\@ssh_opts, @args) :
+    my @call = ( $cmd eq 'ssh'    ? $self->_make_call(\@ssh_opts, @args)        :
+		 $cmd eq 'scp'    ? $self->_make_scp_call(\@ssh_opts, @args)    :
+		 $cmd eq 'rsync'  ? $self->_make_rsync_call(\@ssh_opts, @args)  :
+		 $cmd eq 'tunnel' ? $self->_make_tunnel_call(\@ssh_opts, @args) :
 		 die "internal error: bad _cmd protocol" );
 
     $debug and $debug & 16 and _debug_dump open_ex => \@call;
@@ -1144,7 +1162,7 @@ sub _io3 {
 
 _sub_options spawn => qw(stderr_to_stdout stdin_discard stdin_fh stdin_file stdout_discard
                          stdout_fh stdout_file stderr_discard stderr_fh stderr_file
-                         quote_args tty ssh_opts);
+                         quote_args tty ssh_opts tunnel);
 sub spawn {
     ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
@@ -1155,7 +1173,7 @@ sub spawn {
 }
 
 _sub_options open2 => qw(stderr_to_stdout stderr_discard stderr_fh stderr_file quote_args
-                         tty ssh_opts);
+                         tty ssh_opts tunnel);
 sub open2 {
     ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
@@ -1220,7 +1238,7 @@ sub open3pty {
 
 _sub_options system => qw(stdout_discard stdout_fh stdin_discard stdout_file stdin_fh
                           stdin_file quote_args stderr_to_stdout stderr_discard stderr_fh
-                          stderr_file tty ssh_opts);
+                          stderr_file tty ssh_opts tunnel);
 sub system {
     ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
@@ -1243,7 +1261,7 @@ sub system {
 }
 
 _sub_options capture => qw(stderr_to_stdout stderr_discard stderr_fh stderr_file
-                           stdin_discard stdin_fh stdin_file quote_args tty ssh_opts);
+                           stdin_discard stdin_fh stdin_file quote_args tty ssh_opts tunnel);
 sub capture {
     ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
@@ -1286,6 +1304,34 @@ sub capture2 {
     my @capture = $self->_io3($out, $err, $in, $stdin_data, $timeout);
     $self->_waitpid($pid);
     wantarray ? @capture : $capture[0];
+}
+
+_sub_options open_tunnel => qw(ssh_opts stderr_discard stderr_fh stderr_file);
+sub open_tunnel {
+    ${^TAINT} and &_catch_tainted_args;
+    my $self = shift;
+    my %opts = (ref $_[0] eq 'HASH' ? %{shift()} : ());
+    $opts{stderr_discard} = 1
+	unless grep defined $opts{$_}, qw(stderr_discard stderr_fh stderr_file);
+    _croak_bad_options %opts;
+    @_ == 2 or croak 'Usage: $ssh->open_tunnel(\%opts, $host, $port)';
+    $opts{tunnel} = 1;
+    $self->open2(\%opts, @_);
+}
+
+_sub_options capture_tunnel => qw(ssh_opts stderr_discard stderr_fh
+				  stderr_file stdin_discard stdin_fh
+				  stdin_file stdin_data timeout);
+sub capture_tunnel {
+    ${^TAINT} and &_catch_tainted_args;
+    my $self = shift;
+    my %opts = (ref $_[0] eq 'HASH' ? %{shift()} : ());
+    $opts{stderr_discard} = 1
+	unless grep defined $opts{$_}, qw(stderr_discard stderr_fh stderr_file);
+    _croak_bad_options %opts;
+    @_ == 2 or croak 'Usage: $ssh->capture_tunnel(\%opts, $host, $port)';
+    $opts{tunnel} = 1;
+    $self->capture(\%opts, @_);
 }
 
 sub _calling_method {
@@ -2236,6 +2282,22 @@ with the following code:
   }
 
   waitpid($_, 0) for @pid;
+
+=item $ssh->open_tunnel(\%opts, $dest_host, $port)
+
+ # TODO
+
+=item $ssh->capture_tunnel(\%opts, $dest_host, $port)
+
+Similar to C<capture>, but instead of running a command, opens a TCP
+tunnel.
+
+Example:
+
+  $out = $ssh->capture_tunnel({stdin_data => "GET / HTTP/1.0\r\n" .
+                                             "Host: www.google.com\r\n" .
+                                             "\r\n"},
+                              'www.google.com', 80)
 
 =item $ssh->scp_get(\%opts, $remote1, $remote2,..., $local_dir_or_file)
 
