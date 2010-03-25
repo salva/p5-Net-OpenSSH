@@ -32,7 +32,8 @@ plan skip_all => 'OpenSSH 4.1 or later required'
 chomp $ver;
 diag "\nSSH client found: $ver.\nTrying to connect to localhost, timeout is ${timeout}s.\n";
 
-my $ssh = Net::OpenSSH->new('localhost', timeout => $timeout, strict_mode => 0);
+my $ssh = Net::OpenSSH->new('localhost', timeout => $timeout, strict_mode => 0,
+			    master_opts => [-o => "StrictHostKeyChecking no"]);
 
 # fallback
 if ($ssh->error and $num > 4.7) {
