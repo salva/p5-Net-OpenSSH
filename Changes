@@ -1,6 +1,10 @@
 Revision history for Perl extension Net::OpenSSH.
 
 0.46_02
+        
+        - add stdinout_socket feature and open2socket shortcut method
+        - rename some internal methods to more meaningfull names
+        - add open_tunnel and capture_tunnel methods
 	- add support for tunnel feature
 	- document mod_perl/mod_perl2 integration
 	- document not-a-real-file-handle errors
