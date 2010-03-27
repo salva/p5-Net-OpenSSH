@@ -692,7 +692,8 @@ sub _wait_for_master {
 
 sub _master_ctl {
     my ($self, $cmd) = @_;
-    $self->capture({stderr_to_stdout => 1, stdin_discard => 1, ssh_opts => [-O => $cmd]});
+    $self->capture({ stdin_discard => 1, tty => 0,
+                     stderr_to_stdout => 1, ssh_opts => [-O => $cmd]});
 }
 
 sub _make_pipe {
@@ -1125,7 +1126,7 @@ sub _io3 {
                     my $read = sysread($out, $bout, 20480, $offset);
                     if ($debug and $debug & 64) {
                         _debug "stdout, bytes read: " . (defined $read ? $read : '<undef>') . " at offset $offset";
-                        $debug & 128 and _hexdump substr $bout, $offset;
+                        $read and $debug & 128 and _hexdump substr $bout, $offset;
                     }
                     unless ($read) {
                         close $out;
@@ -1145,7 +1146,10 @@ sub _io3 {
                 }
                 if ($cin and vec($wv1, $fnoin, 1)) {
                     my $written = syswrite($in, $data[0], 20480);
-                    $debug and $debug & 64 and _debug "stdin, bytes written: " . (defined $written ? $written : '<undef>');
+                    if ($debug and $debug & 64) {
+                        _debug "stdin, bytes written: " . (defined $written ? $written : '<undef>');
+                        $written and $debug & 128 and _hexdump substr $data[0], 0, $written;
+                    }
                     if ($written) {
                         substr($data[0], 0, $written, '');
                         while (@data) {
@@ -2351,7 +2355,7 @@ Example:
   $out = $ssh->capture_tunnel({stdin_data => join("\r\n",
                                                   "GET / HTTP/1.0",
                                                   "Host: www.perl.org",
-                                                  "") },
+                                                  "", "") },
                               'www.perl.org', 80)
 
 =item $ssh->scp_get(\%opts, $remote1, $remote2,..., $local_dir_or_file)
