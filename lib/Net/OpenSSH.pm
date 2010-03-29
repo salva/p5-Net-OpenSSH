@@ -2386,14 +2386,14 @@ with the following code:
 
 =item ($socket, $pid) = $ssh->open_tunnel(\%opts, $dest_host, $port)
 
-Similar to L</open2socket>, but instead of running a command, it opens a TCP
+X<open_tunnel>Similar to L</open2socket>, but instead of running a command, it opens a TCP
 tunnel to the given address. See also L</Tunnels>.
 
 =item $out = $ssh->capture_tunnel(\%opts, $dest_host, $port)
 
 =item @out = $ssh->capture_tunnel(\%opts, $dest_host, $port)
 
-Similar to L</capture>, but instead of running a command, it opens a
+X<capture_tunnel>Similar to L</capture>, but instead of running a command, it opens a
 TCP tunnel.
 
 Example:
