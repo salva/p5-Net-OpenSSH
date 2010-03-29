@@ -1,6 +1,9 @@
 Revision history for Perl extension Net::OpenSSH.
 
-0.46_02
+0.46_03
+	- minor doc improvements
+
+0.46_02  Mar 29, 2010
 	- add suport for default_stdin_file, default_stdin_discard and
           similar options
         - add stdinout_socket feature and open2socket shortcut method
