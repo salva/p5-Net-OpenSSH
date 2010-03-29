@@ -190,15 +190,36 @@ sub new {
     my $expand_vars = delete $opts{expand_vars};
     my $vars = delete $opts{vars} || {};
 
-    my $master_stdout_fh = delete $opts{master_stdout_fh};
-    my $master_stderr_fh = delete $opts{master_stderr_fh};
+    my ($master_stdout_fh, $master_stderr_fh,
+	$master_stdout_discard, $master_stderr_discard);
 
-    my $master_stdout_discard = delete $opts{master_stdout_discard};
-    my $master_stderr_discard = delete $opts{master_stderr_discard};
+    ($master_stdout_fh = delete $opts{master_stdout_fh} or
+     $master_stdout_discard = delete $opts{master_stdout_discard});
 
-    my $default_stdout_fh = delete $opts{default_stdout_fh};
-    my $default_stderr_fh = delete $opts{default_stderr_fh};
-    my $default_stdin_fh = delete $opts{default_stdin_fh};
+    ($master_stderr_fh = delete $opts{master_stderr_fh} or
+     $master_stderr_discard = delete $opts{master_stderr_discard});
+
+    my ($default_stdout_fh, $default_stderr_fh, $default_stdin_fh,
+	$default_stdout_file, $default_stderr_file, $default_stdin_file,
+	$default_stdout_discard, $default_stderr_discard, $default_stdin_discard);
+
+    $default_stdout_file = (delete $opts{default_stdout_discard}
+			    ? '/dev/null'
+			    : delete $opts{default_stdout_discard});
+    $default_stdout_fh = delete $opts{default_stdout_fh}
+	unless defined $default_stdout_file;
+
+    $default_stderr_file = (delete $opts{default_stderr_discard}
+			    ? '/dev/null'
+			    : delete $opts{default_stderr_discard});
+    $default_stderr_fh = delete $opts{default_stderr_fh}
+	unless defined $default_stderr_file;
+
+    $default_stdin_file = (delete $opts{default_stdin_discard}
+			    ? '/dev/null'
+			    : delete $opts{default_stdin_discard});
+    $default_stdin_fh = delete $opts{default_stdin_fh}
+	unless defined $default_stdin_file;
 
     _croak_bad_options %opts;
 
@@ -254,6 +275,15 @@ sub new {
 		 _expand_vars => $expand_vars,
 		 _vars => $vars };
     bless $self, $class;
+
+    # default file handles are opened so late in order to have the
+    # $self object to report errors
+    $self->{_default_stdout_fh} = $self->_open_file('>', $default_stdout_file)
+	if defined $default_stdout_file;
+    $self->{_default_stderr_fh} = $self->_open_file('>', $default_stderr_file)
+	if defined $default_stderr_file;
+    $self->{_default_stdin_fh} = $self->_open_file('<', $default_stdin_file)
+	if defined $default_stdin_file;
 
     $self->{_ssh_opts} = [$self->_expand_vars(@ssh_opts)];
     $self->{_master_opts} = [$self->_expand_vars(@master_opts)];
@@ -1905,11 +1935,19 @@ For instance:
   $ssh->scp_put("/foo/bar*", "/tmp")
     or die "scp failed: " . $ssh->error;
 
+=item default_stdin_fine = $fn
+
+=item default_stdout_fine = $fn
+
+=item default_stderr_fine = $fn
+
+Opens the given filenames and use it as the defaults.
+
 =item master_stdout_fh => $fh
 
 =item master_stderr_fh => $fh
 
-Redirect corresponding stdio streams to given filehandles.
+Redirect corresponding stdio streams of the master SSH process to given filehandles.
 
 =item master_stdout_discard => $bool
 
@@ -2719,24 +2757,53 @@ C</tmp/ls.out-server.foo.com-42> on the remote host.
 =head2 Tunnels
 
 Besides running commands on the remote host, Net::OpenSSH also allows
-to tunnel TCP connections to remote machines reachables through the SSH
+to tunnel TCP connections to remote machines reachable from the SSH
 server.
 
-That feature is supported by the C<tunnel> option of the L</open_ex>
-method, and also available through the wrapper methods L</open_tunnel>
+That feature is made available through the C<tunnel> option of the
+L</open_ex> method, and also through wrapper methods L</open_tunnel>
 and L</capture_tunnel>.
 
-In order to create a tunnel a new local slave SSH process is
-launched. It is called with the option -W available from version
-5.4 of OpenSSH. No test is performed to ensure that this or a later
-version is available.
+The C<tunnel> option is also supported by the L</open_ex> wrapper
+methods where it makes sense. For instance:
 
-As a new local process is spawned, its PID is returned and it should
+  $ssh->system({tunnel => 1,
+                stdin_data => "GET / HTTP/1.0\r\n\r\n",
+                stdout_file => "/tmp/$server.res"},
+               $server, 80)
+      or die "unable to retrieve page: " . $ssh->error;
+
+or capturing the output of several requests in parallel:
+
+  my @pids;
+  for (@servers) {
+    my $pid = $ssh->spawn({tunnel => 1,
+                           stdin_file => "/tmp/request.req",
+                           stdout_file => "/tmp/$_.res"},
+                          $_, 80);
+    if ($pid) {
+      push @pids, $pid;
+    }
+    else {
+      warn "unable to spawn tunnel process to $_: " . $ssh->error;
+    }
+  }
+  waitpid ($_, 0) for (@pids);
+
+Under the hood, in order to create a tunnel, a new C<ssh> process is
+spawned with the option C<-W${address}:${port}> (available from
+OpenSSH 5.4 and upwards) making it redirect its stdio streams to the
+remote given address. Unlike when C<ssh> C<-L> options is used to
+create tunnels, no TCP port is opened on the local machine at any time
+so this is a perfectly secure operation.
+
+The PID of the new process is returned by the named methods. It must
 be reaped once the pipe or socket handlers for the local side of the
-tunnels have been closed.
+tunnel have been closed.
 
-Also, note that tunnel forwarding may be administratively forbidden at
-the server side.
+OpenSSH 5.4 or later is required for the tunnels functionality to
+work. Also, note that tunnel forwarding may be administratively
+forbidden at the server side.
 
 =head1 TROUBLESHOOTING
 
