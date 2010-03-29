@@ -1935,11 +1935,11 @@ For instance:
   $ssh->scp_put("/foo/bar*", "/tmp")
     or die "scp failed: " . $ssh->error;
 
-=item default_stdin_fine = $fn
+=item default_stdin_file = $fn
 
-=item default_stdout_fine = $fn
+=item default_stdout_file = $fn
 
-=item default_stderr_fine = $fn
+=item default_stderr_file = $fn
 
 Opens the given filenames and use it as the defaults.
 
@@ -2762,10 +2762,9 @@ server.
 
 That feature is made available through the C<tunnel> option of the
 L</open_ex> method, and also through wrapper methods L</open_tunnel>
-and L</capture_tunnel>.
+and L</capture_tunnel> and most others where it makes sense.
 
-The C<tunnel> option is also supported by the L</open_ex> wrapper
-methods where it makes sense. For instance:
+Example:
 
   $ssh->system({tunnel => 1,
                 stdin_data => "GET / HTTP/1.0\r\n\r\n",
@@ -3108,9 +3107,10 @@ C<Net::OpenSSH> to handle the connections.
 
 =head1 BUGS AND SUPPORT
 
-Support for tunnel forwarding is experimental.
+Support for tunnel forwarding is experimental and requires OpenSSH 5.4
+or later.
 
-Suppoet for taint mode is still experimental.
+Support for taint mode is still experimental.
 
 Tested on Linux, OpenBSD and NetBSD with OpenSSH 5.1 to 5.4.
 
