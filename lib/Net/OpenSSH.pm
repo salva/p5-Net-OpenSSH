@@ -2094,6 +2094,18 @@ List of extra options for the C<ssh> command.
 This feature should be used with care, as the given options are not
 checked in any way by the module, and they could interfere with it.
 
+=item tunnel => $bool
+
+Instead of executing a command in the remote host, this option
+instruct Net::OpenSSH to create a TCP tunnel. The arguments become the
+target IP and port.
+
+Example:
+
+  my ($in, $out, undef, $pid) = $ssh->open_ex({tunnel => 1}, $IP, $port);
+
+See also L</Tunnels>.
+
 =back
 
 Usage example:
@@ -2337,9 +2349,7 @@ with the following code:
 =item ($socket, $pid) = $ssh->open_tunnel(\%opts, $dest_host, $port)
 
 Similar to L</open2socket>, but instead of running a command, it opens a TCP
-tunnel to the given address.
-
-Requieres OpenSSH ssh client 5.4 or later.
+tunnel to the given address. See also L</Tunnels>.
 
 =item $out = $ssh->capture_tunnel(\%opts, $dest_host, $port)
 
@@ -2348,8 +2358,6 @@ Requieres OpenSSH ssh client 5.4 or later.
 Similar to L</capture>, but instead of running a command, it opens a
 TCP tunnel.
 
-Requieres OpenSSH ssh client 5.4 or later.
-
 Example:
 
   $out = $ssh->capture_tunnel({stdin_data => join("\r\n",
@@ -2357,6 +2365,8 @@ Example:
                                                   "Host: www.perl.org",
                                                   "", "") },
                               'www.perl.org', 80)
+
+See also L</Tunnels>.
 
 =item $ssh->scp_get(\%opts, $remote1, $remote2,..., $local_dir_or_file)
 
@@ -2706,11 +2716,33 @@ Some usage example:
 will redirect the output of the C<ls> command to
 C</tmp/ls.out-server.foo.com-42> on the remote host.
 
+=head2 Tunnels
+
+Besides running commands on the remote host, Net::OpenSSH also allows
+to tunnel TCP connections to remote machines reachables through the SSH
+server.
+
+That feature is supported by the C<tunnel> option of the L</open_ex>
+method, and also available through the wrapper methods L</open_tunnel>
+and L</capture_tunnel>.
+
+In order to create a tunnel a new local slave SSH process is
+launched. It is called with the option -W available from version
+5.4 of OpenSSH. No test is performed to ensure that this or a later
+version is available.
+
+As a new local process is spawned, its PID is returned and it should
+be reaped once the pipe or socket handlers for the local side of the
+tunnels have been closed.
+
+Also, note that tunnel forwarding may be administratively forbidden at
+the server side.
+
 =head1 TROUBLESHOOTING
 
 Usually, Net::OpenSSH works out of the box, but when it fails, some
 users have a hard time finding the cause of the problem. This mini
-troubleshooting guide should help to find and solve it.
+troubleshooting guide should help you to find and solve it.
 
 =over 4
 
@@ -3009,25 +3041,27 @@ C<Net::OpenSSH> to handle the connections.
 
 =head1 BUGS AND SUPPORT
 
-Taint mode support is still in experimental state.
+Support for tunnel forwarding is experimental.
 
-Does not work on Windows. OpenSSH multiplexing feature requires
-passing file handles through sockets something that is not supported
-by any version of Windows.
-
-Doesn't work on VMS either... well, actually, it probably doesn't work
-on anything not resembling a modern Linux/Unix OS.
+Suppoet for taint mode is still experimental.
 
 Tested on Linux, OpenBSD and NetBSD with OpenSSH 5.1 to 5.4.
+
+Net::OpenSSH does not work on Windows. OpenSSH multiplexing feature
+requires passing file handles through sockets something that is not
+supported by any version of Windows.
+
+It doesn't work on VMS either... well, probably, it doesn't work on
+anything not resembling a modern Linux/Unix OS.
 
 To report bugs or give me some feedback, send an email to the address
 that appear below or use the CPAN bug tracking system at
 L<http://rt.cpan.org>.
 
-B<Post questions related to module usage in PerlMonks
-L<http://perlmoks.org/>> (that I read frequently). This module is
-becoming increasingly popular and I am unable to cope with all the
-request for help I get by email!
+B<Do not send me questions related to the usage of the module by email
+but post them in PerlMonks L<http://perlmoks.org/>> (that I read
+frequently). This module is becoming increasingly popular and I am
+unable to cope with all the request for help I get!
 
 The source code of this module is hosted at GitHub:
 L<http://github.com/salva/p5-Net-OpenSSH>.
