@@ -2495,26 +2495,25 @@ parallel as follows:
 =item stderr_to_stdout => 1
 
 These options are passed unchanged to method L</open_ex>, allowing
-capture of the output of the scp program.
+capture of the output of the C<scp> program.
 
 Note that C<scp> will not generate progress reports unless its stdout
 stream is attached to a tty.
 
 =back
 
-
 =item $ssh->rsync_get(\%opts, $remote1, $remote2,..., $local_dir_or_file)
 
 =item $ssh->rsync_put(\%opts, $local1, $local2,..., $remote_dir_or_file)
 
-These methods use rsync over SSH to transfer files from/to the remote
+These methods use C<rsync> over SSH to transfer files from/to the remote
 machine.
 
 They accept the same set of options as the SCP ones.
 
 Any unrecognized option will be passed as an argument to the C<rsync>
-command. Underscores can be used instead of dashes in C<rsync> option
-names.
+command (see L<rsync(1)>). Underscores can be used instead of dashes
+in C<rsync> option names.
 
 For instance:
 
@@ -3072,8 +3071,9 @@ See also the L<mod_perl> entry above.
 
 =head1 SEE ALSO
 
-OpenSSH client documentation L<ssh(1)>, L<ssh_config(5)> and the
-project web: L<http://www.openssh.org>.
+OpenSSH client documentation L<ssh(1)>, L<ssh_config(5)>, the project
+web L<http://www.openssh.org> and its FAQ
+L<http://www.openbsd.org/openssh/faq.html>. L<scp(1)> and L<rsync(1)>.
 
 Core perl documentation L<perlipc>, L<perlfunc/open>,
 L<perlfunc/waitpid>.
@@ -3090,7 +3090,7 @@ the sample directory).
 
 L<SSH::OpenSSH::Parallel> is an advanced scheduler that allows to run
 commands in remote hosts in parallel. It is obviously based on
-L<Net::OpenSSH>.
+Net::OpenSSH.
 
 L<SSH::Batch|SSH::Batch> allows to run remote commands in parallel in
 a cluster. It is build on top on C<Net::OpenSSH> also.
