@@ -2801,7 +2801,8 @@ tunnel have been closed.
 
 OpenSSH 5.4 or later is required for the tunnels functionality to
 work. Also, note that tunnel forwarding may be administratively
-forbidden at the server side.
+forbidden at the server side (see L<sshd(8)> and L<sshd_config(5)> or
+the documentation provided by your SSH server vendor).
 
 =head1 TROUBLESHOOTING
 
