@@ -1787,7 +1787,7 @@ instance, these two method calls are equivalent:
 Most methods return undef (or an empty list) to indicate failure.
 
 The L</error> method can always be used to explicitly check for
-errors. For instace:
+errors. For instance:
 
   my ($output, $errput) = $ssh->capture2({timeout => 1}, "find /");
   $ssh->error and die "ssh failed: " . $ssh->error;
