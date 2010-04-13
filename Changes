@@ -1,7 +1,8 @@
 Revision history for Perl extension Net::OpenSSH.
 
-0.46_03
-	- minor doc improvements
+0.47  Apr 13, 2010
+	- document how to make it work under Solaris
+	- some docs reorganization and improvements
 
 0.46_02  Mar 29, 2010
 	- add suport for default_stdin_file, default_stdin_discard and

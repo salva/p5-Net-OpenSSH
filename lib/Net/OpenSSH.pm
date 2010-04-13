@@ -1,6 +1,6 @@
 package Net::OpenSSH;
 
-our $VERSION = '0.46_03';
+our $VERSION = '0.47';
 
 use strict;
 use warnings;
@@ -2804,6 +2804,79 @@ work. Also, note that tunnel forwarding may be administratively
 forbidden at the server side (see L<sshd(8)> and L<sshd_config(5)> or
 the documentation provided by your SSH server vendor).
 
+=head1 3rd PARTY MODULE INTEGRATION
+
+=head2 Expect
+
+Sometimes you would like to use L<Expect> to control some program
+running in the remote host. You can do it as follows:
+
+  my ($pty, $pid) = $ssh->open2pty(@cmd)
+      or die "unable to run remote command @cmd";
+  my $expect = Expect->init($pty);
+
+Then, you will be able to use the new Expect object in C<$expect> as
+usual.
+
+=head2 mod_perl and mod_perl2
+
+L<mod_perl> and L<mod_perl2> tie STDIN and STDOUT to objects that are
+not backed up by real file descriptors at the operative system
+level. Net::OpenSSH will fail if any of these handles is used
+explicetly or implicitly when calling some remote command.
+
+The workaround is to redirect them to C</dev/null> or to some file:
+
+  open my $def_in, '<', '/dev/null' or die "unable to open /dev/null";
+  my $ssh = Net::OpenSSH->new($host,
+                              default_stdin_fh => $def_in);
+
+  my $out = $ssh->capture($cmd1);
+  $ssh->system({stdout_discard => 1}, $cmd2);
+  $ssh->system({stdout_to_file => '/tmp/output'}, $cmd3);
+
+Also, note that from a security stand point, running ssh from inside
+the webserver process is not a great idea. An attacker exploiting some
+Apache bug would be able to access the ssh keys and passwords and gain
+unlimited access to the remote systems.
+
+If you can, use a queue (as L<TheSchwartz|TheSchwartz>) or any other
+mechanism to execute the ssh commands from another process running
+under a different user account.
+
+At a minimum, ensure that C<~www-data/.ssh> (or similar) is not
+accessible through the web server!
+
+=head2 Other modules
+
+CPAN contains several modules that rely on SSH to perform their duties
+as for example L<IPC::PerlSSH|IPC::PerlSSH> or
+L<GRID::Machine|GRID::Machine>.
+
+Often, it is possible to instruct them to go through a Net::OpenSSH
+multiplexed connection employing some available constructor
+option. For instance:
+
+  use Net::OpenSSH;
+  use IPC::PerlIPC;
+  my $ssh = Net::OpenSSH->new(...);
+  $ssh->error and die "unable to connect to remote host: " . $ssh->error;
+  my @cmd = $ssh->make_remote_command('/usr/bin/perl');
+  my $ipc = IPC::PerlSSH->new(Command => \@cmd);
+  my @r = $ipc->eval('...');
+
+or...
+
+  use GRID::Machine;
+  ...
+  my @cmd = $ssh->make_remote_command('/usr/bin/perl');
+  my $grid = GRID::Machine->new(command => \@cmd);
+  my $r = $grid->eval('print "hello world!\n"');
+
+In other cases, some kind of plugin mechanism is provided by the 3rd
+party modules to allow for different transports. The method C<open2>
+may be used to create a pair of pipes for transport in these cases.
+
 =head1 TROUBLESHOOTING
 
 Usually, Net::OpenSSH works out of the box, but when it fails, some
@@ -2903,79 +2976,6 @@ but you should not use it unless you understand its implications.
 
 =back
 
-=head1 3rd PARTY MODULE INTEGRATION
-
-=head2 Expect
-
-Sometimes you would like to use L<Expect> to control some program
-running in the remote host. You can do it as follows:
-
-  my ($pty, $pid) = $ssh->open2pty(@cmd)
-      or die "unable to run remote command @cmd";
-  my $expect = Expect->init($pty);
-
-Then, you will be able to use the new Expect object in C<$expect> as
-usual.
-
-=head2 mod_perl and mod_perl2
-
-L<mod_perl> and L<mod_perl2> tie STDIN and STDOUT to objects that are
-not backed up by real file descriptors at the operative system
-level. Net::OpenSSH will fail if any of these handles is used
-explicetly or implicitly when calling some remote command.
-
-The workaround is to redirect them to C</dev/null> or to some file:
-
-  open my $def_in, '<', '/dev/null' or die "unable to open /dev/null";
-  my $ssh = Net::OpenSSH->new($host,
-                              default_stdin_fh => $def_in);
-
-  my $out = $ssh->capture($cmd1);
-  $ssh->system({stdout_discard => 1}, $cmd2);
-  $ssh->system({stdout_to_file => '/tmp/output'}, $cmd3);
-
-Also, note that from a security stand point, running ssh from inside
-the webserver process is not a great idea. An attacker exploiting some
-Apache bug would be able to access the ssh keys and passwords and gain
-unlimited access to the remote systems.
-
-If you can, use a queue (as L<TheSchwartz|TheSchwartz>) or any other
-mechanism to execute the ssh commands from another process running
-under a different user account.
-
-At a minimum, ensure that C<~www-data/.ssh> (or similar) is not
-accessible through the web server!
-
-=head2 Other modules
-
-CPAN contains several modules that rely on SSH to perform their duties
-as for example L<IPC::PerlSSH|IPC::PerlSSH> or
-L<GRID::Machine|GRID::Machine>.
-
-Often, it is possible to instruct them to go through a Net::OpenSSH
-multiplexed connection employing some available constructor
-option. For instance:
-
-  use Net::OpenSSH;
-  use IPC::PerlIPC;
-  my $ssh = Net::OpenSSH->new(...);
-  $ssh->error and die "unable to connect to remote host: " . $ssh->error;
-  my @cmd = $ssh->make_remote_command('/usr/bin/perl');
-  my $ipc = IPC::PerlSSH->new(Command => \@cmd);
-  my @r = $ipc->eval('...');
-
-or...
-
-  use GRID::Machine;
-  ...
-  my @cmd = $ssh->make_remote_command('/usr/bin/perl');
-  my $grid = GRID::Machine->new(command => \@cmd);
-  my $r = $grid->eval('print "hello world!\n"');
-
-In other cases, some kind of plugin mechanism is provided by the 3rd
-party modules to allow for different transports. The method C<open2>
-may be used to create a pair of pipes for transport in these cases.
-
 =head1 FAQ
 
 Frequent questions about the module:
@@ -3067,6 +3067,31 @@ to a real file:
                           $cmd);
 
 See also the L<mod_perl> entry above.
+
+=item Solaris (and AIX and probably others)
+
+B<Q>: I was trying Net::OpenSSH on Solaris and seem to be running into
+an issue...
+
+B<A>: The SSH client bundled with Solaris is an early fork of OpenSSH
+that does not provide the multiplexing functionality required by
+Net::OpenSSH. You will have to install the OpenSSH client.
+
+Precompiled packages are available from Sun Freeware
+(L<http://www.sunfreeware.com>). There, select your OS version an CPU
+architecture, download the OpenSSH package and its dependencies and
+install them. Note that you do B<not> need to configure Solaris to use
+the OpenSSH server C<sshd>.
+
+Ensure that OpenSSH client is in your path before the system C<ssh> or
+alternatively, you can hardcode the full path into your scripts
+as follows:
+
+  $ssh = Net::OpenSSH->new($host,
+                           ssh_cmd => '/usr/local/bin/ssh');
+
+AIX and probably some other unixen, also bundle SSH clients lacking the
+multiplexing functionality and require installation of OpenSSH.
 
 =back
 
