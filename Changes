@@ -1,5 +1,10 @@
 Revision history for Perl extension Net::OpenSSH.
 
+0.48
+	- support calling shell_quote and shell_quote_args as class
+          methods
+	- more tests
+
 0.47  Apr 13, 2010
 	- document how to make it work under Solaris
 	- some docs reorganization and improvements
@@ -25,8 +30,8 @@ Revision history for Perl extension Net::OpenSSH.
           PerlMonks)
         - use POSIX::dup2 to duplicate file descriptors, instead of
           perl open builtin
-        - set stdin_discard to when running control commands as it may
-          be closed or tied
+        - set stdin_discard when running control commands as it may be
+          closed or tied
         - better debugging for waitpid and _io3
         - error in example in documentation corrected (reported by
           Slaven Rezic)

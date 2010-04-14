@@ -1,6 +1,6 @@
 package Net::OpenSSH;
 
-our $VERSION = '0.47';
+our $VERSION = '0.48';
 
 use strict;
 use warnings;
@@ -359,7 +359,7 @@ sub get_var {
 
 sub _expand_vars {
     my ($self, @str) = @_;
-    if ($self->{_expand_vars}) {
+    if (ref $self and $self->{_expand_vars}) {
 	for (@str) {
 	    s{%(\w*)%}{length ($1) ? $self->get_var($1) : '%'}ge
 		if defined $_;
@@ -2569,14 +2569,24 @@ In scalar context returns the list of arguments quoted and joined.
 Usually this task is done automatically by the module. See L</"Shell
 quoting"> below.
 
+This method can also be used as a class method.
+
+Example:
+
+  my $quoted_args = Net::OpenSSH->shell_quote(@args);
+  system('ssh', '--', $host, $quoted_args);
+
 =item $ssh->shell_quote_glob(@args)
 
 This method is like the previous C<shell_quote> but leaves wildcard
 characters unquoted.
 
+It can be used as a class method also.
+
 =item $ssh->set_expand_vars($bool)
 
-Enables/disables variable expansion feature.
+Enables/disables variable expansion feature (see L</"Variable
+expansion">).
 
 =item $ssh->get_expand_vars
 
