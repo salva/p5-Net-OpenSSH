@@ -2914,14 +2914,14 @@ Ensure that you have a version of C<ssh> recent enough:
 
 OpenSSH version 4.1 was the first to support the multiplexing feature
 and is the minimal required by the module to work. I advise you to use
-the latest OpenSSH (currently 5.4) or at least a more recent
+the latest OpenSSH (currently 5.5) or at least a more recent
 version.
 
 The C<ssh_cmd> constructor option lets you select the C<ssh> binary to
 use. For instance:
 
   $ssh = Net::OpenSSH->new($host,
-                           ssh_cmd => "/opt/OpenSSH/5.4/bin/ssh")
+                           ssh_cmd => "/opt/OpenSSH/5.5/bin/ssh")
 
 Some hardware vendors (i.e. Sun) include custom versions of OpenSSH
 bundled with the operative system. In priciple, Net::OpenSSH should
@@ -3148,7 +3148,7 @@ or later.
 
 Support for taint mode is still experimental.
 
-Tested on Linux, OpenBSD and NetBSD with OpenSSH 5.1 to 5.4.
+Tested on Linux, OpenBSD and NetBSD with OpenSSH 5.1 to 5.5.
 
 Net::OpenSSH does not work on Windows. OpenSSH multiplexing feature
 requires passing file handles through sockets something that is not
@@ -3157,14 +3157,13 @@ supported by any version of Windows.
 It doesn't work on VMS either... well, probably, it doesn't work on
 anything not resembling a modern Linux/Unix OS.
 
-To report bugs or give me some feedback, send an email to the address
-that appear below or use the CPAN bug tracking system at
-L<http://rt.cpan.org>.
+To report bugs send an email to the address that appear below or use
+the CPAN bug tracking system at L<http://rt.cpan.org>.
 
-B<Do not send me questions related to the usage of the module by email
-but post them in PerlMonks L<http://perlmoks.org/>> (that I read
-frequently). This module is becoming increasingly popular and I am
-unable to cope with all the request for help I get!
+B<Post questions related to how to use the module in Perlmonks>
+L<http://perlmoks.org/>, you will probably get faster responses that
+if you address me directly and I visit Perlmonks quite often, so I
+will see your question anyway.
 
 The source code of this module is hosted at GitHub:
 L<http://github.com/salva/p5-Net-OpenSSH>.

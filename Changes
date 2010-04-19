@@ -4,6 +4,7 @@ Revision history for Perl extension Net::OpenSSH.
 	- support calling shell_quote and shell_quote_args as class
           methods
 	- more tests
+	- minor doc corrections
 
 0.47  Apr 13, 2010
 	- document how to make it work under Solaris
