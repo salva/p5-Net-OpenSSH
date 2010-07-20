@@ -1,6 +1,6 @@
 package Net::OpenSSH;
 
-our $VERSION = '0.46_02';
+our $VERSION = '0.48';
 
 use strict;
 use warnings;
@@ -190,15 +190,36 @@ sub new {
     my $expand_vars = delete $opts{expand_vars};
     my $vars = delete $opts{vars} || {};
 
-    my $master_stdout_fh = delete $opts{master_stdout_fh};
-    my $master_stderr_fh = delete $opts{master_stderr_fh};
+    my ($master_stdout_fh, $master_stderr_fh,
+	$master_stdout_discard, $master_stderr_discard);
 
-    my $master_stdout_discard = delete $opts{master_stdout_discard};
-    my $master_stderr_discard = delete $opts{master_stderr_discard};
+    ($master_stdout_fh = delete $opts{master_stdout_fh} or
+     $master_stdout_discard = delete $opts{master_stdout_discard});
 
-    my $default_stdout_fh = delete $opts{default_stdout_fh};
-    my $default_stderr_fh = delete $opts{default_stderr_fh};
-    my $default_stdin_fh = delete $opts{default_stdin_fh};
+    ($master_stderr_fh = delete $opts{master_stderr_fh} or
+     $master_stderr_discard = delete $opts{master_stderr_discard});
+
+    my ($default_stdout_fh, $default_stderr_fh, $default_stdin_fh,
+	$default_stdout_file, $default_stderr_file, $default_stdin_file,
+	$default_stdout_discard, $default_stderr_discard, $default_stdin_discard);
+
+    $default_stdout_file = (delete $opts{default_stdout_discard}
+			    ? '/dev/null'
+			    : delete $opts{default_stdout_discard});
+    $default_stdout_fh = delete $opts{default_stdout_fh}
+	unless defined $default_stdout_file;
+
+    $default_stderr_file = (delete $opts{default_stderr_discard}
+			    ? '/dev/null'
+			    : delete $opts{default_stderr_discard});
+    $default_stderr_fh = delete $opts{default_stderr_fh}
+	unless defined $default_stderr_file;
+
+    $default_stdin_file = (delete $opts{default_stdin_discard}
+			    ? '/dev/null'
+			    : delete $opts{default_stdin_discard});
+    $default_stdin_fh = delete $opts{default_stdin_fh}
+	unless defined $default_stdin_file;
 
     _croak_bad_options %opts;
 
@@ -254,6 +275,15 @@ sub new {
 		 _expand_vars => $expand_vars,
 		 _vars => $vars };
     bless $self, $class;
+
+    # default file handles are opened so late in order to have the
+    # $self object to report errors
+    $self->{_default_stdout_fh} = $self->_open_file('>', $default_stdout_file)
+	if defined $default_stdout_file;
+    $self->{_default_stderr_fh} = $self->_open_file('>', $default_stderr_file)
+	if defined $default_stderr_file;
+    $self->{_default_stdin_fh} = $self->_open_file('<', $default_stdin_file)
+	if defined $default_stdin_file;
 
     $self->{_ssh_opts} = [$self->_expand_vars(@ssh_opts)];
     $self->{_master_opts} = [$self->_expand_vars(@master_opts)];
@@ -329,7 +359,7 @@ sub get_var {
 
 sub _expand_vars {
     my ($self, @str) = @_;
-    if ($self->{_expand_vars}) {
+    if (ref $self and $self->{_expand_vars}) {
 	for (@str) {
 	    s{%(\w*)%}{length ($1) ? $self->get_var($1) : '%'}ge
 		if defined $_;
@@ -692,7 +722,8 @@ sub _wait_for_master {
 
 sub _master_ctl {
     my ($self, $cmd) = @_;
-    $self->capture({stderr_to_stdout => 1, stdin_discard => 1, ssh_opts => [-O => $cmd]});
+    $self->capture({ stdin_discard => 1, tty => 0,
+                     stderr_to_stdout => 1, ssh_opts => [-O => $cmd]});
 }
 
 sub _make_pipe {
@@ -1125,7 +1156,7 @@ sub _io3 {
                     my $read = sysread($out, $bout, 20480, $offset);
                     if ($debug and $debug & 64) {
                         _debug "stdout, bytes read: " . (defined $read ? $read : '<undef>') . " at offset $offset";
-                        $debug & 128 and _hexdump substr $bout, $offset;
+                        $read and $debug & 128 and _hexdump substr $bout, $offset;
                     }
                     unless ($read) {
                         close $out;
@@ -1145,7 +1176,10 @@ sub _io3 {
                 }
                 if ($cin and vec($wv1, $fnoin, 1)) {
                     my $written = syswrite($in, $data[0], 20480);
-                    $debug and $debug & 64 and _debug "stdin, bytes written: " . (defined $written ? $written : '<undef>');
+                    if ($debug and $debug & 64) {
+                        _debug "stdin, bytes written: " . (defined $written ? $written : '<undef>');
+                        $written and $debug & 128 and _hexdump substr $data[0], 0, $written;
+                    }
                     if ($written) {
                         substr($data[0], 0, $written, '');
                         while (@data) {
@@ -1753,7 +1787,7 @@ instance, these two method calls are equivalent:
 Most methods return undef (or an empty list) to indicate failure.
 
 The L</error> method can always be used to explicitly check for
-errors. For instace:
+errors. For instance:
 
   my ($output, $errput) = $ssh->capture2({timeout => 1}, "find /");
   $ssh->error and die "ssh failed: " . $ssh->error;
@@ -1901,11 +1935,19 @@ For instance:
   $ssh->scp_put("/foo/bar*", "/tmp")
     or die "scp failed: " . $ssh->error;
 
+=item default_stdin_file = $fn
+
+=item default_stdout_file = $fn
+
+=item default_stderr_file = $fn
+
+Opens the given filenames and use it as the defaults.
+
 =item master_stdout_fh => $fh
 
 =item master_stderr_fh => $fh
 
-Redirect corresponding stdio streams to given filehandles.
+Redirect corresponding stdio streams of the master SSH process to given filehandles.
 
 =item master_stdout_discard => $bool
 
@@ -2089,6 +2131,18 @@ List of extra options for the C<ssh> command.
 
 This feature should be used with care, as the given options are not
 checked in any way by the module, and they could interfere with it.
+
+=item tunnel => $bool
+
+Instead of executing a command in the remote host, this option
+instruct Net::OpenSSH to create a TCP tunnel. The arguments become the
+target IP and port.
+
+Example:
+
+  my ($in, $out, undef, $pid) = $ssh->open_ex({tunnel => 1}, $IP, $port);
+
+See also L</Tunnels>.
 
 =back
 
@@ -2332,27 +2386,25 @@ with the following code:
 
 =item ($socket, $pid) = $ssh->open_tunnel(\%opts, $dest_host, $port)
 
-Similar to L</open2socket>, but instead of running a command, it opens a TCP
-tunnel to the given address.
-
-Requieres OpenSSH ssh client 5.4 or later.
+X<open_tunnel>Similar to L</open2socket>, but instead of running a command, it opens a TCP
+tunnel to the given address. See also L</Tunnels>.
 
 =item $out = $ssh->capture_tunnel(\%opts, $dest_host, $port)
 
 =item @out = $ssh->capture_tunnel(\%opts, $dest_host, $port)
 
-Similar to L</capture>, but instead of running a command, it opens a
+X<capture_tunnel>Similar to L</capture>, but instead of running a command, it opens a
 TCP tunnel.
-
-Requieres OpenSSH ssh client 5.4 or later.
 
 Example:
 
   $out = $ssh->capture_tunnel({stdin_data => join("\r\n",
                                                   "GET / HTTP/1.0",
                                                   "Host: www.perl.org",
-                                                  "") },
+                                                  "", "") },
                               'www.perl.org', 80)
+
+See also L</Tunnels>.
 
 =item $ssh->scp_get(\%opts, $remote1, $remote2,..., $local_dir_or_file)
 
@@ -2443,26 +2495,25 @@ parallel as follows:
 =item stderr_to_stdout => 1
 
 These options are passed unchanged to method L</open_ex>, allowing
-capture of the output of the scp program.
+capture of the output of the C<scp> program.
 
 Note that C<scp> will not generate progress reports unless its stdout
 stream is attached to a tty.
 
 =back
 
-
 =item $ssh->rsync_get(\%opts, $remote1, $remote2,..., $local_dir_or_file)
 
 =item $ssh->rsync_put(\%opts, $local1, $local2,..., $remote_dir_or_file)
 
-These methods use rsync over SSH to transfer files from/to the remote
+These methods use C<rsync> over SSH to transfer files from/to the remote
 machine.
 
 They accept the same set of options as the SCP ones.
 
 Any unrecognized option will be passed as an argument to the C<rsync>
-command. Underscores can be used instead of dashes in C<rsync> option
-names.
+command (see L<rsync(1)>). Underscores can be used instead of dashes
+in C<rsync> option names.
 
 For instance:
 
@@ -2518,14 +2569,24 @@ In scalar context returns the list of arguments quoted and joined.
 Usually this task is done automatically by the module. See L</"Shell
 quoting"> below.
 
+This method can also be used as a class method.
+
+Example:
+
+  my $quoted_args = Net::OpenSSH->shell_quote(@args);
+  system('ssh', '--', $host, $quoted_args);
+
 =item $ssh->shell_quote_glob(@args)
 
 This method is like the previous C<shell_quote> but leaves wildcard
 characters unquoted.
 
+It can be used as a class method also.
+
 =item $ssh->set_expand_vars($bool)
 
-Enables/disables variable expansion feature.
+Enables/disables variable expansion feature (see L</"Variable
+expansion">).
 
 =item $ssh->get_expand_vars
 
@@ -2702,104 +2763,56 @@ Some usage example:
 will redirect the output of the C<ls> command to
 C</tmp/ls.out-server.foo.com-42> on the remote host.
 
-=head1 TROUBLESHOOTING
+=head2 Tunnels
 
-Usually, Net::OpenSSH works out of the box, but when it fails, some
-users have a hard time finding the cause of the problem. This mini
-troubleshooting guide should help to find and solve it.
+Besides running commands on the remote host, Net::OpenSSH also allows
+to tunnel TCP connections to remote machines reachable from the SSH
+server.
 
-=over 4
+That feature is made available through the C<tunnel> option of the
+L</open_ex> method, and also through wrapper methods L</open_tunnel>
+and L</capture_tunnel> and most others where it makes sense.
 
-=item 1 - check the error message
+Example:
 
-Add in your script, after the Net::OpenSSH constructor call, an error
-check:
+  $ssh->system({tunnel => 1,
+                stdin_data => "GET / HTTP/1.0\r\n\r\n",
+                stdout_file => "/tmp/$server.res"},
+               $server, 80)
+      or die "unable to retrieve page: " . $ssh->error;
 
-  $ssh = Net::OpenSSH->new(...);
-  $ssh->error and die "SSH connection failed: " . $ssh->error;
+or capturing the output of several requests in parallel:
 
-The error message will tell what has gone wrong.
+  my @pids;
+  for (@servers) {
+    my $pid = $ssh->spawn({tunnel => 1,
+                           stdin_file => "/tmp/request.req",
+                           stdout_file => "/tmp/$_.res"},
+                          $_, 80);
+    if ($pid) {
+      push @pids, $pid;
+    }
+    else {
+      warn "unable to spawn tunnel process to $_: " . $ssh->error;
+    }
+  }
+  waitpid ($_, 0) for (@pids);
 
-=item 2 - OpenSSH version
+Under the hood, in order to create a tunnel, a new C<ssh> process is
+spawned with the option C<-W${address}:${port}> (available from
+OpenSSH 5.4 and upwards) making it redirect its stdio streams to the
+remote given address. Unlike when C<ssh> C<-L> options is used to
+create tunnels, no TCP port is opened on the local machine at any time
+so this is a perfectly secure operation.
 
-Ensure that you have a version of C<ssh> recent enough:
+The PID of the new process is returned by the named methods. It must
+be reaped once the pipe or socket handlers for the local side of the
+tunnel have been closed.
 
-  $ ssh -V
-  OpenSSH_5.1p1 Debian-5, OpenSSL 0.9.8g 19 Oct 2007
-
-OpenSSH version 4.1 was the first to support the multiplexing feature
-and is the minimal required by the module to work. I advise you to use
-the latest OpenSSH (currently 5.4) or at least a more recent
-version.
-
-The C<ssh_cmd> constructor option lets you select the C<ssh> binary to
-use. For instance:
-
-  $ssh = Net::OpenSSH->new($host,
-                           ssh_cmd => "/opt/OpenSSH/5.4/bin/ssh")
-
-Some hardware vendors (i.e. Sun) include custom versions of OpenSSH
-bundled with the operative system. In priciple, Net::OpenSSH should
-work with these SSH clients as long as they are derived from some
-version of OpenSSH recent enough. Anyway, I advise you to use the real
-OpenSSH software if you can!
-
-=item 3 - run ssh from the command line
-
-Check you can connect to the remote host using the same parameters you
-are passing to Net::OpenSSH. In particular, ensure that you are
-running C<ssh> as the same local user.
-
-If you are running your script from a webserver, the user
-would probably be C<www>, C<apache> or something alike.
-
-Common problems are:
-
-=over 4
-
-=item *
-
-Not having the remote host public key in the known_hosts file.
-
-=item *
-
-Wrong permissions for the C<~/.ssh> directory or its contents.
-
-=item *
-
-Incorrect settings for public key authentication.
-
-=back
-
-=item 4 - security checks on the multiplexing socket
-
-Net::OpenSSH performs some security checks on the directory where the
-multiplexing socket is going to be placed to ensure that it can not be
-accessed by other users.
-
-The default location for the multiplexing socket is under
-C<~/.libnet-openssh-perl>. It can be changed using the C<ctl_dir> and
-C<ctl_path> constructor arguments.
-
-The requirements for that directory and all its parents are:
-
-=over 4
-
-=item * 
-
-They have to be owned by the user executing the script or by root
-
-=item *
-
-Their permission masks have to be 0755 or more restrictive, so nobody
-else has permissions to perform write operations on them.
-
-=back
-
-The constructor option C<strict_mode> disables these security checks,
-but you should not use it unless you understand its implications.
-
-=back
+OpenSSH 5.4 or later is required for the tunnels functionality to
+work. Also, note that tunnel forwarding may be administratively
+forbidden at the server side (see L<sshd(8)> and L<sshd_config(5)> or
+the documentation provided by your SSH server vendor).
 
 =head1 3rd PARTY MODULE INTEGRATION
 
@@ -2873,6 +2886,105 @@ or...
 In other cases, some kind of plugin mechanism is provided by the 3rd
 party modules to allow for different transports. The method C<open2>
 may be used to create a pair of pipes for transport in these cases.
+
+=head1 TROUBLESHOOTING
+
+Usually, Net::OpenSSH works out of the box, but when it fails, some
+users have a hard time finding the cause of the problem. This mini
+troubleshooting guide should help you to find and solve it.
+
+=over 4
+
+=item 1 - check the error message
+
+Add in your script, after the Net::OpenSSH constructor call, an error
+check:
+
+  $ssh = Net::OpenSSH->new(...);
+  $ssh->error and die "SSH connection failed: " . $ssh->error;
+
+The error message will tell what has gone wrong.
+
+=item 2 - OpenSSH version
+
+Ensure that you have a version of C<ssh> recent enough:
+
+  $ ssh -V
+  OpenSSH_5.1p1 Debian-5, OpenSSL 0.9.8g 19 Oct 2007
+
+OpenSSH version 4.1 was the first to support the multiplexing feature
+and is the minimal required by the module to work. I advise you to use
+the latest OpenSSH (currently 5.5) or at least a more recent
+version.
+
+The C<ssh_cmd> constructor option lets you select the C<ssh> binary to
+use. For instance:
+
+  $ssh = Net::OpenSSH->new($host,
+                           ssh_cmd => "/opt/OpenSSH/5.5/bin/ssh")
+
+Some hardware vendors (i.e. Sun) include custom versions of OpenSSH
+bundled with the operative system. In priciple, Net::OpenSSH should
+work with these SSH clients as long as they are derived from some
+version of OpenSSH recent enough. Anyway, I advise you to use the real
+OpenSSH software if you can!
+
+=item 3 - run ssh from the command line
+
+Check you can connect to the remote host using the same parameters you
+are passing to Net::OpenSSH. In particular, ensure that you are
+running C<ssh> as the same local user.
+
+If you are running your script from a webserver, the user
+would probably be C<www>, C<apache> or something alike.
+
+Common problems are:
+
+=over 4
+
+=item *
+
+Not having the remote host public key in the known_hosts file.
+
+=item *
+
+Wrong permissions for the C<~/.ssh> directory or its contents.
+
+=item *
+
+Incorrect settings for public key authentication.
+
+=back
+
+=item 4 - security checks on the multiplexing socket
+
+Net::OpenSSH performs some security checks on the directory where the
+multiplexing socket is going to be placed to ensure that it can not be
+accessed by other users.
+
+The default location for the multiplexing socket is under
+C<~/.libnet-openssh-perl>. It can be changed using the C<ctl_dir> and
+C<ctl_path> constructor arguments.
+
+The requirements for that directory and all its parents are:
+
+=over 4
+
+=item * 
+
+They have to be owned by the user executing the script or by root
+
+=item *
+
+Their permission masks have to be 0755 or more restrictive, so nobody
+else has permissions to perform write operations on them.
+
+=back
+
+The constructor option C<strict_mode> disables these security checks,
+but you should not use it unless you understand its implications.
+
+=back
 
 =head1 FAQ
 
@@ -2966,12 +3078,38 @@ to a real file:
 
 See also the L<mod_perl> entry above.
 
+=item Solaris (and AIX and probably others)
+
+B<Q>: I was trying Net::OpenSSH on Solaris and seem to be running into
+an issue...
+
+B<A>: The SSH client bundled with Solaris is an early fork of OpenSSH
+that does not provide the multiplexing functionality required by
+Net::OpenSSH. You will have to install the OpenSSH client.
+
+Precompiled packages are available from Sun Freeware
+(L<http://www.sunfreeware.com>). There, select your OS version an CPU
+architecture, download the OpenSSH package and its dependencies and
+install them. Note that you do B<not> need to configure Solaris to use
+the OpenSSH server C<sshd>.
+
+Ensure that OpenSSH client is in your path before the system C<ssh> or
+alternatively, you can hardcode the full path into your scripts
+as follows:
+
+  $ssh = Net::OpenSSH->new($host,
+                           ssh_cmd => '/usr/local/bin/ssh');
+
+AIX and probably some other unixen, also bundle SSH clients lacking the
+multiplexing functionality and require installation of OpenSSH.
+
 =back
 
 =head1 SEE ALSO
 
-OpenSSH client documentation L<ssh(1)>, L<ssh_config(5)> and the
-project web: L<http://www.openssh.org>.
+OpenSSH client documentation L<ssh(1)>, L<ssh_config(5)>, the project
+web L<http://www.openssh.org> and its FAQ
+L<http://www.openbsd.org/openssh/faq.html>. L<scp(1)> and L<rsync(1)>.
 
 Core perl documentation L<perlipc>, L<perlfunc/open>,
 L<perlfunc/waitpid>.
@@ -2988,7 +3126,7 @@ the sample directory).
 
 L<SSH::OpenSSH::Parallel> is an advanced scheduler that allows to run
 commands in remote hosts in parallel. It is obviously based on
-L<Net::OpenSSH>.
+Net::OpenSSH.
 
 L<SSH::Batch|SSH::Batch> allows to run remote commands in parallel in
 a cluster. It is build on top on C<Net::OpenSSH> also.
@@ -3005,25 +3143,27 @@ C<Net::OpenSSH> to handle the connections.
 
 =head1 BUGS AND SUPPORT
 
-Taint mode support is still in experimental state.
+Support for tunnel forwarding is experimental and requires OpenSSH 5.4
+or later.
 
-Does not work on Windows. OpenSSH multiplexing feature requires
-passing file handles through sockets something that is not supported
-by any version of Windows.
+Support for taint mode is still experimental.
 
-Doesn't work on VMS either... well, actually, it probably doesn't work
-on anything not resembling a modern Linux/Unix OS.
+Tested on Linux, OpenBSD and NetBSD with OpenSSH 5.1 to 5.5.
 
-Tested on Linux, OpenBSD and NetBSD with OpenSSH 5.1 to 5.4.
+Net::OpenSSH does not work on Windows. OpenSSH multiplexing feature
+requires passing file handles through sockets something that is not
+supported by any version of Windows.
 
-To report bugs or give me some feedback, send an email to the address
-that appear below or use the CPAN bug tracking system at
-L<http://rt.cpan.org>.
+It doesn't work on VMS either... well, probably, it doesn't work on
+anything not resembling a modern Linux/Unix OS.
 
-B<Post questions related to module usage in PerlMonks
-L<http://perlmoks.org/>> (that I read frequently). This module is
-becoming increasingly popular and I am unable to cope with all the
-request for help I get by email!
+To report bugs send an email to the address that appear below or use
+the CPAN bug tracking system at L<http://rt.cpan.org>.
+
+B<Post questions related to how to use the module in Perlmonks>
+L<http://perlmoks.org/>, you will probably get faster responses that
+if you address me directly and I visit Perlmonks quite often, so I
+will see your question anyway.
 
 The source code of this module is hosted at GitHub:
 L<http://github.com/salva/p5-Net-OpenSSH>.
