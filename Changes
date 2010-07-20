@@ -1,7 +1,7 @@
 Revision history for Perl extension Net::OpenSSH.
 
 0.46_02
-        
+        - bug quoting escaped scalars as globs solved        
         - add stdinout_socket feature and open2socket shortcut method
         - rename some internal methods to more meaningfull names
         - add open_tunnel and capture_tunnel methods

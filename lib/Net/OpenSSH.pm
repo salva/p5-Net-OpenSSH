@@ -775,7 +775,7 @@ sub _quote_args {
 		if (ref $_ eq 'SCALAR') {
 		    push @quoted, $quoter_glob->($self->_expand_vars($$_));
 		}
-		if (ref $_ eq 'REF' and ref $$_ eq 'SCALAR') {
+		elsif (ref $_ eq 'REF' and ref $$_ eq 'SCALAR') {
 		    push @quoted, $self->_expand_vars($$$_);
 		    undef $quote_extended;
 		}
