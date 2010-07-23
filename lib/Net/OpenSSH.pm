@@ -183,6 +183,7 @@ sub new {
     push @ssh_opts, -o => "Port=$port" if defined $port;
 
     my $self = { _error => 0,
+		 _perl_pid => $$,
                  _ssh_cmd => $ssh_cmd,
 		 _scp_cmd => $scp_cmd,
 		 _rsync_cmd => $rsync_cmd,
@@ -1463,6 +1464,7 @@ sub sftp {
 sub DESTROY {
     my $self = shift;
     my $pid = $self->{_pid};
+    my $perl_pid = $self->{_perl_pid};
     local $@;
     $debug and $debug & 2 and _debug("DESTROY($self, pid => ".(defined $pid ? $pid : '<undef>').")");
     if ($pid) {
