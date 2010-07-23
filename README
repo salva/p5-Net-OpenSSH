@@ -21,7 +21,7 @@ This module requires these other modules and libraries:
   IO::Pty (optional, required for password authentication)
   Net::SFTP::Foreign (optional, required for SFTP support)
 
-  OpenSSH binary client version 4.1 or later, 5.3 recommended.
+  OpenSSH binary client version 4.1 or later, 5.x recommended.
 
 
 COPYRIGHT AND LICENCE

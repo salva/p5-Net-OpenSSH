@@ -1,6 +1,6 @@
 package Net::OpenSSH;
 
-our $VERSION = '0.44';
+our $VERSION = '0.48';
 
 use strict;
 use warnings;
@@ -9,6 +9,7 @@ our $debug ||= 0;
 
 use Carp qw(carp croak);
 use POSIX qw(:sys_wait_h);
+use Socket;
 use File::Spec;
 use Cwd ();
 use Scalar::Util ();
@@ -58,6 +59,40 @@ sub _hexdump {
     }
 }
 
+sub _tcroak {
+    if (${^TAINT} > 0) {
+	push @_, " while running with -T switch";
+        goto &croak;
+    }
+    if (${^TAINT} < 0) {
+	push @_, " while running with -t switch";
+        goto &carp;
+    }
+}
+
+sub _catch_tainted_args {
+    my $i;
+    for (@_) {
+        next unless $i++;
+        if (Scalar::Util::tainted $_) {
+            my (undef, undef, undef, $subn) = caller 1;
+            my $msg = ( $subn =~ /::([a-z]\w*)$/
+                        ? "Insecure argument '$_' on '$1' method call"
+                        : "Insecure argument '$_' on method call" );
+            _tcroak($msg);
+        }
+        elsif (ref($_) eq 'HASH') {
+            for (grep Scalar::Util::tainted $_, values %$_) {
+		my (undef, undef, undef, $subn) = caller 1;
+		my $msg = ( $subn =~ /::([a-z]\w*)$/
+			    ? "Insecure argument on '$1' method call"
+			    : "Insecure argument on method call" );
+		_tcroak($msg);
+            }
+        }
+    }
+}
+
 sub _set_error {
     my $self = shift;
     my $code = shift || 0;
@@ -92,9 +127,10 @@ my $obfuscate = sub {
 my $deobfuscate = $obfuscate;
 
 # regexp from Regexp::IPv6
-my $IPv6_re = qr{:(?::[\da-f]{1,4}){0,5}(?:(?::[\da-f]{1,4}){1,2}|:(?:(?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})[.](?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})[.](?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})[.](?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})))|[\da-f]{1,4}:(?:[\da-f]{1,4}:(?:[\da-f]{1,4}:(?:[\da-f]{1,4}:(?:[\da-f]{1,4}:(?:[\da-f]{1,4}:(?:[\da-f]{1,4}:(?:[\da-f]{1,4}|:)|:(?:[\da-f]{1,4})?)|(?:(?::[\da-f]{1,4}){1,2}|:(?:(?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})[.](?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})[.](?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})[.](?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2}))?))|(?::[\da-f]{1,4})?(?:(?::[\da-f]{1,4}){1,2}|:(?:(?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})[.](?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})[.](?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})[.](?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2}))?))|(?::[\da-f]{1,4}){0,2}(?:(?::[\da-f]{1,4}){1,2}|:(?:(?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})[.](?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})[.](?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})[.](?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2}))?))|(?::[\da-f]{1,4}){0,3}(?:(?::[\da-f]{1,4}){1,2}|:(?:(?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})[.](?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})[.](?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})[.](?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2}))?))|(?::[\da-f]{1,4}){0,4}(?:(?::[\da-f]{1,4}){1,2}|:(?:(?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})[.](?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})[.](?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})[.](?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2}))?))}i;
+my $IPv6_re = qr((?-xism::(?::[0-9a-fA-F]{1,4}){0,5}(?:(?::[0-9a-fA-F]{1,4}){1,2}|:(?:(?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})[.](?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})[.](?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})[.](?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})))|[0-9a-fA-F]{1,4}:(?:[0-9a-fA-F]{1,4}:(?:[0-9a-fA-F]{1,4}:(?:[0-9a-fA-F]{1,4}:(?:[0-9a-fA-F]{1,4}:(?:[0-9a-fA-F]{1,4}:(?:[0-9a-fA-F]{1,4}:(?:[0-9a-fA-F]{1,4}|:)|(?::(?:[0-9a-fA-F]{1,4})?|(?:(?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})[.](?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})[.](?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})[.](?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2}))))|:(?:(?:(?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})[.](?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})[.](?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})[.](?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2}))|[0-9a-fA-F]{1,4}(?::[0-9a-fA-F]{1,4})?|))|(?::(?:(?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})[.](?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})[.](?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})[.](?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2}))|:[0-9a-fA-F]{1,4}(?::(?:(?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})[.](?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})[.](?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})[.](?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2}))|(?::[0-9a-fA-F]{1,4}){0,2})|:))|(?:(?::[0-9a-fA-F]{1,4}){0,2}(?::(?:(?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})[.](?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})[.](?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})[.](?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2}))|(?::[0-9a-fA-F]{1,4}){1,2})|:))|(?:(?::[0-9a-fA-F]{1,4}){0,3}(?::(?:(?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})[.](?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})[.](?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})[.](?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2}))|(?::[0-9a-fA-F]{1,4}){1,2})|:))|(?:(?::[0-9a-fA-F]{1,4}){0,4}(?::(?:(?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})[.](?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})[.](?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})[.](?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2}))|(?::[0-9a-fA-F]{1,4}){1,2})|:))));
 
 sub new {
+    ${^TAINT} and &_catch_tainted_args;
     my $class = shift;
     @_ & 1 and unshift @_, 'host';
     my %opts = @_;
@@ -154,15 +190,36 @@ sub new {
     my $expand_vars = delete $opts{expand_vars};
     my $vars = delete $opts{vars} || {};
 
-    my $master_stdout_fh = delete $opts{master_stdout_fh};
-    my $master_stderr_fh = delete $opts{master_stderr_fh};
+    my ($master_stdout_fh, $master_stderr_fh,
+	$master_stdout_discard, $master_stderr_discard);
 
-    my $master_stdout_discard = delete $opts{master_stdout_discard};
-    my $master_stderr_discard = delete $opts{master_stderr_discard};
+    ($master_stdout_fh = delete $opts{master_stdout_fh} or
+     $master_stdout_discard = delete $opts{master_stdout_discard});
 
-    my $default_stdout_fh = delete $opts{default_stdout_fh};
-    my $default_stderr_fh = delete $opts{default_stderr_fh};
-    my $default_stdin_fh = delete $opts{default_stdin_fh};
+    ($master_stderr_fh = delete $opts{master_stderr_fh} or
+     $master_stderr_discard = delete $opts{master_stderr_discard});
+
+    my ($default_stdout_fh, $default_stderr_fh, $default_stdin_fh,
+	$default_stdout_file, $default_stderr_file, $default_stdin_file,
+	$default_stdout_discard, $default_stderr_discard, $default_stdin_discard);
+
+    $default_stdout_file = (delete $opts{default_stdout_discard}
+			    ? '/dev/null'
+			    : delete $opts{default_stdout_discard});
+    $default_stdout_fh = delete $opts{default_stdout_fh}
+	unless defined $default_stdout_file;
+
+    $default_stderr_file = (delete $opts{default_stderr_discard}
+			    ? '/dev/null'
+			    : delete $opts{default_stderr_discard});
+    $default_stderr_fh = delete $opts{default_stderr_fh}
+	unless defined $default_stderr_file;
+
+    $default_stdin_file = (delete $opts{default_stdin_discard}
+			    ? '/dev/null'
+			    : delete $opts{default_stdin_discard});
+    $default_stdin_fh = delete $opts{default_stdin_fh}
+	unless defined $default_stdin_file;
 
     _croak_bad_options %opts;
 
@@ -182,6 +239,19 @@ sub new {
     push @ssh_opts, -o => "User=$user" if defined $user;
     push @ssh_opts, -o => "Port=$port" if defined $port;
 
+    my $home = do {
+	local $SIG{__DIE__};
+	local $SIG{__WARN__};
+	local $@;
+	eval { Cwd::realpath((getpwuid $>)[7]) }
+    };
+
+    if (${^TAINT}) {
+	($home) = $home =~ /^(.*)$/;
+	Scalar::Util::tainted($ENV{PATH}) and
+		_tcroak('Insecure $ENV{PATH}');
+    }
+
     my $self = { _error => 0,
 		 _perl_pid => $$,
                  _ssh_cmd => $ssh_cmd,
@@ -194,11 +264,7 @@ sub new {
                  _port => $port,
                  _passwd => $obfuscate->($passwd),
                  _timeout => $timeout,
-                 _home => do {
-		     local $SIG{__DIE__};
-		     local $SIG{__WARN__};
-		     local $@;
-		     eval { Cwd::realpath((getpwuid $>)[7]) } },
+                 _home => $home,
 		 _default_stdin_fh => $default_stdin_fh,
 		 _default_stdout_fh => $default_stdout_fh,
 		 _default_stderr_fh => $default_stderr_fh,
@@ -210,6 +276,15 @@ sub new {
 		 _expand_vars => $expand_vars,
 		 _vars => $vars };
     bless $self, $class;
+
+    # default file handles are opened so late in order to have the
+    # $self object to report errors
+    $self->{_default_stdout_fh} = $self->_open_file('>', $default_stdout_file)
+	if defined $default_stdout_file;
+    $self->{_default_stderr_fh} = $self->_open_file('>', $default_stderr_file)
+	if defined $default_stderr_file;
+    $self->{_default_stdin_fh} = $self->_open_file('<', $default_stdin_file)
+	if defined $default_stdin_file;
 
     $self->{_ssh_opts} = [$self->_expand_vars(@ssh_opts)];
     $self->{_master_opts} = [$self->_expand_vars(@master_opts)];
@@ -267,6 +342,7 @@ sub set_expand_vars {
 }
 
 sub set_var {
+    ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
     my $k = shift;
     $k =~ /^(?:USER|HOST|PORT)$/
@@ -284,7 +360,7 @@ sub get_var {
 
 sub _expand_vars {
     my ($self, @str) = @_;
-    if ($self->{_expand_vars}) {
+    if (ref $self and $self->{_expand_vars}) {
 	for (@str) {
 	    s{%(\w*)%}{length ($1) ? $self->get_var($1) : '%'}ge
 		if defined $_;
@@ -313,7 +389,7 @@ sub _is_secure_path {
     return 1;
 }
 
-sub _make_call {
+sub _make_ssh_call {
     my $self = shift;
     my @before = @{shift || []};
     my @args = ($self->{_ssh_cmd}, @before,
@@ -359,7 +435,7 @@ sub _rsync_quote {
 sub _make_rsync_call {
     my $self = shift;
     my $before = shift;
-    my @ssh_args = $self->_make_call($before);
+    my @ssh_args = $self->_make_ssh_call($before);
     pop @ssh_args; # rsync adds the target host itself
     my $transport = join(' ', $self->_rsync_quote(@ssh_args));
     my @args = ( $self->{_rsync_cmd},
@@ -367,6 +443,17 @@ sub _make_rsync_call {
 		 @_);
 
     $debug and $debug & 8 and _debug_dump 'rsync call args' => \@args;
+    @args;
+}
+
+sub _make_tunnel_call {
+    @_ == 4 or croak "bad number of arguments for creating a tunnel";
+    my $self = shift;
+    my @before = @{shift||[]};
+    my $dest = join(':', @_);
+    push @before, "-W$dest";
+    my @args = $self->_make_ssh_call(\@before);
+    $debug and $debug & 8 and _debug_dump 'tunnel call args' => \@args;
     @args;
 }
 
@@ -395,6 +482,7 @@ sub _kill_master {
 	    }
 	    for (0..5) {
 		my $r = waitpid($pid, WNOHANG);
+                $debug and $debug & 32 and _debug "waitpid(master: $pid) => pid: $r, rc: $!";
 		return if ($r == $pid or $! == Errno::ECHILD);
 		select(undef, undef, undef, 0.2);
 	    }
@@ -445,7 +533,7 @@ sub _connect {
 			    -o => 'PreferredAuthentications=keyboard-interactive,password');
     }
 
-    my @call = $self->_make_call(\@master_opts);
+    my @call = $self->_make_ssh_call(\@master_opts);
 
     local $SIG{CHLD};
     my $pid = fork;
@@ -483,6 +571,7 @@ sub _waitpid {
     if ($pid) {
 	while (1) {
 	    my $r = waitpid($pid, 0);
+            $debug and $debug & 16 and _debug "_waitpid($pid) => pid: $r, rc: $!";
 	    if ($r == $pid) {
 		if ($?) {
 		    my $signal = ($? & 255);
@@ -634,7 +723,8 @@ sub _wait_for_master {
 
 sub _master_ctl {
     my ($self, $cmd) = @_;
-    $self->capture({stderr_to_stdout => 1, ssh_opts => [-O => $cmd]});
+    $self->capture({ stdin_discard => 1, tty => 0,
+                     stderr_to_stdout => 1, ssh_opts => [-O => $cmd]});
 }
 
 sub _make_pipe {
@@ -687,6 +777,7 @@ sub _arg_quoter {
 sub _arg_quoter_glob {
     sub {
 	my $arg = shift;
+	return "''" if $arg eq '';
         $arg =~ s|(?<!\\)([^\w/\-+=*?\[\],{}:\@!.^\\~])|\\$1|g;
 	$arg;
     }
@@ -716,7 +807,7 @@ sub _quote_args {
 		if (ref $_ eq 'SCALAR') {
 		    push @quoted, $quoter_glob->($self->_expand_vars($$_));
 		}
-		if (ref $_ eq 'REF' and ref $$_ eq 'SCALAR') {
+		elsif (ref $_ eq 'REF' and ref $$_ eq 'SCALAR') {
 		    push @quoted, $self->_expand_vars($$$_);
 		    undef $quote_extended;
 		}
@@ -758,7 +849,7 @@ sub shell_quote_glob {
     shift->_quote_args({quote_args => 1, glob_quoting => 1}, @_);
 }
 
-sub _array_or_scalar { map { defined($_) ? (ref $_ eq 'ARRAY' ? @$_ : $_ ) : () } @_ }
+sub _array_or_scalar_to_list { map { defined($_) ? (ref $_ eq 'ARRAY' ? @$_ : $_ ) : () } @_ }
 
 sub make_remote_command {
     my $self = shift;
@@ -769,7 +860,7 @@ sub make_remote_command {
     _croak_bad_options %opts;
     my @ssh_opts;
     push @ssh_opts, ($tty ? '-qtt' : '-T') if defined $tty;
-    my @call = $self->_make_call(\@ssh_opts, @args);
+    my @call = $self->_make_ssh_call(\@ssh_opts, @args);
     if (wantarray) {
 	$debug and $debug & 16 and _debug_dump make_remote_command => \@call;
 	return @call;
@@ -797,36 +888,80 @@ sub _open_file {
     }
 }
 
+sub _fileno_dup_dangerous {
+    my ($good_fn, $fh) = @_;
+    if (defined $fh) {
+        my $fn = fileno $fh;
+        for (1..5) {
+            $fn >= $good_fn and return $fn;
+            $fn = POSIX::dup($fn);
+        }
+        POSIX::_exit(255);
+    }
+    undef;
+}
+
 sub open_ex {
+    ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
     $self->_check_master_and_clear_error or return ();
     my %opts = (ref $_[0] eq 'HASH' ? %{shift()} : ());
 
-    my ($stdin_discard, $stdin_pipe, $stdin_fh, $stdin_file, $stdin_pty);
-    ( $stdin_discard = delete $opts{stdin_discard} or
-      $stdin_pipe = delete $opts{stdin_pipe} or
-      $stdin_pty = delete $opts{stdin_pty} or
-      $stdin_fh = delete $opts{stdin_fh} or
-      $stdin_file = delete $opts{stdin_file} );
+    my $tunnel = delete $opts{tunnel};
 
-    my ($stdout_discard, $stdout_pipe, $stdout_fh, $stdout_file, $stdout_pty);
-    ( $stdout_discard = delete $opts{stdout_discard} or
-      $stdout_pipe = delete $opts{stdout_pipe} or
-      $stdout_pty = delete $opts{stdout_pty} or
-      $stdout_fh = delete $opts{stdout_fh} or
-      $stdout_file = delete $opts{stdout_file} );
+    my ($stdin_discard, $stdin_pipe, $stdin_fh, $stdin_file, $stdin_pty,
+        $stdout_discard, $stdout_pipe, $stdout_fh, $stdout_file, $stdout_pty,
+        $stderr_discard, $stderr_pipe, $stderr_fh, $stderr_file, $stderr_to_stdout);
 
-    $stdout_pty and !$stdin_pty
-        and croak "option stdout_pty requires stdin_pty set";
+    my $stdinout_socket = delete $opts{stdinout_socket};
+    unless ($stdinout_socket) {
+        ( $stdin_discard = delete $opts{stdin_discard} or
+          $stdin_pipe = delete $opts{stdin_pipe} or
+          $stdin_fh = delete $opts{stdin_fh} or
+          $stdin_file = delete $opts{stdin_file} or
+          (not $tunnel and $stdin_pty = delete $opts{stdin_pty}) );
 
-    my ($stderr_discard, $stderr_pipe, $stderr_fh, $stderr_file, $stderr_to_stdout);
+        ( $stdout_discard = delete $opts{stdout_discard} or
+          $stdout_pipe = delete $opts{stdout_pipe} or
+          $stdout_fh = delete $opts{stdout_fh} or
+          $stdout_file = delete $opts{stdout_file} or
+          (not $tunnel and $stdout_pty = delete $opts{stdout_pty}) );
+
+        $stdout_pty and !$stdin_pty
+            and croak "option stdout_pty requires stdin_pty set";
+    }
+
     ( $stderr_discard = delete $opts{stderr_discard} or
       $stderr_pipe = delete $opts{stderr_pipe} or
       $stderr_fh = delete $opts{stderr_fh} or
       $stderr_to_stdout = delete $opts{stderr_to_stdout} or
       $stderr_file = delete $opts{stderr_file} );
 
-    my @error_prefix = _array_or_scalar delete $opts{_error_prefix};
+    my @error_prefix = _array_or_scalar_to_list delete $opts{_error_prefix};
+
+    my @ssh_opts = $self->_expand_vars(_array_or_scalar_to_list delete $opts{ssh_opts});
+
+    my ($cmd, $close_slave_pty, @args);
+    if ($tunnel) {
+	@_ == 2 or croak 'bad number of arguments for tunnel, use $ssh->method(\\%opts, $host, $port)';
+	@args = @_;
+    }
+    else {
+	if ($stdin_pty) {
+	    $close_slave_pty = delete $opts{close_slave_pty};
+	    $close_slave_pty = 1 unless defined $close_slave_pty;
+	}
+
+	my $tty = delete $opts{tty};
+	push @ssh_opts, ($tty ? '-qtt' : '-T') if defined $tty;
+
+	$cmd = delete $opts{_cmd} || 'ssh';
+	$opts{quote_args_extended} = 1
+	    if (not defined $opts{quote_args_extended} and $cmd eq 'ssh');
+	@args = $self->_quote_args(\%opts, @_);
+    }
+
+    _croak_bad_options %opts;
 
     if (defined $stdin_file) {
 	$stdin_fh = $self->_open_file('<', $stdin_file, @error_prefix) or return
@@ -838,62 +973,50 @@ sub open_ex {
 	$stderr_fh = $self->_open_file('>', $stderr_file, @error_prefix) or return
     }
 
-    my $tty = delete $opts{tty};
-    my $close_slave_pty;
-    if ($stdin_pty) {
-        # $tty = 1 unless defined $tty;
-        $close_slave_pty = delete $opts{close_slave_pty};
-        $close_slave_pty = 1 unless defined $close_slave_pty;
-    }
-    my @ssh_opts = $self->_expand_vars(_array_or_scalar delete $opts{ssh_opts});
-
-    my $cmd = delete $opts{_cmd};
-    $cmd = 'ssh' unless defined $cmd;
-
-    $opts{quote_args_extended} = 1
-	if (!defined $opts{quote_args_extended} and $cmd eq 'ssh');
-
-    my @args = $self->_quote_args(\%opts, @_);
-
-    _croak_bad_options %opts;
-
     my ($rin, $win, $rout, $wout, $rerr, $werr);
 
-    push @ssh_opts, ($tty ? '-qtt' : '-T') if defined $tty;
-
-    if ($stdin_pipe) {
-        ($rin, $win) = $self->_make_pipe(@error_prefix) or return;
-    }
-    elsif ($stdin_pty) {
-        _load_module('IO::Pty');
-        $win = IO::Pty->new;
-	unless ($win) {
-	    $self->_set_error(OSSH_SLAVE_PIPE_FAILED, @error_prefix, "unable to allocate pseudo-tty: $!");
-	    return ();
-	}
-        $rin = $win->slave;
-    }
-    elsif (defined $stdin_fh) {
-        $rin = $stdin_fh;
-    }
-    else {
-	$rin = $self->{_default_stdin_fh}
-    }
-    _check_is_system_fh STDIN => $rin;
-
-    if ($stdout_pipe) {
-        ($rout, $wout) = $self->_make_pipe(@error_prefix) or return;
-    }
-    elsif ($stdout_pty) {
+    if ($stdinout_socket) {
+        unless(socketpair($rin, $win, AF_UNIX, SOCK_STREAM, PF_UNSPEC)) {
+            $self->_set_error(OSSH_SLAVE_PIPE_FAILED, @error_prefix, "socketpair failed: $!");
+            return ();
+        }
         $wout = $rin;
     }
-    elsif (defined $stdout_fh) {
-        $wout = $stdout_fh;
-    }
     else {
-	$wout = $self->{_default_stdout_fh};
+        if ($stdin_pipe) {
+            ($rin, $win) = $self->_make_pipe(@error_prefix) or return;
+        }
+        elsif ($stdin_pty) {
+            _load_module('IO::Pty');
+            $win = IO::Pty->new;
+            unless ($win) {
+                $self->_set_error(OSSH_SLAVE_PIPE_FAILED, @error_prefix, "unable to allocate pseudo-tty: $!");
+                return ();
+            }
+            $rin = $win->slave;
+        }
+        elsif (defined $stdin_fh) {
+            $rin = $stdin_fh;
+        }
+        else {
+            $rin = $self->{_default_stdin_fh}
+        }
+        _check_is_system_fh STDIN => $rin;
+
+        if ($stdout_pipe) {
+            ($rout, $wout) = $self->_make_pipe(@error_prefix) or return;
+        }
+        elsif ($stdout_pty) {
+            $wout = $rin;
+        }
+        elsif (defined $stdout_fh) {
+            $wout = $stdout_fh;
+        }
+        else {
+            $wout = $self->{_default_stdout_fh};
+        }
+        _check_is_system_fh STDOUT => $wout;
     }
-    _check_is_system_fh STDOUT => $wout;
 
     unless ($stderr_to_stdout) {
 	if ($stderr_pipe) {
@@ -908,29 +1031,10 @@ sub open_ex {
 	_check_is_system_fh STDERR => $werr;
     }
 
-    if (defined $wout and fileno $wout < 1) {
-	my $wout_dup;
-	unless (open $wout_dup, '>>&', $wout) {
-	    $self->_set_error(OSSH_SLAVE_FAILED, @error_prefix,
-			      "unable to dup child STDOUT: $!");
-	    return ()
-	}
-	$wout = $wout_dup;
-    }
-
-    if (defined $werr and fileno $werr < 2) {
-	my $werr_dup;
-	unless (open $werr_dup, '>>&', $werr) {
-	    $self->_set_error(OSSH_SLAVE_FAILED, @error_prefix,
-			      "unable to dup child STDERR: $!");
-	    return ()
-	}
-	$werr = $werr_dup;
-    }
-
-    my @call = ( $cmd eq 'ssh'   ? $self->_make_call(\@ssh_opts, @args)       :
-		 $cmd eq 'scp'   ? $self->_make_scp_call(\@ssh_opts, @args)   :
-		 $cmd eq 'rsync' ? $self->_make_rsync_call(\@ssh_opts, @args) :
+    my @call = ( $tunnel         ? $self->_make_tunnel_call(\@ssh_opts, @args) :
+                 $cmd eq 'ssh'   ? $self->_make_ssh_call(\@ssh_opts, @args)    :
+		 $cmd eq 'scp'   ? $self->_make_scp_call(\@ssh_opts, @args)    :
+		 $cmd eq 'rsync' ? $self->_make_rsync_call(\@ssh_opts, @args)  :
 		 die "internal error: bad _cmd protocol" );
 
     $debug and $debug & 16 and _debug_dump open_ex => \@call;
@@ -942,36 +1046,26 @@ sub open_ex {
         return ();
     }
     unless ($pid) {
-	if (defined $stdin_discard) {
-	    open STDIN, '<', '/dev/null' or POSIX::_exit(255);
-	}
-        elsif (defined $rin) {
+        $stdin_discard  and (open $rin,  '<', '/dev/null' or POSIX::_exit(255));
+        $stdout_discard and (open $wout, '>', '/dev/null' or POSIX::_exit(255));
+        $stderr_discard and (open $werr, '>', '/dev/null' or POSIX::_exit(255));
+
+        my $rin_fd = _fileno_dup_dangerous(0 => $rin);
+        my $wout_fd = _fileno_dup_dangerous(1 => $wout);
+        my $werr_fd = _fileno_dup_dangerous(2 => $werr);
+
+        if (defined $rin_fd) {
             $win->make_slave_controlling_terminal if $stdin_pty;
-	    unless (fileno $rin == 0) {
-		open STDIN, '<&', $rin or POSIX::_exit(255);
-	    }
-	    $win and close $win;
+	    $rin_fd == 0 or POSIX::dup2($rin_fd, 0) or POSIX::_exit(255);
         }
-        if ($stdout_discard) {
-	    open STDOUT, '>', '/dev/null' or POSIX::_exit(255);
-	}
-	elsif (defined $wout) {
-	    unless (fileno $wout == 1) {
-		open STDOUT, '>>&', $wout or POSIX::_exit(255);
-	    }
-            $rout and close $rout;
+	if (defined $wout_fd) {
+            $wout_fd == 1 or POSIX::dup2($wout_fd, 1) or POSIX::_exit(255);
         }
-	if ($stderr_discard) {
-	    open STDERR, '>', '/dev/null' or POSIX::_exit(255);
-	}
-        elsif (defined $werr) {
-	    unless (fileno $werr == 2) {
-		open STDERR, '>>&', $werr or POSIX::_exit(255);
-	    }
-	    $rerr and close $rerr;
+        if (defined $werr_fd) {
+            $werr_fd == 2 or POSIX::dup2($werr_fd, 2) or POSIX::_exit(255);
         }
         elsif ($stderr_to_stdout) {
-	    open STDERR, '>>&STDOUT' or POSIX::_exit(255);
+            POSIX::dup2(1, 2) or POSIX::_exit(255);
         }
         do { exec @call };
         POSIX::_exit(255);
@@ -981,13 +1075,14 @@ sub open_ex {
 }
 
 sub pipe_in {
+    ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
     $self->_check_master_and_clear_error or return ();
     my %opts = (ref $_[0] eq 'HASH' ? %{shift()} : ());
     my @args = $self->_quote_args(\%opts, @_);
     _croak_bad_options %opts;
 
-    my @call = $self->_make_call([], @args);
+    my @call = $self->_make_ssh_call([], @args);
     $debug and $debug & 16 and _debug_dump pipe_in => @call;
     my $pid = open my $rin, '|-', @call
         or return ();
@@ -995,13 +1090,14 @@ sub pipe_in {
 }
 
 sub pipe_out {
+    ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
     $self->_check_master_and_clear_error or return ();
     my %opts = (ref $_[0] eq 'HASH' ? %{shift()} : ());
     my @args = $self->_quote_args(\%opts, @_);
     _croak_bad_options %opts;
 
-    my @call = $self->_make_call([], @args);
+    my @call = $self->_make_ssh_call([], @args);
     $debug and $debug & 16 and _debug_dump pipe_out => @call;
     my $pid = open my $rout, '-|', @call
         or return ();
@@ -1011,7 +1107,7 @@ sub pipe_out {
 sub _io3 {
     my ($self, $out, $err, $in, $stdin_data, $timeout) = @_;
     $self->_check_master_and_clear_error or return ();
-    my @data = _array_or_scalar $stdin_data;
+    my @data = _array_or_scalar_to_list $stdin_data;
     my ($cout, $cerr, $cin) = (defined($out), defined($err), defined($in));
     $timeout = $self->{_timeout} unless defined $timeout;
 
@@ -1026,6 +1122,8 @@ sub _io3 {
     local $SIG{PIPE} = 'IGNORE';
 
  MLOOP: while ($cout or $cerr or $cin) {
+        $debug and $debug & 64 and _debug "io3 mloop, cin: " . ($cin || 0) .
+            ", cout: " . ($cout || 0) . ", cerr: " . ($cerr || 0);
         my ($rv, $wv);
 
         if ($cout or $cerr) {
@@ -1048,11 +1146,19 @@ sub _io3 {
 
         my $recalc_vecs;
     FAST: until ($recalc_vecs) {
+            $debug and $debug & 64 and
+                _debug "io3 fast, cin: " . ($cin || 0) .
+                    ", cout: " . ($cout || 0) . ", cerr: " . ($cerr || 0);
             my ($rv1, $wv1) = ($rv, $wv);
             my $n = select ($rv1, $wv1, undef, $timeout);
             if ($n > 0) {
                 if ($cout and vec($rv1, $fnoout, 1)) {
-                    my $read = sysread($out, $bout, 20480, length($bout));
+                    my $offset = length $bout;
+                    my $read = sysread($out, $bout, 20480, $offset);
+                    if ($debug and $debug & 64) {
+                        _debug "stdout, bytes read: " . (defined $read ? $read : '<undef>') . " at offset $offset";
+                        $read and $debug & 128 and _hexdump substr $bout, $offset;
+                    }
                     unless ($read) {
                         close $out;
                         undef $cout;
@@ -1062,6 +1168,7 @@ sub _io3 {
                 }
                 if ($cerr and vec($rv1, $fnoerr, 1)) {
                     my $read = sysread($err, $berr, 20480, length($berr));
+                    $debug and $debug & 64 and _debug "stderr, bytes read: " . (defined $read ? $read : '<undef>');
                     unless ($read) {
                         close $err;
                         undef $cerr;
@@ -1070,6 +1177,10 @@ sub _io3 {
                 }
                 if ($cin and vec($wv1, $fnoin, 1)) {
                     my $written = syswrite($in, $data[0], 20480);
+                    if ($debug and $debug & 64) {
+                        _debug "stdin, bytes written: " . (defined $written ? $written : '<undef>');
+                        $written and $debug & 128 and _hexdump substr $data[0], 0, $written;
+                    }
                     if ($written) {
                         substr($data[0], 0, $written, '');
                         while (@data) {
@@ -1093,14 +1204,15 @@ sub _io3 {
     close $out if $cout;
     close $err if $cerr;
     close $in if $cin;
-
+    $debug and $debug & 64 and _debug "leaving _io3()";
     return ($bout, $berr);
 }
 
 _sub_options spawn => qw(stderr_to_stdout stdin_discard stdin_fh stdin_file stdout_discard
                          stdout_fh stdout_file stderr_discard stderr_fh stderr_file
-                         quote_args tty ssh_opts);
+                         quote_args tty ssh_opts tunnel);
 sub spawn {
+    ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
     my %opts =  (ref $_[0] eq 'HASH' ? %{shift()} : ());
     _croak_bad_options %opts;
@@ -1109,8 +1221,9 @@ sub spawn {
 }
 
 _sub_options open2 => qw(stderr_to_stdout stderr_discard stderr_fh stderr_file quote_args
-                         tty ssh_opts);
+                         tty ssh_opts tunnel);
 sub open2 {
+    ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
     my %opts = (ref $_[0] eq 'HASH' ? %{shift()} : ());
     _croak_bad_options %opts;
@@ -1122,9 +1235,11 @@ sub open2 {
     return ($in, $out, $pid);
 }
 
-_sub_options open2pty => qw(stderr_to_stdout stderr_discard stderr_fh stderr_file
-                            quote_args tty close_slave_pty ssh_opts);
+_sub_options open2pty => qw(stderr_to_stdout stderr_discard stderr_fh
+                            stderr_file quote_args tty close_slave_pty
+                            ssh_opts);
 sub open2pty {
+    ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
     my %opts = (ref $_[0] eq 'HASH' ? %{shift()} : ());
     _croak_bad_options %opts;
@@ -1137,8 +1252,24 @@ sub open2pty {
     return ($pty, $pid);
 }
 
+_sub_options open2socket => qw(stderr_to_stdout stderr_discard
+                               stderr_fh stderr_file quote_args tty
+                               ssh_opts tunnel);
+sub open2socket {
+    ${^TAINT} and &_catch_tainted_args;
+    my $self = shift;
+    my %opts = (ref $_[0] eq 'HASH' ? %{shift()} : ());
+    _croak_bad_options %opts;
+
+    my ($socket, undef, undef, $pid) =
+        $self->open_ex({ stdinout_socket => 1,
+                         %opts }, @_) or return ();
+    return ($socket, $pid);
+}
+
 _sub_options open3 => qw(quote_args tty ssh_opts);
 sub open3 {
+    ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
     my %opts = (ref $_[0] eq 'HASH' ? %{shift()} : ());
     _croak_bad_options %opts;
@@ -1154,6 +1285,7 @@ sub open3 {
 
 _sub_options open3pty => qw(quote_args tty close_slave_pty ssh_opts);
 sub open3pty {
+    ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
     my %opts = (ref $_[0] eq 'HASH' ? %{shift()} : ());
     _croak_bad_options %opts;
@@ -1170,8 +1302,9 @@ sub open3pty {
 
 _sub_options system => qw(stdout_discard stdout_fh stdin_discard stdout_file stdin_fh
                           stdin_file quote_args stderr_to_stdout stderr_discard stderr_fh
-                          stderr_file tty ssh_opts);
+                          stderr_file tty ssh_opts tunnel);
 sub system {
+    ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
     $self->_check_master_and_clear_error or return -1;
     my %opts = (ref $_[0] eq 'HASH' ? %{shift()} : ());
@@ -1192,8 +1325,9 @@ sub system {
 }
 
 _sub_options capture => qw(stderr_to_stdout stderr_discard stderr_fh stderr_file
-                           stdin_discard stdin_fh stdin_file quote_args tty ssh_opts);
+                           stdin_discard stdin_fh stdin_file quote_args tty ssh_opts tunnel);
 sub capture {
+    ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
     my %opts = (ref $_[0] eq 'HASH' ? %{shift()} : ());
     my $stdin_data = delete $opts{stdin_data};
@@ -1217,6 +1351,7 @@ sub capture {
 
 _sub_options capture2 => qw(stdin_discard stdin_fh stdin_file quote_args tty ssh_opts);
 sub capture2 {
+    ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
     my %opts = (ref $_[0] eq 'HASH' ? %{shift()} : ());
     my $stdin_data = delete $opts{stdin_data};
@@ -1233,6 +1368,34 @@ sub capture2 {
     my @capture = $self->_io3($out, $err, $in, $stdin_data, $timeout);
     $self->_waitpid($pid);
     wantarray ? @capture : $capture[0];
+}
+
+_sub_options open_tunnel => qw(ssh_opts stderr_discard stderr_fh stderr_file);
+sub open_tunnel {
+    ${^TAINT} and &_catch_tainted_args;
+    my $self = shift;
+    my %opts = (ref $_[0] eq 'HASH' ? %{shift()} : ());
+    $opts{stderr_discard} = 1
+	unless grep defined $opts{$_}, qw(stderr_discard stderr_fh stderr_file);
+    _croak_bad_options %opts;
+    @_ == 2 or croak 'Usage: $ssh->open_tunnel(\%opts, $host, $port)';
+    $opts{tunnel} = 1;
+    $self->open2socket(\%opts, @_);
+}
+
+_sub_options capture_tunnel => qw(ssh_opts stderr_discard stderr_fh
+				  stderr_file stdin_discard stdin_fh
+				  stdin_file stdin_data timeout);
+sub capture_tunnel {
+    ${^TAINT} and &_catch_tainted_args;
+    my $self = shift;
+    my %opts = (ref $_[0] eq 'HASH' ? %{shift()} : ());
+    $opts{stderr_discard} = 1
+	unless grep defined $opts{$_}, qw(stderr_discard stderr_fh stderr_file);
+    _croak_bad_options %opts;
+    @_ == 2 or croak 'Usage: $ssh->capture_tunnel(\%opts, $host, $port)';
+    $opts{tunnel} = 1;
+    $self->capture(\%opts, @_);
 }
 
 sub _calling_method {
@@ -1260,11 +1423,13 @@ sub _scp_get_args {
 }
 
 sub scp_get {
+    ${^TAINT} and &_catch_tainted_args;
     my ($self, $opts, $target, @src) = _scp_get_args @_;
     $self->_scp($opts, @src, $target);
 }
 
 sub rsync_get {
+    ${^TAINT} and &_catch_tainted_args;
     my ($self, $opts, $target, @src) = _scp_get_args @_;
     $self->_rsync($opts, @src, $target);
 }
@@ -1299,11 +1464,13 @@ sub _scp_put_args {
 }
 
 sub scp_put {
+    ${^TAINT} and &_catch_tainted_args;
     my ($self, $opts, $target, @src) = _scp_put_args @_;
     $self->_scp($opts, @src, $target);
 }
 
 sub rsync_put {
+    ${^TAINT} and &_catch_tainted_args;
     my ($self, $opts, $target, @src) = _scp_put_args @_;
     $self->_rsync($opts, @src, $target);
 }
@@ -1407,7 +1574,7 @@ sub _rsync {
 		$opt1 =~ tr/_/-/;
 		$rsync_opt_forbiden{$opt1} and croak "forbiden rsync option '$opt' used";
 		if ($rsync_opt_with_arg{$opt1}) {
-		    push @opts, "--$opt1=$_" for _array_or_scalar($value)
+		    push @opts, "--$opt1=$_" for _array_or_scalar_to_list($value)
 		}
 		else {
 		    $value = !$value if $opt1 =~ s/^no-//;
@@ -1437,6 +1604,7 @@ sub _rsync {
 _sub_options sftp => qw(autoflush timeout fs_encoding
 			block_size queue_size late_set_perm);
 sub sftp {
+    ${^TAINT} and &_catch_tainted_args;
     @_ & 1 or croak 'Usage: $ssh->sftp(%sftp_opts)';
     _load_module('Net::SFTP::Foreign', '1.47');
     my ($self, %opts) = @_;
@@ -1621,7 +1789,7 @@ instance, these two method calls are equivalent:
 Most methods return undef (or an empty list) to indicate failure.
 
 The L</error> method can always be used to explicitly check for
-errors. For instace:
+errors. For instance:
 
   my ($output, $errput) = $ssh->capture2({timeout => 1}, "find /");
   $ssh->error and die "ssh failed: " . $ssh->error;
@@ -1769,11 +1937,19 @@ For instance:
   $ssh->scp_put("/foo/bar*", "/tmp")
     or die "scp failed: " . $ssh->error;
 
+=item default_stdin_file = $fn
+
+=item default_stdout_file = $fn
+
+=item default_stderr_file = $fn
+
+Opens the given filenames and use it as the defaults.
+
 =item master_stdout_fh => $fh
 
 =item master_stderr_fh => $fh
 
-Redirect corresponding stdio streams to given filehandles.
+Redirect corresponding stdio streams of the master SSH process to given filehandles.
 
 =item master_stdout_discard => $bool
 
@@ -1822,9 +1998,10 @@ I<Note: this is a low level method that, probably, you don't need to use!>
 That method starts the command C<@cmd> on the remote machine creating
 new pipes for the IO channels as specified on the C<%opts> hash.
 
-Returns four values, the first three correspond to the local side
-of the pipes created (they can be undef) and the fourth to the PID of
-the new SSH slave process. An empty list is returned on failure.
+Returns four values, the first three (C<$in>, C<$out> and C<$err>)
+correspond to the local side of the pipes created (they can be undef)
+and the fourth (C<$pid>) to the PID of the new SSH slave process. An
+empty list is returned on failure.
 
 Note that C<waitpid> has to be used afterwards to reap the
 slave SSH process.
@@ -1837,7 +2014,7 @@ Accepted options:
 
 Creates a new pipe and connects the reading side to the stdin stream
 of the remote process. The writing side is returned as the first
-value.
+value (C<$in>).
 
 =item stdin_pty => 1
 
@@ -1872,7 +2049,7 @@ Uses /dev/null as the remote process stdin stream.
 
 Creates a new pipe and connects the writting side to the stdout stream
 of the remote process. The reading side is returned as the second
-value.
+value (C<$out>).
 
 =item stdout_pty => 1
 
@@ -1881,7 +2058,8 @@ pseudo-pty. This option requires C<stdin_pty> to be also set.
 
 =item stdout_fh => $fh
 
-Duplicates C<$fh> and uses it as the stdout stream of the remote process.
+Duplicates C<$fh> and uses it as the stdout stream of the remote
+process.
 
 =item stdout_file => $filename
 
@@ -1893,11 +2071,24 @@ Opens the file of the given filename and redirect stdout there.
 
 Uses /dev/null as the remote process stdout stream.
 
+=item stdinout_socket => 1
+
+Creates a new socketpair, attachs the stdin an stdout streams of the
+slave SSH process to one end and returns the other as the first value
+(C<$in>) and undef for the second (C<$out>).
+
+Example:
+
+  my ($socket, undef, undef, $pid) = $ssh->open_ex({stdinout_socket => 1},
+                                                   '/bin/netcat $dest');
+
+See also L</open2socket>.
+
 =item stderr_pipe => 1
 
 Creates a new pipe and connects the writting side to the stderr stream
 of the remote process. The reading side is returned as the third
-value.
+value (C<$err>).
 
 =item stderr_fh => $fh
 
@@ -1919,7 +2110,8 @@ tty.
 
 When this flag is set and stdin is not attached to a tty, the ssh
 master and slave processes may generate spurious warnings about failed
-tty operations. This is a bug on OpenSSH.
+tty operations. This is caused by a bug present in older versions of
+OpenSSH.
 
 =item close_slave_pty => 0
 
@@ -1941,6 +2133,18 @@ List of extra options for the C<ssh> command.
 
 This feature should be used with care, as the given options are not
 checked in any way by the module, and they could interfere with it.
+
+=item tunnel => $bool
+
+Instead of executing a command in the remote host, this option
+instruct Net::OpenSSH to create a TCP tunnel. The arguments become the
+target IP and port.
+
+Example:
+
+  my ($in, $out, undef, $pid) = $ssh->open_ex({tunnel => 1}, $IP, $port);
+
+See also L</Tunnels>.
 
 =back
 
@@ -2156,6 +2360,8 @@ No options are currently accepted.
 
 =item ($pty, $pid) = $ssh->open2pty(\%opts, @cmd)
 
+=item ($socket, $pid) = $ssh->open2socket(\%opts, @cmd)
+
 =item ($in, $out, $err, $pid) = $ssh->open3(\%opts, @cmd)
 
 =item ($pty, $err, $pid) = $ssh->open3pty(\%opts, @cmd)
@@ -2174,11 +2380,33 @@ with the following code:
   my @pid;
   for my $host (@hosts) {
       open my($fh), '>', "/tmp/out-$host.txt"
-        or die "unable to create file: $!;
+        or die "unable to create file: $!";
       push @pid, $conn{$host}->spawn({stdout_fh => $fh}, $cmd);
   }
 
   waitpid($_, 0) for @pid;
+
+=item ($socket, $pid) = $ssh->open_tunnel(\%opts, $dest_host, $port)
+
+X<open_tunnel>Similar to L</open2socket>, but instead of running a command, it opens a TCP
+tunnel to the given address. See also L</Tunnels>.
+
+=item $out = $ssh->capture_tunnel(\%opts, $dest_host, $port)
+
+=item @out = $ssh->capture_tunnel(\%opts, $dest_host, $port)
+
+X<capture_tunnel>Similar to L</capture>, but instead of running a command, it opens a
+TCP tunnel.
+
+Example:
+
+  $out = $ssh->capture_tunnel({stdin_data => join("\r\n",
+                                                  "GET / HTTP/1.0",
+                                                  "Host: www.perl.org",
+                                                  "", "") },
+                              'www.perl.org', 80)
+
+See also L</Tunnels>.
 
 =item $ssh->scp_get(\%opts, $remote1, $remote2,..., $local_dir_or_file)
 
@@ -2269,26 +2497,25 @@ parallel as follows:
 =item stderr_to_stdout => 1
 
 These options are passed unchanged to method L</open_ex>, allowing
-capture of the output of the scp program.
+capture of the output of the C<scp> program.
 
 Note that C<scp> will not generate progress reports unless its stdout
 stream is attached to a tty.
 
 =back
 
-
 =item $ssh->rsync_get(\%opts, $remote1, $remote2,..., $local_dir_or_file)
 
 =item $ssh->rsync_put(\%opts, $local1, $local2,..., $remote_dir_or_file)
 
-These methods use rsync over SSH to transfer files from/to the remote
+These methods use C<rsync> over SSH to transfer files from/to the remote
 machine.
 
 They accept the same set of options as the SCP ones.
 
 Any unrecognized option will be passed as an argument to the C<rsync>
-command. Underscores can be used instead of dashes in C<rsync> option
-names.
+command (see L<rsync(1)>). Underscores can be used instead of dashes
+in C<rsync> option names.
 
 For instance:
 
@@ -2344,14 +2571,24 @@ In scalar context returns the list of arguments quoted and joined.
 Usually this task is done automatically by the module. See L</"Shell
 quoting"> below.
 
+This method can also be used as a class method.
+
+Example:
+
+  my $quoted_args = Net::OpenSSH->shell_quote(@args);
+  system('ssh', '--', $host, $quoted_args);
+
 =item $ssh->shell_quote_glob(@args)
 
 This method is like the previous C<shell_quote> but leaves wildcard
 characters unquoted.
 
+It can be used as a class method also.
+
 =item $ssh->set_expand_vars($bool)
 
-Enables/disables variable expansion feature.
+Enables/disables variable expansion feature (see L</"Variable
+expansion">).
 
 =item $ssh->get_expand_vars
 
@@ -2413,13 +2650,12 @@ Take for example Net::OpenSSH L</system> method:
   $ssh->system("ls -l *");
   $ssh->system('ls', '-l', '/');
 
-The first call passes the argument unchanged to ssh, so that it is
-executed in the remote side through the shell which interprets shell
-metacharacters.
+The first call passes the argument unchanged to ssh and it is executed
+in the remote side through the shell which interprets metacharacters.
 
-The second call escapes especial shell characters so that,
-effectively, it is equivalent to calling the command directly and not
-through the shell.
+The second call escapes any shell metacharacters so that, effectively,
+it is equivalent to calling the command directly and not through the
+shell.
 
 Under the hood, as the Secure Shell protocol does not provide for this
 mode of operation and always spawns a new shell where it runs the
@@ -2529,11 +2765,135 @@ Some usage example:
 will redirect the output of the C<ls> command to
 C</tmp/ls.out-server.foo.com-42> on the remote host.
 
+=head2 Tunnels
+
+Besides running commands on the remote host, Net::OpenSSH also allows
+to tunnel TCP connections to remote machines reachable from the SSH
+server.
+
+That feature is made available through the C<tunnel> option of the
+L</open_ex> method, and also through wrapper methods L</open_tunnel>
+and L</capture_tunnel> and most others where it makes sense.
+
+Example:
+
+  $ssh->system({tunnel => 1,
+                stdin_data => "GET / HTTP/1.0\r\n\r\n",
+                stdout_file => "/tmp/$server.res"},
+               $server, 80)
+      or die "unable to retrieve page: " . $ssh->error;
+
+or capturing the output of several requests in parallel:
+
+  my @pids;
+  for (@servers) {
+    my $pid = $ssh->spawn({tunnel => 1,
+                           stdin_file => "/tmp/request.req",
+                           stdout_file => "/tmp/$_.res"},
+                          $_, 80);
+    if ($pid) {
+      push @pids, $pid;
+    }
+    else {
+      warn "unable to spawn tunnel process to $_: " . $ssh->error;
+    }
+  }
+  waitpid ($_, 0) for (@pids);
+
+Under the hood, in order to create a tunnel, a new C<ssh> process is
+spawned with the option C<-W${address}:${port}> (available from
+OpenSSH 5.4 and upwards) making it redirect its stdio streams to the
+remote given address. Unlike when C<ssh> C<-L> options is used to
+create tunnels, no TCP port is opened on the local machine at any time
+so this is a perfectly secure operation.
+
+The PID of the new process is returned by the named methods. It must
+be reaped once the pipe or socket handlers for the local side of the
+tunnel have been closed.
+
+OpenSSH 5.4 or later is required for the tunnels functionality to
+work. Also, note that tunnel forwarding may be administratively
+forbidden at the server side (see L<sshd(8)> and L<sshd_config(5)> or
+the documentation provided by your SSH server vendor).
+
+=head1 3rd PARTY MODULE INTEGRATION
+
+=head2 Expect
+
+Sometimes you would like to use L<Expect> to control some program
+running in the remote host. You can do it as follows:
+
+  my ($pty, $pid) = $ssh->open2pty(@cmd)
+      or die "unable to run remote command @cmd";
+  my $expect = Expect->init($pty);
+
+Then, you will be able to use the new Expect object in C<$expect> as
+usual.
+
+=head2 mod_perl and mod_perl2
+
+L<mod_perl> and L<mod_perl2> tie STDIN and STDOUT to objects that are
+not backed up by real file descriptors at the operative system
+level. Net::OpenSSH will fail if any of these handles is used
+explicetly or implicitly when calling some remote command.
+
+The workaround is to redirect them to C</dev/null> or to some file:
+
+  open my $def_in, '<', '/dev/null' or die "unable to open /dev/null";
+  my $ssh = Net::OpenSSH->new($host,
+                              default_stdin_fh => $def_in);
+
+  my $out = $ssh->capture($cmd1);
+  $ssh->system({stdout_discard => 1}, $cmd2);
+  $ssh->system({stdout_to_file => '/tmp/output'}, $cmd3);
+
+Also, note that from a security stand point, running ssh from inside
+the webserver process is not a great idea. An attacker exploiting some
+Apache bug would be able to access the ssh keys and passwords and gain
+unlimited access to the remote systems.
+
+If you can, use a queue (as L<TheSchwartz|TheSchwartz>) or any other
+mechanism to execute the ssh commands from another process running
+under a different user account.
+
+At a minimum, ensure that C<~www-data/.ssh> (or similar) is not
+accessible through the web server!
+
+=head2 Other modules
+
+CPAN contains several modules that rely on SSH to perform their duties
+as for example L<IPC::PerlSSH|IPC::PerlSSH> or
+L<GRID::Machine|GRID::Machine>.
+
+Often, it is possible to instruct them to go through a Net::OpenSSH
+multiplexed connection employing some available constructor
+option. For instance:
+
+  use Net::OpenSSH;
+  use IPC::PerlIPC;
+  my $ssh = Net::OpenSSH->new(...);
+  $ssh->error and die "unable to connect to remote host: " . $ssh->error;
+  my @cmd = $ssh->make_remote_command('/usr/bin/perl');
+  my $ipc = IPC::PerlSSH->new(Command => \@cmd);
+  my @r = $ipc->eval('...');
+
+or...
+
+  use GRID::Machine;
+  ...
+  my @cmd = $ssh->make_remote_command('/usr/bin/perl');
+  my $grid = GRID::Machine->new(command => \@cmd);
+  my $r = $grid->eval('print "hello world!\n"');
+
+In other cases, some kind of plugin mechanism is provided by the 3rd
+party modules to allow for different transports. The method C<open2>
+may be used to create a pair of pipes for transport in these cases.
+
 =head1 TROUBLESHOOTING
 
 Usually, Net::OpenSSH works out of the box, but when it fails, some
 users have a hard time finding the cause of the problem. This mini
-troubleshooting guide should help to find and solve it.
+troubleshooting guide should help you to find and solve it.
 
 =over 4
 
@@ -2556,14 +2916,14 @@ Ensure that you have a version of C<ssh> recent enough:
 
 OpenSSH version 4.1 was the first to support the multiplexing feature
 and is the minimal required by the module to work. I advise you to use
-the latest OpenSSH (currently 5.1) or at least a more recent
+the latest OpenSSH (currently 5.5) or at least a more recent
 version.
 
 The C<ssh_cmd> constructor option lets you select the C<ssh> binary to
 use. For instance:
 
   $ssh = Net::OpenSSH->new($host,
-                           ssh_cmd => "/opt/OpenSSH/5.1/bin/ssh")
+                           ssh_cmd => "/opt/OpenSSH/5.5/bin/ssh")
 
 Some hardware vendors (i.e. Sun) include custom versions of OpenSSH
 bundled with the operative system. In priciple, Net::OpenSSH should
@@ -2628,53 +2988,9 @@ but you should not use it unless you understand its implications.
 
 =back
 
-=head1 3rd PARTY MODULE INTEGRATION
-
-=head2 Expect
-
-Sometimes you would like to use L<Expect> to control some program
-running in the remote host. You can do it as follows:
-
-  my ($pty, $pid) = $ssh->open2pty(@cmd)
-      or die "unable to run remote command @cmd";
-  my $expect = Expect->init($pty);
-
-Then, you will be able to use the new Expect object in C<$expect> as
-usual.
-
-=head2 Other modules
-
-CPAN contains several modules that rely on SSH to perform their duties
-as for example L<IPC::PerlSSH|IPC::PerlSSH> or
-L<GRID::Machine|GRID::Machine>.
-
-Often, it is possible to instruct them to go through a Net::OpenSSH
-multiplexed connection employing some available constructor
-option. For instance:
-
-  use Net::OpenSSH;
-  use IPC::PerlIPC;
-  my $ssh = Net::OpenSSH->new(...);
-  $ssh->error and die "unable to connect to remote host: " . $ssh->error;
-  my @cmd = $ssh->make_remote_command('/usr/bin/perl');
-  my $ipc = IPC::PerlSSH->new(Command => \@cmd);
-  my @r = $ipc->eval('...');
-
-or...
-
-  use GRID::Machine;
-  ...
-  my @cmd = $ssh->make_remote_command('/usr/bin/perl');
-  my $grid = GRID::Machine->new(command => \@cmd);
-  my $r = $grid->eval('print "hello world!\n"');
-
-In other cases, some kind of plugin mechanism is provided by the 3rd
-party modules to allow for different transports. The method C<open2>
-may be used to create a pair of pipes for transport in these cases.
-
 =head1 FAQ
 
-Frequent question about the module:
+Frequent questions about the module:
 
 =over
 
@@ -2749,11 +3065,53 @@ solve the problem just disable the handler during the method call:
   local $SIG{CHLD};
   $ssh->system($cmd);
 
+=item child process STDIN/STDOUT/STDERR is not a real system file
+handle
+
+B<Q>: Calls to C<system>, C<capture>, etc. fail with the previous
+error, what's happening?
+
+B<A>: The reported stdio stream is closed or is not attached to a real
+file handle (i.e. it is a tied handle). Redirect it to C</dev/null> or
+to a real file:
+
+  my $out = $ssh->capture({discard_stdin => 1, stderr_to_stdout => 1},
+                          $cmd);
+
+See also the L<mod_perl> entry above.
+
+=item Solaris (and AIX and probably others)
+
+B<Q>: I was trying Net::OpenSSH on Solaris and seem to be running into
+an issue...
+
+B<A>: The SSH client bundled with Solaris is an early fork of OpenSSH
+that does not provide the multiplexing functionality required by
+Net::OpenSSH. You will have to install the OpenSSH client.
+
+Precompiled packages are available from Sun Freeware
+(L<http://www.sunfreeware.com>). There, select your OS version an CPU
+architecture, download the OpenSSH package and its dependencies and
+install them. Note that you do B<not> need to configure Solaris to use
+the OpenSSH server C<sshd>.
+
+Ensure that OpenSSH client is in your path before the system C<ssh> or
+alternatively, you can hardcode the full path into your scripts
+as follows:
+
+  $ssh = Net::OpenSSH->new($host,
+                           ssh_cmd => '/usr/local/bin/ssh');
+
+AIX and probably some other unixen, also bundle SSH clients lacking the
+multiplexing functionality and require installation of OpenSSH.
+
 =back
 
 =head1 SEE ALSO
 
-OpenSSH client documentation: L<ssh(1)>, L<ssh_config(5)>.
+OpenSSH client documentation L<ssh(1)>, L<ssh_config(5)>, the project
+web L<http://www.openssh.org> and its FAQ
+L<http://www.openbsd.org/openssh/faq.html>. L<scp(1)> and L<rsync(1)>.
 
 Core perl documentation L<perlipc>, L<perlfunc/open>,
 L<perlfunc/waitpid>.
@@ -2770,7 +3128,7 @@ the sample directory).
 
 L<SSH::OpenSSH::Parallel> is an advanced scheduler that allows to run
 commands in remote hosts in parallel. It is obviously based on
-L<Net::OpenSSH>.
+Net::OpenSSH.
 
 L<SSH::Batch|SSH::Batch> allows to run remote commands in parallel in
 a cluster. It is build on top on C<Net::OpenSSH> also.
@@ -2787,28 +3145,30 @@ C<Net::OpenSSH> to handle the connections.
 
 =head1 BUGS AND SUPPORT
 
-Variable expansion feature is highly experimental.
+Support for tunnel forwarding is experimental and requires OpenSSH 5.4
+or later.
 
-Does not work on Windows. OpenSSH multiplexing feature requires
-passing file handles through sockets something that is not supported
-by any version of Windows.
+Support for taint mode is still experimental.
 
-Doesn't work on VMS either... well, actually, it probably doesn't work
-on anything not resembling a modern Linux/Unix OS.
+Tested on Linux, OpenBSD and NetBSD with OpenSSH 5.1 to 5.5.
 
-Tested on Linux, OpenBSD and NetBSD with OpenSSH 5.1 and 5.2.
+Net::OpenSSH does not work on Windows. OpenSSH multiplexing feature
+requires passing file handles through sockets something that is not
+supported by any version of Windows.
 
-To report bugs or give me some feedback, send an email to the address
-that appear below or use the CPAN bug tracking system at
-L<http://rt.cpan.org>.
+It doesn't work on VMS either... well, probably, it doesn't work on
+anything not resembling a modern Linux/Unix OS.
 
-B<Post questions related to module usage in PerlMonks
-L<http://perlmoks.org/>> (that I read frequently). This module is
-becoming increasingly popular and I am unable to cope with all the
-request for help I get by email!
+To report bugs send an email to the address that appear below or use
+the CPAN bug tracking system at L<http://rt.cpan.org>.
+
+B<Post questions related to how to use the module in Perlmonks>
+L<http://perlmoks.org/>, you will probably get faster responses that
+if you address me directly and I visit Perlmonks quite often, so I
+will see your question anyway.
 
 The source code of this module is hosted at GitHub:
-L<http://github.com/salva/p5-Net-OpenSSH>
+L<http://github.com/salva/p5-Net-OpenSSH>.
 
 =head2 Commercial support
 
@@ -2820,7 +3180,10 @@ requirements and we will get back to you ASAP.
 =head2 My wishlist
 
 If you like this module and you're feeling generous, take a look at my
-Amazon Wish List: L<http://amzn.com/w/1WU1P6IR5QZ42>
+Amazon Wish List: L<http://amzn.com/w/1WU1P6IR5QZ42>.
+
+Also consider contributing to the OpenSSH project this module builds
+upon: L<http://www.openssh.org/donations.html>.
 
 =head1 TODO
 

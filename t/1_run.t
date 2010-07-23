@@ -32,7 +32,8 @@ plan skip_all => 'OpenSSH 4.1 or later required'
 chomp $ver;
 diag "\nSSH client found: $ver.\nTrying to connect to localhost, timeout is ${timeout}s.\n";
 
-my $ssh = Net::OpenSSH->new('localhost', timeout => $timeout, strict_mode => 0);
+my $ssh = Net::OpenSSH->new('localhost', timeout => $timeout, strict_mode => 0,
+			    master_opts => [-o => "StrictHostKeyChecking no"]);
 
 # fallback
 if ($ssh->error and $num > 4.7) {
@@ -70,7 +71,7 @@ if ($ssh->error and $num > 4.7) {
 plan skip_all => 'Unable to establish SSH connection to localhost!'
     if $ssh->error;
 
-plan tests => 27;
+plan tests => 31;
 
 sub shell_quote {
     my $txt = shift;
@@ -136,7 +137,10 @@ ok($@ =~ /option/ and $@ =~ /foo/);
 
 is ($ssh->shell_quote('/foo/'), '/foo/');
 is ($ssh->shell_quote('./foo*/bar&biz;'), './foo\\*/bar\\&biz\\;');
+is (Net::OpenSSH->shell_quote('./foo*/bar&biz;'), './foo\\*/bar\\&biz\\;');
 is ($ssh->_quote_args({quote_args => 1, glob_quoting => 1}, './foo*/bar&biz;'), './foo*/bar\\&biz\\;');
+is ($ssh->shell_quote_glob('./foo*/bar&biz;'), './foo*/bar\\&biz\\;');
+is (Net::OpenSSH->shell_quote_glob('./foo*/bar&biz;'), './foo*/bar\\&biz\\;');
 
 $ssh->set_expand_vars(1);
 $ssh->set_var(FOO => 'Bar');
@@ -144,7 +148,7 @@ is ($ssh->shell_quote(\\'foo%FOO%foo%%foo'), 'fooBarfoo%foo');
 is ($ssh->shell_quote('foo%FOO%foo%%foo'), 'fooBarfoo\%foo');
 $ssh->set_expand_vars(0);
 is ($ssh->shell_quote(\\'foo%FOO%foo%%foo'), 'foo%FOO%foo%%foo');
-
+is (Net::OpenSSH->shell_quote(\\'foo%FOO%foo%%foo'), 'foo%FOO%foo%%foo');
 eval {
     my $ssh2 = $ssh;
     undef $ssh;
