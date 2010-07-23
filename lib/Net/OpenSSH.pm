@@ -883,7 +883,7 @@ sub _open_file {
     }
     else {
 	$self->_set_error(OSSH_SLAVE_PIPE_FAILED, @error_prefix,
-			  "Unable to open file '$args[1]': $!");
+			  "Unable to open file '$args[0]': $!");
 	return undef;
     }
 }
