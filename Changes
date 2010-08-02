@@ -1,7 +1,8 @@
 Revision history for Perl extension Net::OpenSSH.
 
-0.48
+0.48  Aug 2, 2010
         - bug quoting escaped scalars as globs solved
+	- new faq for "can't change directory"
 	- support calling shell_quote and shell_quote_args as class
           methods
 	- more tests
