@@ -3105,6 +3105,36 @@ as follows:
 AIX and probably some other unixen, also bundle SSH clients lacking the
 multiplexing functionality and require installation of OpenSSH.
 
+=item Can't change working directory
+
+B<Q>: I want to run some command inside a given remote directory but I
+am unable to change the remote working directory. For instance:
+
+  $ssh->system('cd /home/foo/bin');
+  $ssh->systen('ls');
+
+does not list the contents of C</home/foo/bin>.
+
+What am I doing wrong?
+
+B<A>: Net::OpenSSH (and, for that matter, all the SSH modules
+available from CPAN but L<Net::SSH::Expect>) runs every command in a
+new session so most shell builtins that are run for its side effects
+become useless (i.e. C<cd>, C<export>, C<ulimit>, C<umask>, etc.,
+usually, you can list them runing help from the shell).
+
+A work around is to combine several commands in one, for instance:
+
+  $ssh->system('cd /home/foo/bin && ls');
+
+Note the use of the shell C<&&> operator instead of C<;> in order to
+abort the command as soon as any of the subcommands fail.
+
+Also, several commands can be combine into one while still using the
+multi-argument quoting feature as follows:
+
+  $ssh->system(@cmd1, \\'&&', @cmd2, \\'&&', @cmd3, ...);
+
 =back
 
 =head1 SEE ALSO
