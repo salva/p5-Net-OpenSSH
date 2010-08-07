@@ -1,6 +1,8 @@
 Revision history for Perl extension Net::OpenSSH.
 
-0.49
+0.49  Aug 7, 2010
+	- do not kill master from forked processes (bug report by
+          scotchie at PerlMonks)
 	- some typos corrected
 
 0.48  Aug 2, 2010

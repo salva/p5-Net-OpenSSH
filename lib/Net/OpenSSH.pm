@@ -1632,10 +1632,10 @@ sub sftp {
 sub DESTROY {
     my $self = shift;
     my $pid = $self->{_pid};
-    my $perl_pid = $self->{_perl_pid};
     local $@;
     $debug and $debug & 2 and _debug("DESTROY($self, pid => ".(defined $pid ? $pid : '<undef>').")");
-    if ($pid) {
+    if ($pid and $self->{_perl_pid} == $$) {
+	$debug and $debug & 32 and _debug("killing master");
         local $?;
 	local $!;
 
