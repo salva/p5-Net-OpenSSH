@@ -1040,12 +1040,12 @@ sub open_ex {
     $debug and $debug & 16 and _debug_dump open_ex => \@call;
 
     my $pid = fork;
-    unless (defined $pid) {
-        $self->_set_error(OSSH_SLAVE_FAILED,  @error_prefix,
-			  "unable to fork new ssh slave: $!");
-        return ();
-    }
     unless ($pid) {
+        unless (defined $pid) {
+            $self->_set_error(OSSH_SLAVE_FAILED,  @error_prefix,
+                              "unable to fork new ssh slave: $!");
+            return ();
+        }
         $stdin_discard  and (open $rin,  '<', '/dev/null' or POSIX::_exit(255));
         $stdout_discard and (open $wout, '>', '/dev/null' or POSIX::_exit(255));
         $stderr_discard and (open $werr, '>', '/dev/null' or POSIX::_exit(255));
@@ -1506,6 +1506,95 @@ sub _scp {
 
     return $pid if $async;
     $self->_waitpid($pid, "scp operation failed");
+}
+
+_sub_options scp_cat => qw(); # stderr_discard stderr_fh stderr_file);
+
+sub scp_cat {
+    ${^TAINT} and &_catch_tainted_args;
+    my $self = shift;
+    my %opts = (ref $_[0] eq 'HASH' ? %{shift()} : ());
+    my $glob = delete $opts{glob};
+    my $recursive = delete $opts{recursive};
+    my $quiet = delete $opts{quiet};
+    $quiet = 1 unless defined $quiet;
+
+    @_ >= 1 or croak 'Usage: $ssh->scp_cat(\%opts, $remote_fn1, $remote_fn2...)';
+    my @src = $self->_quote_args({ quote_args => 1,
+                                   glob_quoting => $glob }, @_);
+    _croak_bad_options %opts;
+
+    my $pid = open(my $cat, '-|');
+    unless ($pid) {
+        unless (defined $pid) {
+            $self->_set_error(OSSH_SLAVE_FAILED, "unable to fork new ssh slave: $!");
+            return ();
+        }
+
+        my @opts = '-f';
+        push @opts, '-r' if $recursive;
+
+        my ($in, $out, $pid2) = $self->open2(\%opts,
+                                             scp => '-f',
+                                             ($recursive ? '-r' : ()),
+                                             '--',
+                                             @src)
+            or POSIX::_exit(1);
+
+        my $on_error;
+        while(1) {
+            unless ($on_error) {
+                $debug and $debug & 256 and _debug "sending 0";
+                syswrite($in, "\x00") == 1 or POSIX::_exit(1);
+            }
+
+            my $switch;
+            sysread($out, $switch, 1) or POSIX::_exit(0);
+            $on_error = (ord($switch) <= 1);
+            $debug and $debug & 256 and _debug "switch: $switch, on_error: $on_error";
+
+
+            my $buf = '';
+            $debug and $debug & 256 and _debug "reading header";
+            do {
+                sysread($out, $buf, ($on_error ? 1 : 10000), length $buf) or POSIX::_exit(1);
+            } until $buf =~ /\x0A/;
+
+            $debug and $debug & 256 and _debug "switch: $switch, header: $buf";
+
+            if ($on_error) {
+                print STDERR $buf unless $quiet;
+            }
+            elsif ($switch eq 'C') {
+                my $size = (split /\s+/, $buf)[1];
+                $debug and $debug & 256 and _debug "transferring file of size $size";
+                    syswrite($in, "\x00") == 1 or POSIX::_exit(1);
+                while ($size) {
+                    my $read = sysread($out, $buf, ($size > 10000 ? 10000 : $size)) or POSIX::_exit(1);
+                    $size -= $read;
+                    if ($debug and $debug & 256) {
+                        _debug "$read bytes read, $size remaining";
+                        $debug & 128 and _hexdump $buf;
+                    }
+                    print $buf;
+                }
+                sysread($out, $buf, 1) == 1 or POSIX::_exit(1);
+                $debug and $debug & 256 and _debug "file tail read >>$buf<<";
+                $buf eq "\x00" or POSIX::_exit(3);
+            }
+            elsif ($switch eq 'D') {
+                # directory, do nothing!
+            }
+            elsif ($switch eq 'E') {
+                # do nothing!
+            }
+            else {
+                $debug and $debug & 256 and _debug "unknown command >>$switch<<";
+                POSIX::_exit(1);
+            }
+        }
+    }
+    wantarray ? ($cat, $pid) : $cat;
 }
 
 my %rsync_opt_with_arg = map { $_ => 1 } qw(chmod suffix backup-dir rsync-path max-delete max-size min-size partial-dir
@@ -2504,6 +2593,33 @@ stream is attached to a tty.
 
 =back
 
+=item $ssh->scp_cat(\%opts, $remote1, $remote2, ...)
+
+this command is equivalent to
+
+  $ssh->pipe_out(\%opts, 'cat', $remote1, $remote2, ...)
+
+but built on top of C<scp> that is usually available on most operative
+system and not just on Unix and alike.
+
+The accepted options are:
+
+=over 4
+
+=item glob => 1
+
+allows remote expansion of wildcards in the given source filenames
+
+=item recursive => 1
+
+recursively searchs for files inside any given directory
+
+=item quiet => 0
+
+prints errors to STDERR
+
+=back
+
 =item $ssh->rsync_get(\%opts, $remote1, $remote2,..., $local_dir_or_file)
 
 =item $ssh->rsync_put(\%opts, $local1, $local2,..., $remote_dir_or_file)
@@ -3174,6 +3290,8 @@ L<SSH::RPC|SSH::RPC> implements an RPC mechanism on top of SSH using
 C<Net::OpenSSH> to handle the connections.
 
 =head1 BUGS AND SUPPORT
+
+Support for scp_cat is experimental.
 
 Support for tunnel forwarding is experimental and requires OpenSSH 5.4
 or later.

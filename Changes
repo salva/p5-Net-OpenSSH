@@ -1,6 +1,7 @@
 Revision history for Perl extension Net::OpenSSH.
 
 0.49
+        - initial implementation of scp_cat
 	- some typos corrected
 
 0.48  Aug 2, 2010
