@@ -1,8 +1,12 @@
 Revision history for Perl extension Net::OpenSSH.
 
-0.49
-        - initial implementation of scp_cat
+0.50
 	- some typos corrected
+        - initial implementation of scp_cat
+
+0.49  Aug 7, 2010
+	- do not kill master from forked processes (bug report by
+          scotchie at PerlMonks)
 
 0.48  Aug 2, 2010
         - bug quoting escaped scalars as globs solved
