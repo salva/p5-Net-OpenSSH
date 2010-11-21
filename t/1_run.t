@@ -75,7 +75,7 @@ plan tests => 32;
 
 sub shell_quote {
     my $txt = shift;
-    $txt =~ s|([^a-zA-Z0-9+-\./])|\\$1|g;
+    $txt =~ s|([^\w+\-\./])|\\$1|g;
     $txt
 }
 
