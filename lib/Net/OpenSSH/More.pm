@@ -87,6 +87,10 @@ sub scp_cat {
     wantarray ? ($cat, $pid) : $cat;
 }
 
+=head1 API
+
+=over 4
+
 =item $ssh->scp_cat(\%opts, $remote1, $remote2, ...)
 
 this command is equivalent to
@@ -113,4 +117,10 @@ recursively searchs for files inside any given directory
 prints errors to STDERR
 
 =back
+
+=back
+
+=head1 BUGS AND SUPPORT
+
+Support for scp_cat is experimental.
 
