@@ -3175,8 +3175,6 @@ C<Net::OpenSSH> to handle the connections.
 
 =head1 BUGS AND SUPPORT
 
-Support for scp_cat is experimental.
-
 Support for tunnel forwarding is experimental and requires OpenSSH 5.4
 or later.
 

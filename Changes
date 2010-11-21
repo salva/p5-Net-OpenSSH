@@ -1,7 +1,8 @@
 Revision history for Perl extension Net::OpenSSH.
 
-0.50
-        - shell_quote in t/1_run.t was escaping '_'
+0.50  Nov 21, 2010
+        - shell_quote in t/1_run.t was escaping '_' (bug report by
+          Andreas J. König)
 	- some typos corrected
         - initial implementation of scp_cat
 
