@@ -1,5 +1,9 @@
 Revision history for Perl extension Net::OpenSSH.
 
+0.51
+	- some tests were failing when using csh as the remote shell
+          (bug report by Scott Davis)
+
 0.50  Nov 21, 2010
         - shell_quote in t/1_run.t was escaping '_' (bug report by
           Andreas J. König)

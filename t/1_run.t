@@ -86,6 +86,9 @@ is((stat $muxs)[2] & 0777, 0600, "mux socket permissions");
 my $cwd = cwd;
 my $sq_cwd = shell_quote $cwd;
 
+my $rshell = $ssh->capture('echo $SHELL');
+my $rshell_is_csh = ($rshell =~ /\bcsh$/);
+
 my @ls_good= sort `$LS $sq_cwd`;
 my @ls = sort $ssh->capture({stderr_to_stdout => 1}, "$LS $sq_cwd");
 is("@ls", "@ls_good");
@@ -117,12 +120,15 @@ is ($output, $lines) or diag "error: ", $ssh->error;
 $output = $ssh->capture({stdin_data => \@lines}, $CAT);
 is ($output, $lines);
 
-$output = $ssh->capture({stdin_data => \@lines, stderr_to_stdout => 1}, "$CAT >&2");
-is ($output, $lines);
+SKIP: {
+    skip "remote shell is csh", 3 if $rshell_is_csh;
+    $output = $ssh->capture({stdin_data => \@lines, stderr_to_stdout => 1}, "$CAT >&2");
+    is ($output, $lines);
 
-($output, $errput) = $ssh->capture2("$CAT $sq_cwd/test.dat 1>&2");
-is ($errput, $lines);
-is ($output, '');
+    ($output, $errput) = $ssh->capture2("$CAT $sq_cwd/test.dat 1>&2");
+    is ($errput, $lines);
+    is ($output, '');
+}
 
 my $fh = $ssh->pipe_out("$CAT $sq_cwd/test.dat");
 ok($fh, "pipe_out");
