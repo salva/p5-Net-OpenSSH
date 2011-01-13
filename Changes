@@ -1,6 +1,7 @@
 Revision history for Perl extension Net::OpenSSH.
 
 0.51
+        - add change_password.pl sample
 	- some tests were failing when using csh as the remote shell
           (bug report by Scott Davis)
 

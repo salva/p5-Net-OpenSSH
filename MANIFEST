@@ -13,3 +13,4 @@ t/test_user_key
 t/test_user_key.pub
 t/known_hosts
 sample/expect.pl
+sample/change_passwd.pl
