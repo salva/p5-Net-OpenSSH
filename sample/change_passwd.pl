@@ -17,7 +17,7 @@ USAGE
 my ($host, $old, $new) = @ARGV;
 
 my $timeout = 20;
-my $debug = 1;
+my $debug = 0;
 
 my $ssh = Net::OpenSSH->new($host, password => $old);
 
@@ -29,10 +29,10 @@ $expect->raw_pty(1);
 $debug and $expect->log_user(1);
 
 sub answer_passwd {
-    my $pass = shift;
+    my ($pattern, $pass) = @_;
 
     $debug and print "waiting for password prompt\n";
-    $expect->expect($timeout, ':')
+    $expect->expect($timeout, -re => $pattern)
         or die "expect failed\n";
     $debug and  print "prompt seen\n";
 
@@ -43,8 +43,10 @@ sub answer_passwd {
         or die "bad password\n";
 }
 
-answer_passwd($old);
-answer_passwd($new);
-answer_passwd($new);
+answer_passwd('current.*:', $old);
+answer_passwd('new.*:', $new);
+answer_passwd('new.*:', $new);
 
+$expect->expect($timeout, "success") or die "Failed!\n";
 
+print "password updated\n";
