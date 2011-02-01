@@ -1,6 +1,6 @@
 package Net::OpenSSH;
 
-our $VERSION = '0.51';
+our $VERSION = '0.51_01';
 
 use strict;
 use warnings;
@@ -180,6 +180,7 @@ sub new {
     my $rsync_cmd = delete $opts{rsync_cmd};
     $rsync_cmd = 'rsync' unless defined $rsync_cmd;
     my $timeout = delete $opts{timeout};
+    my $kill_ssh_on_timeout = delete $opts{kill_ssh_on_timeout};
     my $strict_mode = delete $opts{strict_mode};
     $strict_mode = 1 unless defined $strict_mode;
     my $async = delete $opts{async};
@@ -236,6 +237,8 @@ sub new {
     }
 
     my @ssh_opts;
+    # TODO: are those options really requiered or just do they eat on
+    # the command line limited length?
     push @ssh_opts, -o => "User=$user" if defined $user;
     push @ssh_opts, -o => "Port=$port" if defined $port;
 
@@ -264,6 +267,7 @@ sub new {
                  _port => $port,
                  _passwd => $obfuscate->($passwd),
                  _timeout => $timeout,
+                 _kill_ssh_on_timeout => $kill_ssh_on_timeout,
                  _home => $home,
 		 _default_stdin_fh => $default_stdin_fh,
 		 _default_stdout_fh => $default_stdout_fh,
@@ -523,7 +527,10 @@ sub _connect {
     my ($self, $async) = @_;
     $self->_set_error;
 
-    my @master_opts = (@{$self->{_master_opts}}, '-xMN');
+    my $timeout = int((($self->{_timeout} || 90) + 2)/3);
+    my @master_opts = (@{$self->{_master_opts}},
+                       -o => "ServerAliveInterval=$timeout",
+                       '-xMN');
 
     my $mpty;
     if (defined $self->{_passwd}) {
@@ -566,11 +573,44 @@ sub _connect {
 sub _waitpid {
     my $self = shift;
     my $pid = shift;
+    my $timeout = shift;
 
     $? = 0;
     if ($pid) {
+        $timeout = $self->{timeout} unless defined $timeout;
+
+        my $time_limit;
+        if (defined $timeout and $self->{_kill_ssh_on_timeout}) {
+            $timeout = 0 if $self->error == OSSH_SLAVE_TIMEOUT;
+            $time_limit = time + $timeout;
+        }
+        local $SIG{CHLD} = sub {};
 	while (1) {
-	    my $r = waitpid($pid, 0);
+            my $r;
+            if (defined $time_limit) {
+                while (1) {
+                    # TODO: we assume that all OSs return 0 when the
+                    # process is still running, that may not be true!
+                    $r = waitpid($pid, WNOHANG) and last;
+                    my $remaining = $time_limit - time;
+                    if ($remaining <= 0) {
+                        $debug and $debug & 16 and _debug "killing SSH slave, pid: $pid";
+                        kill TERM => $pid;
+                        $self->_or_set_error(OSSH_SLAVE_TIMEOUT, "ssh slave failed", "timed out");
+                    }
+                    # There is a race condition here. We try to
+                    # minimize it keeping the waitpid and the select
+                    # together and limiting the sleep time to 1s:
+                    my $sleep = ($remaining < 0.1 ? 0.1 : 1);
+                    $debug and $debug & 16 and
+                        _debug "waiting for slave, timeout: $timeout, remaining: $remaining, sleep: $sleep";
+                    $r = waitpid($pid, WNOHANG) and last;
+                    select(undef, undef, undef, $sleep);
+                }
+            }
+            else {
+                $r = waitpid($pid, 0);
+            }
             $debug and $debug & 16 and _debug "_waitpid($pid) => pid: $r, rc: $!";
 	    if ($r == $pid) {
 		if ($?) {
@@ -1306,7 +1346,6 @@ _sub_options system => qw(stdout_discard stdout_fh stdin_discard stdout_file std
 sub system {
     ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
-    $self->_check_master_and_clear_error or return -1;
     my %opts = (ref $_[0] eq 'HASH' ? %{shift()} : ());
     my $stdin_data = delete $opts{stdin_data};
     my $timeout = delete $opts{timeout};
@@ -1321,7 +1360,7 @@ sub system {
 
     $self->_io3(undef, undef, $in, $stdin_data, $timeout) if defined $stdin_data;
     return $pid if $async;
-    $self->_waitpid($pid);
+    $self->_waitpid($pid, $timeout);
 }
 
 _sub_options capture => qw(stderr_to_stdout stderr_discard stderr_fh stderr_file
@@ -1341,7 +1380,7 @@ sub capture {
     $opts{stdin_pipe} = 1 if defined $stdin_data;
     my ($in, $out, undef, $pid) = $self->open_ex(\%opts, @_) or return ();
     my ($output) = $self->_io3($out, undef, $in, $stdin_data, $timeout);
-    $self->_waitpid($pid);
+    $self->_waitpid($pid, $timeout);
     if (wantarray) {
         my $pattern = quotemeta $/;
         return split /(?<=$pattern)/, $output;
@@ -1366,7 +1405,7 @@ sub capture2 {
     $opts{stdin_pipe} = 1 if defined $stdin_data;
     my ($in, $out, $err, $pid) = $self->open_ex( \%opts, @_) or return ();
     my @capture = $self->_io3($out, $err, $in, $stdin_data, $timeout);
-    $self->_waitpid($pid);
+    $self->_waitpid($pid, $timeout);
     wantarray ? @capture : $capture[0];
 }
 
@@ -1488,6 +1527,7 @@ sub _scp {
     my $bwlimit = delete $opts{bwlimit};
     my $async = delete $opts{async};
     my $ssh_opts = delete $opts{ssh_opts};
+    my $timeout = delete $opts{timeout};
     _croak_bad_options %opts;
 
     my @opts;
@@ -1505,7 +1545,7 @@ sub _scp {
 			     @_);
 
     return $pid if $async;
-    $self->_waitpid($pid, "scp operation failed");
+    $self->_waitpid($pid, $timeout, "scp operation failed");
 }
 
 my %rsync_opt_with_arg = map { $_ => 1 } qw(chmod suffix backup-dir rsync-path max-delete max-size min-size partial-dir
@@ -1552,6 +1592,7 @@ sub _rsync {
     my $verbose = delete $opts{verbose};
     my $quiet = delete $opts{quiet};
     my $copy_attrs = delete $opts{copy_attrs};
+    my $timeout = delete $opts{timeout};
     $quiet = 1 unless (defined $quiet or $verbose);
 
     my @opts = qw(--blocking-io) ;
@@ -1587,7 +1628,7 @@ sub _rsync {
     my $pid = $self->open_ex(\%opts_open_ex, @opts, '--', @_);
     return $pid if $async;
 
-    $self->_waitpid($pid, "rsync operation failed") and return 1;
+    $self->_waitpid($pid, $timeout, "rsync operation failed") and return 1;
 
     if ($self->error == OSSH_SLAVE_CMD_FAILED and $?) {
 	my $err = ($? >> 8);
@@ -1877,8 +1918,17 @@ Name or full path to C<rsync> binary. Defaults to C<rsync>.
 
 Maximum acceptable time that can elapse without network traffic or any
 other event happening on methods that are not immediate (for instance,
-when establishing the master SSH connection or inside C<capture>
-method).
+when establishing the master SSH connection or inside methods
+C<capture>, C<system>, C<scp_get>, etc.).
+
+See also </Timeouts>.
+
+=item kill_ssh_on_timeout => 1
+
+This option tells Net::OpenSSH to kill the local slave SSH process
+when some operation times out.
+
+See also </Timeouts>.
 
 =item strict_mode => 0
 
@@ -2201,10 +2251,7 @@ For example, the following code creates a file on the remote side:
 The operation is aborted after C<$timeout> seconds elapsed without
 network activity.
 
-As the Secure Shell protocol does not support signalling remote
-processes, in order to abort the remote process its input and output
-channels are closed. Unfortunately this aproach does not work in some
-cases.
+See also L</Timeouts>.
 
 =item async => 1
 
@@ -2274,8 +2321,7 @@ Accepted options:
 
 =item timeout => $timeout
 
-See the L</system> method documentation for an explanation of these
-options.
+See L</Timeouts>.
 
 =item stdin_fh => $fh
 
@@ -2310,10 +2356,12 @@ The accepted options are:
 
 =item stdin_data => \@input
 
-=item timeout => $timeout
-
 See the L</system> method documentation for an explanation of these
 options.
+
+=item timeout => $timeout
+
+See L</Timeouts>.
 
 =item stdin_fh => $fh
 
@@ -2459,6 +2507,11 @@ files.
 =item bwlimit => $Kbits
 
 Limits the used bandwith, specified in Kbit/s.
+
+=item timeout => $secs
+
+The transfer is aborted if the connection does not finish before the
+given timeout elapses. See also L</Timeouts>.
 
 =item async => 1
 
@@ -2736,6 +2789,38 @@ future... if you need it now, just ask for it!!!
 The current quoting mechanism does not handle possible aliases defined
 by the remote shell. In that case, to force execution of the command
 instead of the alias, the full path to the command must be used.
+
+=head2 Timeouts
+
+In order to stop remote processes when they timeout, the ideal aproach
+would be to send them signals through the SSH connection as specified
+by the protocol standard.
+
+Unfortunatelly OpenSSH does not implement that feature so Net::OpenSSH
+has to use other imperfect approaches:
+
+=over 4
+
+=item * close slave I/O streams
+
+Closing the STDIN and STDOUT streams of the unresponsive remote
+process will effectively deliver a SIGPIPE when it tries to access any
+of them.
+
+Remote processes may not access STDIN or STDOUT and even them,
+Net::OpenSSH can only close these channels when it is capturing them,
+so this approach does not always work.
+
+=item * killing the local SSH slave process
+
+This action may leave the remote process running, creating a remote
+orphan so Net::OpenSSH does not uses it unless the construction option
+C<kill_ssh_on_timeout> is set.
+
+=back
+
+Luckily, future versions of OpenSSH will support signaling remote
+processes via the mux channel.
 
 =head2 Variable expansion
 
@@ -3237,7 +3322,7 @@ Send your feature requests, ideas or any feedback, please!
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright (C) 2008-2010 by Salvador FandiE<ntilde>o
+Copyright (C) 2008-2011 by Salvador FandiE<ntilde>o
 (sfandino@yahoo.com)
 
 This library is free software; you can redistribute it and/or modify
