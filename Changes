@@ -1,6 +1,10 @@
 Revision history for Perl extension Net::OpenSSH.
 
-0.51
+0.51_01  Feb 1, 2011
+        - add support for kill_ssh_on_timeout feature and better
+          timeout handling
+        - set ssh option ServerAliveInterval
+        - system could return -1 on error instead of false
         - add change_password.pl sample
 	- some tests were failing when using csh as the remote shell
           (bug report by Scott Davis)
