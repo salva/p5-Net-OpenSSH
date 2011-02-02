@@ -698,7 +698,7 @@ sub _wait_for_master {
             my $check = $self->_master_ctl('check');
             my $error;
             if (not defined $check) {
-                $error = "execution of control command failed: " . $ssh->error;
+                $error = "execution of control command failed: " . $self->error;
             }
             elsif ($check =~ /pid=(\d+)/) {
                 return 1 if $pid == $1;
