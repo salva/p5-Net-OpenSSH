@@ -1,6 +1,6 @@
 package Net::OpenSSH;
 
-our $VERSION = '0.51_01';
+our $VERSION = '0.51_02';
 
 use strict;
 use warnings;
@@ -474,11 +474,8 @@ sub _kill_master {
     my $pid = delete $self->{_pid};
     $debug and $debug & 32 and _debug '_kill_master: ', $pid;
     if ($pid) {
-	require POSIX;
-	my $KILL = POSIX::SIGKILL();
-	my $TERM = POSIX::SIGTERM();
 	local $SIG{CHLD} = sub {};
-        for my $sig (0, 0, $TERM, $TERM, $TERM, $KILL, $KILL) {
+        for my $sig (0, 0, 'TERM', 'TERM', 'TERM', 'KILL', 'KILL') {
             if ($sig) {
 		$debug and $debug & 32 and _debug "killing master with signal $sig";
 		kill $sig, $pid
@@ -699,27 +696,25 @@ sub _wait_for_master {
                 return undef;
             }
             my $check = $self->_master_ctl('check');
-            if ($check =~ /pid=(\d+)/) {
-                unless ($pid == $1) {
-                    $self->_set_error(OSSH_MASTER_FAILED, $wfm_error_prefix,
-                                      "bad ssh master at $ctl_path, socket owned by pid $1 (pid $pid expected)");
-                    $self->_kill_master;
-                    return undef;
-                }
-                return 1;
+            my $error;
+            if (not defined $check) {
+                $error = "execution of control command failed: " . $ssh->error;
+            }
+            elsif ($check =~ /pid=(\d+)/) {
+                return 1 if $pid == $1;
+
+                $error = "bad ssh master at $ctl_path, socket owned by pid $1 (pid $pid expected)";
             }
 	    elsif ($check =~ /illegal option/i) {
-		$self->_set_error(OSSH_MASTER_FAILED, $wfm_error_prefix,
-				  "OpenSSH 4.1 or later required");
-		$self->_kill_master;
-		return undef;
+                $error = "OpenSSH 4.1 or later required";
 	    }
 	    else {
-		$self->_set_error(OSSH_MASTER_FAILED, $wfm_error_prefix,
-				  "Unknown error");
-		$self->_kill_master;
-		return undef;
+                $error = "Unknown error";
 	    }
+
+            $self->_set_error(OSSH_MASTER_FAILED, $wfm_error_prefix, $error);
+            $self->_kill_master;
+            return undef;
         }
         if (waitpid($pid, WNOHANG) == $pid or $! == Errno::ECHILD) {
             $self->_set_error(OSSH_MASTER_FAILED, $wfm_error_prefix,
