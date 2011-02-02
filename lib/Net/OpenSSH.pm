@@ -577,7 +577,7 @@ sub _waitpid {
 
     $? = 0;
     if ($pid) {
-        $timeout = $self->{timeout} unless defined $timeout;
+        $timeout = $self->{_timeout} unless defined $timeout;
 
         my $time_limit;
         if (defined $timeout and $self->{_kill_ssh_on_timeout}) {
