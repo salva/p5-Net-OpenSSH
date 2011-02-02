@@ -2814,7 +2814,7 @@ so this approach does not always work.
 =item * killing the local SSH slave process
 
 This action may leave the remote process running, creating a remote
-orphan so Net::OpenSSH does not uses it unless the construction option
+orphan so Net::OpenSSH does not use it unless the construction option
 C<kill_ssh_on_timeout> is set.
 
 =back
