@@ -1921,14 +1921,14 @@ other event happening on methods that are not immediate (for instance,
 when establishing the master SSH connection or inside methods
 C<capture>, C<system>, C<scp_get>, etc.).
 
-See also </Timeouts>.
+See also L</Timeouts>.
 
 =item kill_ssh_on_timeout => 1
 
 This option tells Net::OpenSSH to kill the local slave SSH process
 when some operation times out.
 
-See also </Timeouts>.
+See also L</Timeouts>.
 
 =item strict_mode => 0
 
