@@ -1358,6 +1358,32 @@ sub system {
     $self->_waitpid($pid, $timeout);
 }
 
+_sub_options test => qw(stdout_discard stdout_fh stdin_discard stdout_file stdin_fh
+                        stdin_file quote_args stderr_to_stdout stderr_discard stderr_fh
+                        stderr_file tty ssh_opts timeout stdin_data);
+
+sub test {
+    ${^TAINT} and &_catch_tainted_args;
+    my $self = shift;
+    my %opts = (ref $_[0] eq 'HASH' ? %{shift()} : ());
+    $opts{stdout_discard} = 1 unless grep defined($opts{$_}), qw(stdout_discard stdout_fh
+                                                                 stdout_file);
+    $opts{stderr_discard} = 1 unless grep defined($opts{$_}), qw(stderr_discard stderr_fh
+                                                                 stderr_file stderr_to_stdout);
+    _croak_bad_options %opts;
+
+    $self->system(\%opts, @_);
+    my $error = $ssh->error;
+    if (!$error) {
+        return 1;
+    }
+    if ($error == OSSH_SLAVE_CMD_FAILED) {
+        $ssh->_set_error(0);
+        return 0;
+    }
+    return undef;
+}
+
 _sub_options capture => qw(stderr_to_stdout stderr_discard stderr_fh stderr_file
                            stdin_discard stdin_fh stdin_file quote_args tty ssh_opts tunnel);
 sub capture {
@@ -2279,6 +2305,32 @@ See the L</open_ex> method documentation for an explanation of these
 options.
 
 =back
+
+=item $ok = $ssh->test(\%opts, @cmd);
+
+Runs the given command and returns its success/failure exit status as
+1 or 0 respectively. Returns undef when something goes wrong in the
+SSH layer.
+
+Error status is not set to OSSH_SLAVE_CMD_FAILED when the remote
+command exits with a non-zero code.
+
+By default this method discards the remote command C<stdout> and
+C<sterr> streams.
+
+Usage example:
+
+  if ($ssh->test(ps => -C => $executable)) {
+    say "$executable is running on remote machine"
+  }
+  else {
+    die "something got wrong: ". $ssh->error if $ssh->error;
+
+    say "$executable is not running on remote machine"
+  }
+
+This method support the same set of options as C<system>, except
+C<async> and C<tunnel>.
 
 =item $output = $ssh->capture(\%opts, @cmd);
 

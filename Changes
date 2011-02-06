@@ -1,6 +1,7 @@
 Revision history for Perl extension Net::OpenSSH.
 
 0.51_02
+        - add support for test method
         - simplify _wait_for_master code
         - remove spurious warnings generated when control command
           failed to run (bug report by jaiieq from Perlmonks)
