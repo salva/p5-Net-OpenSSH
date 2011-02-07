@@ -1373,12 +1373,12 @@ sub test {
     _croak_bad_options %opts;
 
     $self->system(\%opts, @_);
-    my $error = $ssh->error;
-    if (!$error) {
+    my $error = $self->error;
+    unless ($error) {
         return 1;
     }
     if ($error == OSSH_SLAVE_CMD_FAILED) {
-        $ssh->_set_error(0);
+        $self->_set_error(0);
         return 0;
     }
     return undef;
@@ -2465,13 +2465,16 @@ Shortcuts around L</open_ex> method.
 
 =item $pid = $ssh->spawn(\%opts, @_)
 
-Another L</open_ex> shortcut, it launches a new remote process in the
-background and returns its PID.
+X<spawn>Another L</open_ex> shortcut, it launches a new remote process
+in the background and returns the PID of the local slave SSH process.
 
-For instance, you can run some command on several host in parallel
+At some later point in your script, C<waitpid> should be called on the
+returned PID in order to reap the slave SSH process.
+
+For instance, you can run some command on several hosts in parallel
 with the following code:
 
-  my %conn = map { $_ => Net::OpenSSH->new($_) } @hosts;
+  my %conn = map { $_ => Net::OpenSSH->new($_, async => 1) } @hosts;
   my @pid;
   for my $host (@hosts) {
       open my($fh), '>', "/tmp/out-$host.txt"
@@ -2481,10 +2484,15 @@ with the following code:
 
   waitpid($_, 0) for @pid;
 
+Note that C<spawn> shouldn't be used to start detached remote
+processes that may survive the local program (see also the L</FAQ>
+about running remote processes detached).
+
 =item ($socket, $pid) = $ssh->open_tunnel(\%opts, $dest_host, $port)
 
-X<open_tunnel>Similar to L</open2socket>, but instead of running a command, it opens a TCP
-tunnel to the given address. See also L</Tunnels>.
+X<open_tunnel>Similar to L</open2socket>, but instead of running a
+command, it opens a TCP tunnel to the given address. See also
+L</Tunnels>.
 
 =item $out = $ssh->capture_tunnel(\%opts, $dest_host, $port)
 
@@ -3110,7 +3118,7 @@ They have to be owned by the user executing the script or by root
 
 =item *
 
-Their permission masks have to be 0755 or more restrictive, so nobody
+Their permission masks must be 0755 or more restrictive, so nobody
 else has permissions to perform write operations on them.
 
 =back
@@ -3266,6 +3274,25 @@ Also, several commands can be combined into one while still using the
 multi-argument quoting feature as follows:
 
   $ssh->system(@cmd1, \\'&&', @cmd2, \\'&&', @cmd3, ...);
+
+=item Running detached remote processes
+
+B<Q>: I need to be able to ssh into several machines from my script,
+launch a process to run in the background there, and then return
+immediately while the remote programs keep running...
+
+B<A>: If the remote systems run some Unix/Linux variant, the right
+approach is to use L<nohup(1)> that will disconnect the remote process
+from the stdio streams and to ask the shell to run the command on the
+background. For instance:
+
+  $ssh->system("nohup $long_running_command &");
+
+Also, it may be possible to demonize the remote program. If it is
+written in Perl you can use L<App::Daemon> for that (actually, there
+are several CPAN modules that provided that kind of functionality).
+
+In any case, note that you shouldn't use L</spawn> for that.
 
 =back
 

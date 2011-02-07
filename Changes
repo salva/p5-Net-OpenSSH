@@ -6,6 +6,7 @@ Revision history for Perl extension Net::OpenSSH.
         - remove spurious warnings generated when control command
           failed to run (bug report by jaiieq from Perlmonks)
 	- timeout at object level where being ignored by _waitpid
+        - document how to run detached remote processes
 
 0.51_01  Feb 1, 2011
         - add support for kill_ssh_on_timeout feature and better
