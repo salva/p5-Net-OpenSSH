@@ -1094,6 +1094,7 @@ sub open_ex {
                  $cmd eq 'ssh'   ? $self->_make_ssh_call(\@ssh_opts, @args)    :
 		 $cmd eq 'scp'   ? $self->_make_scp_call(\@ssh_opts, @args)    :
 		 $cmd eq 'rsync' ? $self->_make_rsync_call(\@ssh_opts, @args)  :
+                 $cmd eq 'sshfs' ? $self->_make_sshfs_call(\@ssh_opts, @args)  :
 		 die "internal error: bad _cmd protocol" );
 
     $debug and $debug & 16 and _debug_dump open_ex => \@call;
@@ -1719,6 +1720,20 @@ sub sftp {
 	return undef;
     }
     $sftp
+}
+
+_make_sshfs_call {
+    my $self = shift;
+}
+
+sub sshfs_import {
+    ${^TAINT} and &_catch_tainted_args;
+    my $self = shift;
+    my %opts = (ref $_[0] eq 'HASH' ? %{shift()} : ());
+    @_ == 2 or croak 'Usage: $ssh->importfs($remote, $local)';
+    my $remote = shift;
+    my $local = shift;
+    my $pid = $self->spawn();
 }
 
 sub DESTROY {
