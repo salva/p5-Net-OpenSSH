@@ -179,6 +179,10 @@ sub new {
     my $scp_cmd = delete $opts{scp_cmd};
     my $rsync_cmd = delete $opts{rsync_cmd};
     $rsync_cmd = 'rsync' unless defined $rsync_cmd;
+    my $sshfs_cmd = delete $opts{sshfs_cmd};
+    $sshfs_cmd = 'sshfs' unless defined $sshfs_cmd;
+    my $sftp_server_cmd = delete $opts{sftp_server_cmd};
+    $sftp_server_cmd = '/usr/lib/openssh/sftp-server' unless defined $sftp_server_cmd;
     my $timeout = delete $opts{timeout};
     my $kill_ssh_on_timeout = delete $opts{kill_ssh_on_timeout};
     my $strict_mode = delete $opts{strict_mode};
@@ -260,6 +264,8 @@ sub new {
                  _ssh_cmd => $ssh_cmd,
 		 _scp_cmd => $scp_cmd,
 		 _rsync_cmd => $rsync_cmd,
+                 _sshfs_cmd => $sshfs_cmd,
+                 _sftp_server_cmd => $sftp_server_cmd,
                  _pid => undef,
                  _host => $host,
 		 _host_ssh => $host_ssh,
@@ -1094,7 +1100,6 @@ sub open_ex {
                  $cmd eq 'ssh'   ? $self->_make_ssh_call(\@ssh_opts, @args)    :
 		 $cmd eq 'scp'   ? $self->_make_scp_call(\@ssh_opts, @args)    :
 		 $cmd eq 'rsync' ? $self->_make_rsync_call(\@ssh_opts, @args)  :
-                 $cmd eq 'sshfs' ? $self->_make_sshfs_call(\@ssh_opts, @args)  :
 		 die "internal error: bad _cmd protocol" );
 
     $debug and $debug & 16 and _debug_dump open_ex => \@call;
@@ -1722,18 +1727,59 @@ sub sftp {
     $sftp
 }
 
-_make_sshfs_call {
+my %sshfs_flags = map { $_ => 1 } qw(sshfs_sync no_readahead sshfs_debug transform_symlinks
+                                     follow_symlinks transform_symlinks no_check_root debug
+                                     allow_other allow_root nonempty default_permissions large_read
+                                     hard_remove use_ino readdir_ino direct_io kernel_cache
+                                     auto_cache noauto_cache intr async_read sync_read rellinksa
+                                     norellinksa);
+
+my %sshfs_opt_open_ex = map { $_ => 1 } qw(stderr_discard stderr_fh stderr_file);
+
+sub _parse_sshfs_args {
     my $self = shift;
+    my %opts = (ref $_[0] eq 'HASH' ? %{shift()} : ());
+
+    my %opts_open_ex;
+    my @opts_sshfs = (-o => 'slave');
+    my $mount_opts = delete $opts{mount_opts};
+    push @opts_sshfs, -o => $mount_opts if defined $mount_opts;
+
+    while (my ($key, $value) = each %opts) {
+        next unless defined $value;
+
+        if ($sshfs_opt_open_ex{$key}) {
+            $opts_open_ex{$key} = $value;
+        }
+        elsif ($sshfs_flags{$key}) {
+            push @opts_sshfs, -o => $key if $value;
+        }
+        else {
+            push @opts_sshfs, -o => "$key=$value"
+        }
+    }
+    return ($self, \@opts_sshfs, \%opts_open_ex, @_);
 }
 
 sub sshfs_import {
     ${^TAINT} and &_catch_tainted_args;
-    my $self = shift;
-    my %opts = (ref $_[0] eq 'HASH' ? %{shift()} : ());
-    @_ == 2 or croak 'Usage: $ssh->importfs($remote, $local)';
-    my $remote = shift;
-    my $local = shift;
-    my $pid = $self->spawn();
+    my @args = &_parse_sshfs_args;
+    @args == 5 or croak 'Usage: $ssh->importfs($remote, $local)';
+    my ($self, $opts_sshfs, $opts_open_ex, $from, $to) = @args;
+
+    $opts_open_ex->{ssh_opts} = '-s';
+    $opts_open_ex->{stdinout_dpipe} = [$self->{_sshfs_cmd}, "$self->{_host_ssh}:$from", $to, @$opts_sshfs];
+    $self->spawn($opts_open_ex, 'sftp');
+}
+
+sub sshfs_export {
+    ${^TAINT} and &_catch_tainted_args;
+    my @args = &_parse_sshfs_args;
+    @args == 5 or croak 'Usage: $ssh->importfs($remote, $local)';
+    my ($self, $opts_sshfs, $opts_open_ex, $from, $to) = @args;
+
+    $opts_open_ex->{stdinout_dpipe} = $self->{_sftp_server_cmd};
+    $self->spawn($opts_open_ex, $self->{_sshfs_cmd}, "$self->{_host_ssh}:$from", $to, @$opts_sshfs);
 }
 
 sub DESTROY {
