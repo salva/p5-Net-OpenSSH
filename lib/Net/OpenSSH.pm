@@ -1100,6 +1100,7 @@ sub open_ex {
                  $cmd eq 'ssh'   ? $self->_make_ssh_call(\@ssh_opts, @args)    :
 		 $cmd eq 'scp'   ? $self->_make_scp_call(\@ssh_opts, @args)    :
 		 $cmd eq 'rsync' ? $self->_make_rsync_call(\@ssh_opts, @args)  :
+                 $cmd eq 'sshfs' ? $self->_make_sshfs_call(\@ssh_opts, @args)  :
 		 die "internal error: bad _cmd protocol" );
 
     $debug and $debug & 16 and _debug_dump open_ex => \@call;
@@ -1727,6 +1728,7 @@ sub sftp {
     $sftp
 }
 
+<<<<<<< HEAD
 my %sshfs_flags = map { $_ => 1 } qw(sshfs_sync no_readahead sshfs_debug transform_symlinks
                                      follow_symlinks transform_symlinks no_check_root debug
                                      allow_other allow_root nonempty default_permissions large_read
@@ -1759,7 +1761,6 @@ sub _parse_sshfs_args {
         }
     }
     return ($self, \@opts_sshfs, \%opts_open_ex, @_);
-}
 
 sub sshfs_import {
     ${^TAINT} and &_catch_tainted_args;
