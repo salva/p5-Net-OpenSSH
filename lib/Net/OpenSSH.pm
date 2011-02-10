@@ -936,27 +936,19 @@ sub _fileno_dup_dangerous {
     undef;
 }
 
-sub _make_dpipe {
+sub _exec_dpipe {
     my ($self, $cmd, $io, $err) = @_;
-    my $pid = fork;
-    unless ($pid) {
-        eval {
-            defined $pid or die "Unable to create new process: $!";
-            my $io_fd  = _fileno_dup_dangerous(3 => $io);
-            my $err_fd = _fileno_dup_dangerous(3 => $err);
-            POSIX::dup2($io_fd, 0);
-            POSIX::dup2($io_fd, 1);
-            POSIX::dup2($err_fd, 2) if defined $err_fd;
-            if (ref $cmd) {
-                exec @$cmd;
-            }
-            else {
-                exec $cmd;
-            }
-        };
-        POSIX::_exit(255);
+    my $io_fd  = _fileno_dup_dangerous(3 => $io);
+    my $err_fd = _fileno_dup_dangerous(3 => $err);
+    POSIX::dup2($io_fd, 0);
+    POSIX::dup2($io_fd, 1);
+    POSIX::dup2($err_fd, 2) if defined $err_fd;
+    if (ref $cmd) {
+        exec @$cmd;
     }
-    return $pid;
+    else {
+        exec $cmd;
+    }
 }
 
 sub open_ex {
@@ -967,8 +959,15 @@ sub open_ex {
 
     my $tunnel = delete $opts{tunnel};
 
+    my ($stdinout_socket, $stdinout_dpipe_is_parent);
     my $stdinout_dpipe = delete $opts{stdinout_dpipe};
-    my $stdinout_socket = (defined $stdinout_dpipe ? 1 : delete $opts{stdinout_socket});
+    if ($stdinout_dpipe) {
+        $stdinout_dpipe_is_parent = delete $opts{stdinout_dpipe_is_parent};
+        $stdinout_socket = 1;
+    }
+    else {
+        $stdinout_socket = delete $opts{stdinout_socket};
+    }
 
     my ($stdin_discard, $stdin_pipe, $stdin_fh, $stdin_file, $stdin_pty,
         $stdout_discard, $stdout_pipe, $stdout_fh, $stdout_file, $stdout_pty,
@@ -1111,7 +1110,13 @@ sub open_ex {
         $stderr_discard and (open $werr, '>', '/dev/null' or POSIX::_exit(255));
 
         if ($stdinout_dpipe) {
-            $self->_make_dpipe($stdinout_dpipe, $win, $werr) or POSIX::_exit(255);
+            my $pid1 = fork;
+            defined $pid1 or POSIX::_exit(255);
+
+            unless ($pid1 xor $stdinout_dpipe_is_parent) {
+                eval { $self->_exec_dpipe($stdinout_dpipe, $win, $werr) };
+                POSIX::_exit(255);
+            }
         }
 
         my $rin_fd = _fileno_dup_dangerous(0 => $rin);
