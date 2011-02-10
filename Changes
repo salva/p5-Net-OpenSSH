@@ -1,5 +1,8 @@
 Revision history for Perl extension Net::OpenSSH.
 
+0.51_03
+        - implement stdintout_dpipe_is_parent feature
+
 0.51_02  Feb10, 2011
         - add support for test method
         - add support for dpipe feature

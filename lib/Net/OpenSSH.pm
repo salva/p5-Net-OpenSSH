@@ -1,6 +1,6 @@
 package Net::OpenSSH;
 
-our $VERSION = '0.51_02';
+our $VERSION = '0.51_03';
 
 use strict;
 use warnings;
@@ -1280,7 +1280,7 @@ sub _io3 {
 
 _sub_options spawn => qw(stderr_to_stdout stdin_discard stdin_fh stdin_file stdout_discard
                          stdout_fh stdout_file stderr_discard stderr_fh stderr_file
-                         stdinout_dpipe quote_args tty ssh_opts tunnel);
+                         stdinout_dpipe stdintout_dpipe_is_parent quote_args tty ssh_opts tunnel);
 sub spawn {
     ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
@@ -1370,9 +1370,10 @@ sub open3pty {
     return ($pty, $err, $pid);
 }
 
-_sub_options system => qw(stdout_discard stdout_fh stdin_discard stdout_file stdin_fh
-                          stdin_file quote_args stderr_to_stdout stderr_discard stderr_fh
-                          stderr_file stdinout_dpipe tty ssh_opts tunnel);
+_sub_options system => qw(stdout_discard stdout_fh stdin_discard stdout_file stdin_fh stdin_file
+                          quote_args stderr_to_stdout stderr_discard stderr_fh stderr_file
+                          stdinout_dpipe stdinout_dpipe_is_parent tty ssh_opts tunnel);
+
 sub system {
     ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
@@ -1393,16 +1394,16 @@ sub system {
     $self->_waitpid($pid, $timeout);
 }
 
-_sub_options test => qw(stdout_discard stdout_fh stdin_discard stdout_file stdin_fh
-                        stdin_file quote_args stderr_to_stdout stderr_discard stderr_fh
-                        stderr_file stdinout_dpipe tty ssh_opts timeout stdin_data);
+_sub_options test => qw(stdout_discard stdout_fh stdin_discard stdout_file stdin_fh stdin_file
+                        quote_args stderr_to_stdout stderr_discard stderr_fh stderr_file
+                        stdinout_dpipe stdinout_dpipe_is_parent stdtty ssh_opts timeout stdin_data);
 
 sub test {
     ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
     my %opts = (ref $_[0] eq 'HASH' ? %{shift()} : ());
     $opts{stdout_discard} = 1 unless grep defined($opts{$_}), qw(stdout_discard stdout_fh
-                                                                 stdout_file);
+                                                                 stdout_file stdinout_dpipe);
     $opts{stderr_discard} = 1 unless grep defined($opts{$_}), qw(stderr_discard stderr_fh
                                                                  stderr_file stderr_to_stdout);
     _croak_bad_options %opts;
