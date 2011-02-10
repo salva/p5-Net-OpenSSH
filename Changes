@@ -1,5 +1,9 @@
 Revision history for Perl extension Net::OpenSSH.
 
+sshfs
+        - implement sshfs import and export methods
+        - include sshfs patch
+
 0.51_02  Feb10, 2011
         - add support for test method
         - add support for dpipe feature

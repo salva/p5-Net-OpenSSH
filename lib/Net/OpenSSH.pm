@@ -2853,6 +2853,44 @@ If your program rips the master process and this method is not called,
 the OS could reassign the PID to a new unrelated process and the
 module would try to kill it at object destruction time.
 
+=item $pid = $ssh->sshfs_import(\%opts, $remote_fs, $local_mnt_point)
+
+=item $pid = $ssh->sshfs_export(\%opts, $local_fs, $remote_mnt_point)
+
+These methods use L<sshfs(1)> to import or export a file system
+through the SSH connection.
+
+They return the C<$pid> of the C<sshfs> process or of the slave ssh
+process used to proxy it. Killing that process unmounts the file
+system, though, using L<fusermount(1)> is probably better.
+
+The options acepted are as follows:
+
+=over
+
+=item mount_opts => $mount_opts
+
+Options passed to the mount command. For instance, to mount the file
+system in read-only mode:
+
+  my $pid = $ssh->sshfs_export({mount_opts => 'ro'},
+                               "/", "/mnt/foo");
+
+=item I<sshfs and FUSE options>
+
+Any options accepted by C<sshfs> (or FUSE) can also be passed. For
+instance:
+
+  my $pid = $ssh->sshfs_export({sshfs_sync => 1,
+                                cache => 'yes'},
+                               "/", "/mnt/foo");
+
+=back
+
+See also the sshfs and FUSE web sites at
+L<http://fuse.sourceforge.net/sshfs.html> and
+L<http://fuse.sourceforge.net/> respectively.
+
 =back
 
 =head2 Shell quoting
