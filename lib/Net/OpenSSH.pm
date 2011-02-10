@@ -936,6 +936,29 @@ sub _fileno_dup_dangerous {
     undef;
 }
 
+sub _make_dpipe {
+    my ($self, $cmd, $io, $err) = @_;
+    my $pid = fork;
+    unless ($pid) {
+        eval {
+            defined $pid or die "Unable to create new process: $!";
+            my $io_fd  = _fileno_dup_dangerous(3 => $io);
+            my $err_fd = _fileno_dup_dangerous(3 => $err);
+            POSIX::dup2($io_fd, 0);
+            POSIX::dup2($io_fd, 1);
+            POSIX::dup2($err_fd, 2) if defined $err_fd;
+            if (ref $cmd) {
+                exec @$cmd;
+            }
+            else {
+                exec $cmd;
+            }
+        };
+        POSIX::_exit(255);
+    }
+    return $pid;
+}
+
 sub open_ex {
     ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
@@ -944,11 +967,12 @@ sub open_ex {
 
     my $tunnel = delete $opts{tunnel};
 
+    my $stdinout_dpipe = delete $opts{stdinout_dpipe};
+    my $stdinout_socket = (defined $stdinout_dpipe ? 1 : delete $opts{stdinout_socket});
+
     my ($stdin_discard, $stdin_pipe, $stdin_fh, $stdin_file, $stdin_pty,
         $stdout_discard, $stdout_pipe, $stdout_fh, $stdout_file, $stdout_pty,
         $stderr_discard, $stderr_pipe, $stderr_fh, $stderr_file, $stderr_to_stdout);
-
-    my $stdinout_socket = delete $opts{stdinout_socket};
     unless ($stdinout_socket) {
         ( $stdin_discard = delete $opts{stdin_discard} or
           $stdin_pipe = delete $opts{stdin_pipe} or
@@ -1081,9 +1105,14 @@ sub open_ex {
                               "unable to fork new ssh slave: $!");
             return ();
         }
+
         $stdin_discard  and (open $rin,  '<', '/dev/null' or POSIX::_exit(255));
         $stdout_discard and (open $wout, '>', '/dev/null' or POSIX::_exit(255));
         $stderr_discard and (open $werr, '>', '/dev/null' or POSIX::_exit(255));
+
+        if ($stdinout_dpipe) {
+            $self->_make_dpipe($stdinout_dpipe, $win, $werr) or POSIX::_exit(255);
+        }
 
         my $rin_fd = _fileno_dup_dangerous(0 => $rin);
         my $wout_fd = _fileno_dup_dangerous(1 => $wout);
@@ -1106,6 +1135,7 @@ sub open_ex {
         POSIX::_exit(255);
     }
     $win->close_slave() if $close_slave_pty;
+    undef $win if defined $stdinout_dpipe;
     wantarray ? ($win, $rout, $rerr, $pid) : $pid;
 }
 
@@ -1245,7 +1275,7 @@ sub _io3 {
 
 _sub_options spawn => qw(stderr_to_stdout stdin_discard stdin_fh stdin_file stdout_discard
                          stdout_fh stdout_file stderr_discard stderr_fh stderr_file
-                         quote_args tty ssh_opts tunnel);
+                         stdinout_dpipe quote_args tty ssh_opts tunnel);
 sub spawn {
     ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
@@ -1337,7 +1367,7 @@ sub open3pty {
 
 _sub_options system => qw(stdout_discard stdout_fh stdin_discard stdout_file stdin_fh
                           stdin_file quote_args stderr_to_stdout stderr_discard stderr_fh
-                          stderr_file tty ssh_opts tunnel);
+                          stderr_file stdinout_dpipe tty ssh_opts tunnel);
 sub system {
     ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
@@ -1360,7 +1390,7 @@ sub system {
 
 _sub_options test => qw(stdout_discard stdout_fh stdin_discard stdout_file stdin_fh
                         stdin_file quote_args stderr_to_stdout stderr_discard stderr_fh
-                        stderr_file tty ssh_opts timeout stdin_data);
+                        stderr_file stdinout_dpipe tty ssh_opts timeout stdin_data);
 
 sub test {
     ${^TAINT} and &_catch_tainted_args;
@@ -2155,11 +2185,24 @@ Example:
 
 See also L</open2socket>.
 
+=item stdinout_dpipe => $cmd
+
+=item stdinout_dpipe => \@cmd
+
+Runs the given command locally attaching its stdio streams to those of
+the remote SSH command. Conceptually it is equivalent to the
+L<dpipe(1)> shell command.
+
 =item stderr_pipe => 1
 
 Creates a new pipe and connects the writting side to the stderr stream
 of the remote process. The reading side is returned as the third
 value (C<$err>).
+
+Example:
+
+  my $pid = $ssh->open_ex({stdinout_dpipe => 'vncviewer -stdio'},
+                          x11vnc => '-inetd');
 
 =item stderr_fh => $fh
 
@@ -2298,6 +2341,8 @@ See also the L</spawn> method documentation below.
 =item stderr_discard => $bool
 
 =item stderr_to_stdout => $bool
+
+=item stdinout_dpipe => $cmd
 
 =item tty => $bool
 

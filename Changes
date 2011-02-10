@@ -1,7 +1,8 @@
 Revision history for Perl extension Net::OpenSSH.
 
-0.51_02
+0.51_02  Feb10, 2011
         - add support for test method
+        - add support for dpipe feature
         - simplify _wait_for_master code
         - remove spurious warnings generated when control command
           failed to run (bug report by jaiieq from Perlmonks)
