@@ -1,6 +1,6 @@
 package Net::OpenSSH;
 
-our $VERSION = '0.51_02';
+our $VERSION = '0.51_03';
 
 use strict;
 use warnings;
@@ -936,6 +936,21 @@ sub _fileno_dup_dangerous {
     undef;
 }
 
+sub _exec_dpipe {
+    my ($self, $cmd, $io, $err) = @_;
+    my $io_fd  = _fileno_dup_dangerous(3 => $io);
+    my $err_fd = _fileno_dup_dangerous(3 => $err);
+    POSIX::dup2($io_fd, 0);
+    POSIX::dup2($io_fd, 1);
+    POSIX::dup2($err_fd, 2) if defined $err_fd;
+    if (ref $cmd) {
+        exec @$cmd;
+    }
+    else {
+        exec $cmd;
+    }
+}
+
 sub open_ex {
     ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
@@ -944,11 +959,19 @@ sub open_ex {
 
     my $tunnel = delete $opts{tunnel};
 
+    my ($stdinout_socket, $stdinout_dpipe_is_parent);
+    my $stdinout_dpipe = delete $opts{stdinout_dpipe};
+    if ($stdinout_dpipe) {
+        $stdinout_dpipe_is_parent = delete $opts{stdinout_dpipe_is_parent};
+        $stdinout_socket = 1;
+    }
+    else {
+        $stdinout_socket = delete $opts{stdinout_socket};
+    }
+
     my ($stdin_discard, $stdin_pipe, $stdin_fh, $stdin_file, $stdin_pty,
         $stdout_discard, $stdout_pipe, $stdout_fh, $stdout_file, $stdout_pty,
         $stderr_discard, $stderr_pipe, $stderr_fh, $stderr_file, $stderr_to_stdout);
-
-    my $stdinout_socket = delete $opts{stdinout_socket};
     unless ($stdinout_socket) {
         ( $stdin_discard = delete $opts{stdin_discard} or
           $stdin_pipe = delete $opts{stdin_pipe} or
@@ -1081,9 +1104,20 @@ sub open_ex {
                               "unable to fork new ssh slave: $!");
             return ();
         }
+
         $stdin_discard  and (open $rin,  '<', '/dev/null' or POSIX::_exit(255));
         $stdout_discard and (open $wout, '>', '/dev/null' or POSIX::_exit(255));
         $stderr_discard and (open $werr, '>', '/dev/null' or POSIX::_exit(255));
+
+        if ($stdinout_dpipe) {
+            my $pid1 = fork;
+            defined $pid1 or POSIX::_exit(255);
+
+            unless ($pid1 xor $stdinout_dpipe_is_parent) {
+                eval { $self->_exec_dpipe($stdinout_dpipe, $win, $werr) };
+                POSIX::_exit(255);
+            }
+        }
 
         my $rin_fd = _fileno_dup_dangerous(0 => $rin);
         my $wout_fd = _fileno_dup_dangerous(1 => $wout);
@@ -1106,6 +1140,7 @@ sub open_ex {
         POSIX::_exit(255);
     }
     $win->close_slave() if $close_slave_pty;
+    undef $win if defined $stdinout_dpipe;
     wantarray ? ($win, $rout, $rerr, $pid) : $pid;
 }
 
@@ -1245,7 +1280,7 @@ sub _io3 {
 
 _sub_options spawn => qw(stderr_to_stdout stdin_discard stdin_fh stdin_file stdout_discard
                          stdout_fh stdout_file stderr_discard stderr_fh stderr_file
-                         quote_args tty ssh_opts tunnel);
+                         stdinout_dpipe stdintout_dpipe_is_parent quote_args tty ssh_opts tunnel);
 sub spawn {
     ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
@@ -1335,9 +1370,10 @@ sub open3pty {
     return ($pty, $err, $pid);
 }
 
-_sub_options system => qw(stdout_discard stdout_fh stdin_discard stdout_file stdin_fh
-                          stdin_file quote_args stderr_to_stdout stderr_discard stderr_fh
-                          stderr_file tty ssh_opts tunnel);
+_sub_options system => qw(stdout_discard stdout_fh stdin_discard stdout_file stdin_fh stdin_file
+                          quote_args stderr_to_stdout stderr_discard stderr_fh stderr_file
+                          stdinout_dpipe stdinout_dpipe_is_parent tty ssh_opts tunnel);
+
 sub system {
     ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
@@ -1358,27 +1394,27 @@ sub system {
     $self->_waitpid($pid, $timeout);
 }
 
-_sub_options test => qw(stdout_discard stdout_fh stdin_discard stdout_file stdin_fh
-                        stdin_file quote_args stderr_to_stdout stderr_discard stderr_fh
-                        stderr_file tty ssh_opts timeout stdin_data);
+_sub_options test => qw(stdout_discard stdout_fh stdin_discard stdout_file stdin_fh stdin_file
+                        quote_args stderr_to_stdout stderr_discard stderr_fh stderr_file
+                        stdinout_dpipe stdinout_dpipe_is_parent stdtty ssh_opts timeout stdin_data);
 
 sub test {
     ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
     my %opts = (ref $_[0] eq 'HASH' ? %{shift()} : ());
     $opts{stdout_discard} = 1 unless grep defined($opts{$_}), qw(stdout_discard stdout_fh
-                                                                 stdout_file);
+                                                                 stdout_file stdinout_dpipe);
     $opts{stderr_discard} = 1 unless grep defined($opts{$_}), qw(stderr_discard stderr_fh
                                                                  stderr_file stderr_to_stdout);
     _croak_bad_options %opts;
 
     $self->system(\%opts, @_);
-    my $error = $ssh->error;
-    if (!$error) {
+    my $error = $self->error;
+    unless ($error) {
         return 1;
     }
     if ($error == OSSH_SLAVE_CMD_FAILED) {
-        $ssh->_set_error(0);
+        $self->_set_error(0);
         return 0;
     }
     return undef;
@@ -2155,11 +2191,24 @@ Example:
 
 See also L</open2socket>.
 
+=item stdinout_dpipe => $cmd
+
+=item stdinout_dpipe => \@cmd
+
+Runs the given command locally attaching its stdio streams to those of
+the remote SSH command. Conceptually it is equivalent to the
+L<dpipe(1)> shell command.
+
 =item stderr_pipe => 1
 
 Creates a new pipe and connects the writting side to the stderr stream
 of the remote process. The reading side is returned as the third
 value (C<$err>).
+
+Example:
+
+  my $pid = $ssh->open_ex({stdinout_dpipe => 'vncviewer -stdio'},
+                          x11vnc => '-inetd');
 
 =item stderr_fh => $fh
 
@@ -2298,6 +2347,8 @@ See also the L</spawn> method documentation below.
 =item stderr_discard => $bool
 
 =item stderr_to_stdout => $bool
+
+=item stdinout_dpipe => $cmd
 
 =item tty => $bool
 
@@ -2465,13 +2516,16 @@ Shortcuts around L</open_ex> method.
 
 =item $pid = $ssh->spawn(\%opts, @_)
 
-Another L</open_ex> shortcut, it launches a new remote process in the
-background and returns its PID.
+X<spawn>Another L</open_ex> shortcut, it launches a new remote process
+in the background and returns the PID of the local slave SSH process.
 
-For instance, you can run some command on several host in parallel
+At some later point in your script, C<waitpid> should be called on the
+returned PID in order to reap the slave SSH process.
+
+For instance, you can run some command on several hosts in parallel
 with the following code:
 
-  my %conn = map { $_ => Net::OpenSSH->new($_) } @hosts;
+  my %conn = map { $_ => Net::OpenSSH->new($_, async => 1) } @hosts;
   my @pid;
   for my $host (@hosts) {
       open my($fh), '>', "/tmp/out-$host.txt"
@@ -2481,10 +2535,15 @@ with the following code:
 
   waitpid($_, 0) for @pid;
 
+Note that C<spawn> shouldn't be used to start detached remote
+processes that may survive the local program (see also the L</FAQ>
+about running remote processes detached).
+
 =item ($socket, $pid) = $ssh->open_tunnel(\%opts, $dest_host, $port)
 
-X<open_tunnel>Similar to L</open2socket>, but instead of running a command, it opens a TCP
-tunnel to the given address. See also L</Tunnels>.
+X<open_tunnel>Similar to L</open2socket>, but instead of running a
+command, it opens a TCP tunnel to the given address. See also
+L</Tunnels>.
 
 =item $out = $ssh->capture_tunnel(\%opts, $dest_host, $port)
 
@@ -3110,7 +3169,7 @@ They have to be owned by the user executing the script or by root
 
 =item *
 
-Their permission masks have to be 0755 or more restrictive, so nobody
+Their permission masks must be 0755 or more restrictive, so nobody
 else has permissions to perform write operations on them.
 
 =back
@@ -3266,6 +3325,25 @@ Also, several commands can be combined into one while still using the
 multi-argument quoting feature as follows:
 
   $ssh->system(@cmd1, \\'&&', @cmd2, \\'&&', @cmd3, ...);
+
+=item Running detached remote processes
+
+B<Q>: I need to be able to ssh into several machines from my script,
+launch a process to run in the background there, and then return
+immediately while the remote programs keep running...
+
+B<A>: If the remote systems run some Unix/Linux variant, the right
+approach is to use L<nohup(1)> that will disconnect the remote process
+from the stdio streams and to ask the shell to run the command on the
+background. For instance:
+
+  $ssh->system("nohup $long_running_command &");
+
+Also, it may be possible to demonize the remote program. If it is
+written in Perl you can use L<App::Daemon> for that (actually, there
+are several CPAN modules that provided that kind of functionality).
+
+In any case, note that you shouldn't use L</spawn> for that.
 
 =back
 
