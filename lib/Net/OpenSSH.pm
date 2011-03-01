@@ -82,7 +82,7 @@ sub _catch_tainted_args {
             _tcroak($msg);
         }
         elsif (ref($_) eq 'HASH') {
-            for (grep Scalar::Util::tainted $_, values %$_) {
+            for (grep Scalar::Util::tainted($_), values %$_) {
 		my (undef, undef, undef, $subn) = caller 1;
 		my $msg = ( $subn =~ /::([a-z]\w*)$/
 			    ? "Insecure argument on '$1' method call"
