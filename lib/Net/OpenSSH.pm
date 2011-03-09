@@ -731,7 +731,8 @@ sub _wait_for_master {
                 if ($status eq 'waiting_for_password_prompt') {
                     if ($$bout =~ /The authenticity of host.*can't be established/si) {
                         $self->_set_error(OSSH_MASTER_FAILED, $wfm_error_prefix,
-                                          "the authenticity of the target host can't be established, try loging manually first");
+                                          "the authenticity of the target host can't be established, the remote host "
+                                          . "public key is probably not present on the '~/.ssh/known_hosts' file");
                         $self->_kill_master;
                         return undef;
                     }
@@ -3137,15 +3138,50 @@ Common problems are:
 
 =item *
 
-Not having the remote host public key in the known_hosts file.
+Remote host public key not present in known_hosts file.
+
+The SSH protocol uses public keys to ensure the identity of the remote
+host, so that it can not be supplanted by some malicius third
+party.
+
+For OpenSSH, usually the server public key is stored in
+C</etc/ssh/ssh_host_dsa_key.pub> or in
+C</etc/ssh/ssh_host_rsa_key.pub> and that key should be copied into the
+C<~/.ssh/known_hosts> file in the local machine (other SSH
+implementations may use other file locations).
+
+Maintaining the server keys when several hosts and clients are
+involved may be somewhat inconvenient, so most SSH clients, by
+default, when a new connection is stablished to a host whose key is
+not in the C<known_hosts> file, show the key and ask the user if he
+wants the key copied there.
+
+=item *
+
+Wrong remote host public key in known_hosts file.
+
+This is another common problem that happens when some server is
+replaced or reinstalled from scratch and its public key changes
+becomming different to that installed on the C<known_hosts> file.
+
+The easiest way to solve that problem is to remove the old key from
+the C<known_hosts> file by hand using any editor and then connecting
+to the server and replying C<yes> when asked to save the new key.
 
 =item *
 
 Wrong permissions for the C<~/.ssh> directory or its contents.
 
+OpenSSH client performs several checks on the access permissions of
+the C<~/.ssh> directory and its contents and refuses to use them when
+misconfigured. See the FILES section from the L<ssh(1)> man page.
+
 =item *
 
-Incorrect settings for public key authentication.
+Incorrect settings for password or public key authentication.
+
+Check that you are using the right password or that the user public
+key is correctly installed on the server.
 
 =back
 
@@ -3351,7 +3387,9 @@ In any case, note that you shouldn't use L</spawn> for that.
 
 OpenSSH client documentation L<ssh(1)>, L<ssh_config(5)>, the project
 web L<http://www.openssh.org> and its FAQ
-L<http://www.openbsd.org/openssh/faq.html>. L<scp(1)> and L<rsync(1)>.
+L<http://www.openbsd.org/openssh/faq.html>. L<scp(1)> and
+L<rsync(1)>. The OpenSSH Wikibook
+L<http://en.wikibooks.org/wiki/OpenSSH>.
 
 Core perl documentation L<perlipc>, L<perlfunc/open>,
 L<perlfunc/waitpid>.
@@ -3363,8 +3401,8 @@ L<Net::SFTP::Foreign|Net::SFTP::Foreign> provides a compatible SFTP
 implementation.
 
 L<Expect|Expect> can be used to interact with commands run through
-this module on the remote machine (see also the C<expect.pl> script in
-the sample directory).
+this module on the remote machine (see also the C<expect.pl> and
+<autosudo.pl> scripts in the sample directory).
 
 L<SSH::OpenSSH::Parallel> is an advanced scheduler that allows to run
 commands in remote hosts in parallel. It is obviously based on

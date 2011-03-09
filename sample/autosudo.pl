@@ -1,5 +1,7 @@
 #!/usr/bin/perl
 
+# see http://perlmonks.org/?node_id=890441
+
 use strict;
 use warnings;
 
