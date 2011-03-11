@@ -1,5 +1,8 @@
 Revision history for Perl extension Net::OpenSSH.
 
+0.51_05
+        - accept ssh_opts in make_remote_command
+
 0.51_04  Mar 10, 2011
         - solve "Not enough arguments for grep" bug (reported by Tom
           Wittbrodt)

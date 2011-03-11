@@ -1,6 +1,6 @@
 package Net::OpenSSH;
 
-our $VERSION = '0.51_04';
+our $VERSION = '0.51_05';
 
 use strict;
 use warnings;
@@ -892,9 +892,9 @@ sub make_remote_command {
     $self->_check_master_and_clear_error or return ();
     my %opts = (ref $_[0] eq 'HASH' ? %{shift()} : ());
     my $tty = delete $opts{tty};
+    my @ssh_opts = _array_or_scalar_to_list delete $opts{ssh_opts};
     my @args = $self->_quote_args(\%opts, @_);
     _croak_bad_options %opts;
-    my @ssh_opts;
     push @ssh_opts, ($tty ? '-qtt' : '-T') if defined $tty;
     my @call = $self->_make_ssh_call(\@ssh_opts, @args);
     if (wantarray) {
