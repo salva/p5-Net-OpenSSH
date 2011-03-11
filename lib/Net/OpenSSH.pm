@@ -3440,7 +3440,7 @@ To report bugs send an email to the address that appear below or use
 the CPAN bug tracking system at L<http://rt.cpan.org>.
 
 B<Post questions related to how to use the module in Perlmonks>
-L<http://perlmoks.org/>, you will probably get faster responses that
+L<http://perlmoks.org/>, you will probably get faster responses than
 if you address me directly and I visit Perlmonks quite often, so I
 will see your question anyway.
 
