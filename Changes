@@ -1,5 +1,10 @@
 Revision history for Perl extension Net::OpenSSH.
 
+0.51_04  Mar 10, 2011
+        - solve "Not enough arguments for grep" bug (reported by Tom
+          Wittbrodt)
+        - some documentation improvements
+
 0.51_03  Mar 9, 2011
         - error message corrected
         - troubleshooting guide improved

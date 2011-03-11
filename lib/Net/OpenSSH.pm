@@ -1,6 +1,6 @@
 package Net::OpenSSH;
 
-our $VERSION = '0.51_03';
+our $VERSION = '0.51_04';
 
 use strict;
 use warnings;
@@ -74,7 +74,7 @@ sub _catch_tainted_args {
     my $i;
     for (@_) {
         next unless $i++;
-        if (Scalar::Util::tainted $_) {
+        if (Scalar::Util::tainted($_)) {
             my (undef, undef, undef, $subn) = caller 1;
             my $msg = ( $subn =~ /::([a-z]\w*)$/
                         ? "Insecure argument '$_' on '$1' method call"
@@ -82,7 +82,7 @@ sub _catch_tainted_args {
             _tcroak($msg);
         }
         elsif (ref($_) eq 'HASH') {
-            for (grep Scalar::Util::tainted $_, values %$_) {
+            for (grep Scalar::Util::tainted($_), values %$_) {
 		my (undef, undef, undef, $subn) = caller 1;
 		my $msg = ( $subn =~ /::([a-z]\w*)$/
 			    ? "Insecure argument on '$1' method call"
