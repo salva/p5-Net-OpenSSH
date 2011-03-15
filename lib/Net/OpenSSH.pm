@@ -188,22 +188,31 @@ sub new {
     my $async = delete $opts{async};
     my $target_os = delete $opts{target_os};
     $target_os = 'unix' unless defined $target_os;
-
     my $expand_vars = delete $opts{expand_vars};
     my $vars = delete $opts{vars} || {};
 
-    my (master_opts,
+    my (master_opts, @master_opts,
         $master_stdout_fh, $master_stderr_fh,
 	$master_stdout_discard, $master_stderr_discard);
 
     unless ($reuse_master) {
-        $master_opts = delete $opts{master_opts};
-
         ($master_stdout_fh = delete $opts{master_stdout_fh} or
          $master_stdout_discard = delete $opts{master_stdout_discard});
 
         ($master_stderr_fh = delete $opts{master_stderr_fh} or
          $master_stderr_discard = delete $opts{master_stderr_discard});
+
+        $master_opts = delete $opts{master_opts};
+        if (defined $master_opts) {
+            if (ref($master_opts)) {
+                @master_opts = @$master_opts;
+            }
+            else {
+                carp "'master_opts' argument looks like if it should be splited first"
+                    if $master_opts =~ /^-\w\s+\S/;
+                @master_opts = $master_opts;
+            }
+        }
     }
 
     my ($default_stdout_fh, $default_stderr_fh, $default_stdin_fh,
@@ -229,18 +238,6 @@ sub new {
 	unless defined $default_stdin_file;
 
     _croak_bad_options %opts;
-
-    my @master_opts;
-    if (defined $master_opts) {
-	if (ref($master_opts)) {
-	    @master_opts = @$master_opts;
-	}
-	else {
-	    carp "'master_opts' argument looks like if it should be splited first"
-		if $master_opts =~ /^-\w\s+\S/;
-	    @master_opts = $master_opts;
-	}
-    }
 
     my @ssh_opts;
     # TODO: are those options really requiered or just do they eat on
