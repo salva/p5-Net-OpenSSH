@@ -168,6 +168,8 @@ sub new {
 	$host_ssh = $host;
     }
 
+    my $reuse_master = delete $opts{reuse_master};
+
     $user = delete $opts{user} unless defined $user;
     $port = delete $opts{port} unless defined $port;
     $passwd = delete $opts{passwd} unless defined $passwd;
@@ -193,8 +195,6 @@ sub new {
 
     my ($master_stdout_fh, $master_stderr_fh,
 	$master_stdout_discard, $master_stderr_discard);
-
-    my $reuse_master = delete $opts{reuse_master};
 
     unless ($reuse_master) {
         ($master_stdout_fh = delete $opts{master_stdout_fh} or
@@ -335,7 +335,7 @@ sub new {
 
     $self->{_ctl_path} = $ctl_path;
     if ($reuse_master) {
-        $self->_wait_for_master($async);
+        $self->_wait_for_master($async, 1);
     }
     else {
         $self->_connect($async);
@@ -677,15 +677,17 @@ sub _wait_for_master {
 
     my $mpty = $self->{_mpty};
     my $passwd = $deobfuscate->($self->{_passwd});
+    my $pid = $self->{_pid};
+    # an undefined pid indicates we are reusing a master connection
 
     if ($reset) {
         $$bout = '';
-        $status = ( defined $passwd
+        $status = ( (defined $passwd and $pid)
                     ? 'waiting_for_password_prompt'
                     : 'waiting_for_socket' );
     }
 
-    my $pid = $self->{_pid};
+
     my $ctl_path = $self->{_ctl_path};
     my $fnopty = fileno $mpty if defined $mpty;
     my $dt = ($async ? 0 : 0.1);
@@ -711,7 +713,7 @@ sub _wait_for_master {
                 $error = "execution of control command failed: " . $self->error;
             }
             elsif ($check =~ /pid=(\d+)/) {
-                return 1 if ($self->{_reuse_master} or $1 == $pid);
+                return 1 if (!$pid or $1 == $pid);
 
                 $error = "bad ssh master at $ctl_path, socket owned by pid $1 (pid $pid expected)";
             }
@@ -726,7 +728,7 @@ sub _wait_for_master {
             $self->_kill_master;
             return undef;
         }
-        if ($self->{_reuse_master}) {
+        if (!$pid) {
             $self->_set_error(OSSH_MASTER_FAILED,
                               $wfm_error_prefix, "unable to reuse master socket because it does not exist");
             return undef;
