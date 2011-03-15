@@ -301,6 +301,8 @@ sub new {
     $ctl_dir = $self->_expand_vars($ctl_dir);
 
     unless (defined $ctl_path) {
+        $reuse_master and croak "reuse_master is set but ctl_path is not defined";
+
         $ctl_dir = File::Spec->catdir($self->{_home}, ".libnet-openssh-perl")
 	    unless defined $ctl_dir;
 
@@ -2073,7 +2075,8 @@ Opens the given filenames and use it as the defaults.
 
 =item master_stderr_fh => $fh
 
-Redirect corresponding stdio streams of the master SSH process to given filehandles.
+Redirect corresponding stdio streams of the master SSH process to
+given filehandles.
 
 =item master_stdout_discard => $bool
 
@@ -2090,6 +2093,16 @@ See L</"Variable expansion"> below.
 =item vars => \%vars
 
 Initial set of variables.
+
+=item reuse_master => 1
+
+Instead of launching a new OpenSSH client in master mode, the module
+tries to reuse an already existent one. C<ctl_path> must also be
+passed when this option is set. See also </get_ctl_path>.
+
+Example:
+
+  $ssh = Net::OpenSSH->new('foo', reuse_master => 1, ctl_path = $path);
 
 =back
 
