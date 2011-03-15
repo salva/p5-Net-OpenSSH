@@ -1,6 +1,6 @@
 package Net::OpenSSH;
 
-our $VERSION = '0.51_04';
+our $VERSION = '0.51_05';
 
 use strict;
 use warnings;
@@ -194,11 +194,15 @@ sub new {
     my ($master_stdout_fh, $master_stderr_fh,
 	$master_stdout_discard, $master_stderr_discard);
 
-    ($master_stdout_fh = delete $opts{master_stdout_fh} or
-     $master_stdout_discard = delete $opts{master_stdout_discard});
+    my $reuse_master = delete $opts{reuse_master};
 
-    ($master_stderr_fh = delete $opts{master_stderr_fh} or
-     $master_stderr_discard = delete $opts{master_stderr_discard});
+    unless ($reuse_master) {
+        ($master_stdout_fh = delete $opts{master_stdout_fh} or
+         $master_stdout_discard = delete $opts{master_stdout_discard});
+
+        ($master_stderr_fh = delete $opts{master_stderr_fh} or
+         $master_stderr_discard = delete $opts{master_stderr_discard});
+    }
 
     my ($default_stdout_fh, $default_stderr_fh, $default_stdin_fh,
 	$default_stdout_file, $default_stderr_file, $default_stdin_file,
@@ -269,6 +273,7 @@ sub new {
                  _timeout => $timeout,
                  _kill_ssh_on_timeout => $kill_ssh_on_timeout,
                  _home => $home,
+                 _reuse_master => $reuse_master,
 		 _default_stdin_fh => $default_stdin_fh,
 		 _default_stdout_fh => $default_stdout_fh,
 		 _default_stderr_fh => $default_stderr_fh,
@@ -329,7 +334,12 @@ sub new {
     }
 
     $self->{_ctl_path} = $ctl_path;
-    $self->_connect($async);
+    if ($reuse_master) {
+        $self->_wait_for_master($async);
+    }
+    else {
+        $self->_connect($async);
+    }
     $self;
 }
 
@@ -646,7 +656,7 @@ sub wait_for_master {
     my $self = shift;
     @_ <= 1 or croak 'Usage: $ssh->wait_for_master([$async])';
     $self->{_wfm_status} and
-	return $self->_wait_for_master(@_);
+	return $self->_wait_for_master($_[0]);
     $self->{_error} == OSSH_MASTER_FAILED and
 	return undef;
 
@@ -701,7 +711,7 @@ sub _wait_for_master {
                 $error = "execution of control command failed: " . $self->error;
             }
             elsif ($check =~ /pid=(\d+)/) {
-                return 1 if $pid == $1;
+                return 1 if ($self->{_reuse_master} or $1 == $pid);
 
                 $error = "bad ssh master at $ctl_path, socket owned by pid $1 (pid $pid expected)";
             }
@@ -716,7 +726,12 @@ sub _wait_for_master {
             $self->_kill_master;
             return undef;
         }
-        if (waitpid($pid, WNOHANG) == $pid or $! == Errno::ECHILD) {
+        if ($self->{_reuse_master}) {
+            $self->_set_error(OSSH_MASTER_FAILED,
+                              $wfm_error_prefix, "unable to reuse master socket because it does not exist");
+            return undef;
+        }
+        elsif (waitpid($pid, WNOHANG) == $pid or $! == Errno::ECHILD) {
             $self->_set_error(OSSH_MASTER_FAILED, $wfm_error_prefix,
                               "ssh master exited unexpectedly");
             return undef;
