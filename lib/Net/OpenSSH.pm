@@ -191,7 +191,7 @@ sub new {
     my $expand_vars = delete $opts{expand_vars};
     my $vars = delete $opts{vars} || {};
 
-    my (master_opts, @master_opts,
+    my ($master_opts, @master_opts,
         $master_stdout_fh, $master_stderr_fh,
 	$master_stdout_discard, $master_stderr_discard);
 
