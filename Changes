@@ -1,5 +1,10 @@
 Revision history for Perl extension Net::OpenSSH.
 
+0.51_06
+
+        - s/reuse_master/external_master/. I never was happy with the
+          old option name.
+
 0.51_05  Mar 15, 2011
         - implement reuse_master feature
         - do not propagate extra arguments from wait_for_master to _wait_for_master

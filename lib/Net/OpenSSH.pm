@@ -1,6 +1,6 @@
 package Net::OpenSSH;
 
-our $VERSION = '0.51_05';
+our $VERSION = '0.51_06';
 
 use strict;
 use warnings;
@@ -168,7 +168,9 @@ sub new {
 	$host_ssh = $host;
     }
 
-    my $reuse_master = delete $opts{reuse_master};
+    my $external_master = delete $opts{external_master};
+    # reuse_master is an obsolete alias:
+    $external_master = delete $opts{reuse_master} unless defined $external_master;
 
     $user = delete $opts{user} unless defined $user;
     $port = delete $opts{port} unless defined $port;
@@ -195,7 +197,7 @@ sub new {
         $master_stdout_fh, $master_stderr_fh,
 	$master_stdout_discard, $master_stderr_discard);
 
-    unless ($reuse_master) {
+    unless ($external_master) {
         ($master_stdout_fh = delete $opts{master_stdout_fh} or
          $master_stdout_discard = delete $opts{master_stdout_discard});
 
@@ -272,7 +274,7 @@ sub new {
                  _timeout => $timeout,
                  _kill_ssh_on_timeout => $kill_ssh_on_timeout,
                  _home => $home,
-                 _reuse_master => $reuse_master,
+                 _external_master => $external_master,
 		 _default_stdin_fh => $default_stdin_fh,
 		 _default_stdout_fh => $default_stdout_fh,
 		 _default_stderr_fh => $default_stderr_fh,
@@ -301,7 +303,7 @@ sub new {
     $ctl_dir = $self->_expand_vars($ctl_dir);
 
     unless (defined $ctl_path) {
-        $reuse_master and croak "reuse_master is set but ctl_path is not defined";
+        $external_master and croak "external_master is set but ctl_path is not defined";
 
         $ctl_dir = File::Spec->catdir($self->{_home}, ".libnet-openssh-perl")
 	    unless defined $ctl_dir;
@@ -335,7 +337,7 @@ sub new {
     }
 
     $self->{_ctl_path} = $ctl_path;
-    if ($reuse_master) {
+    if ($external_master) {
         $self->_wait_for_master($async, 1);
     }
     else {
@@ -2094,7 +2096,7 @@ See L</"Variable expansion"> below.
 
 Initial set of variables.
 
-=item reuse_master => 1
+=item external_master => 1
 
 Instead of launching a new OpenSSH client in master mode, the module
 tries to reuse an already existent one. C<ctl_path> must also be
@@ -2102,7 +2104,7 @@ passed when this option is set. See also </get_ctl_path>.
 
 Example:
 
-  $ssh = Net::OpenSSH->new('foo', reuse_master => 1, ctl_path = $path);
+  $ssh = Net::OpenSSH->new('foo', external_master => 1, ctl_path = $path);
 
 =back
 
