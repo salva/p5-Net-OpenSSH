@@ -186,17 +186,19 @@ sub new {
     my $strict_mode = delete $opts{strict_mode};
     $strict_mode = 1 unless defined $strict_mode;
     my $async = delete $opts{async};
-    my $master_opts = delete $opts{master_opts};
     my $target_os = delete $opts{target_os};
     $target_os = 'unix' unless defined $target_os;
 
     my $expand_vars = delete $opts{expand_vars};
     my $vars = delete $opts{vars} || {};
 
-    my ($master_stdout_fh, $master_stderr_fh,
+    my (master_opts,
+        $master_stdout_fh, $master_stderr_fh,
 	$master_stdout_discard, $master_stderr_discard);
 
     unless ($reuse_master) {
+        $master_opts = delete $opts{master_opts};
+
         ($master_stdout_fh = delete $opts{master_stdout_fh} or
          $master_stdout_discard = delete $opts{master_stdout_discard});
 
