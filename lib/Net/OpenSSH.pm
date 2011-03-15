@@ -907,9 +907,9 @@ sub make_remote_command {
     $self->_check_master_and_clear_error or return ();
     my %opts = (ref $_[0] eq 'HASH' ? %{shift()} : ());
     my $tty = delete $opts{tty};
+    my @ssh_opts = _array_or_scalar_to_list delete $opts{ssh_opts};
     my @args = $self->_quote_args(\%opts, @_);
     _croak_bad_options %opts;
-    my @ssh_opts;
     push @ssh_opts, ($tty ? '-qtt' : '-T') if defined $tty;
     my @call = $self->_make_ssh_call(\@ssh_opts, @args);
     if (wantarray) {
@@ -3455,7 +3455,7 @@ To report bugs send an email to the address that appear below or use
 the CPAN bug tracking system at L<http://rt.cpan.org>.
 
 B<Post questions related to how to use the module in Perlmonks>
-L<http://perlmoks.org/>, you will probably get faster responses that
+L<http://perlmoks.org/>, you will probably get faster responses than
 if you address me directly and I visit Perlmonks quite often, so I
 will see your question anyway.
 
