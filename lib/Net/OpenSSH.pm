@@ -1527,7 +1527,7 @@ sub _scp_get_args {
 
     @_ > 0 or croak
 	'Usage: $ssh->' . _calling_method . '(\%opts, $remote_fn1, $remote_fn2, ..., $local_fn_or_dir)';
-   
+
     my $glob = delete $opts{glob};
 
     my $target = (@_ > 1 ? pop @_ : '.');
