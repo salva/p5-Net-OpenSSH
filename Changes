@@ -1,8 +1,12 @@
 Revision history for Perl extension Net::OpenSSH.
 
-0.51_06
+0.51_06  Mar 16, 2011
+        - make hostname argument to constructor optional when
+          external_master is set
+        - better error handling in constructor
         - s/reuse_master/external_master/. I never was happy with the
           old option name.
+        - some minor doc corrections
 
 0.51_05  Mar 15, 2011
         - implement reuse_master feature

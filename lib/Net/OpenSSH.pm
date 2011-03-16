@@ -135,42 +135,47 @@ sub new {
     @_ & 1 and unshift @_, 'host';
     my %opts = @_;
 
-    my $target = delete $opts{host};
-
-    my ($user, $passwd, $ipv6, $host, $port) =
-        $target =~ m{^
-                    \s*               # space
-                    (?:
-                      ([^\@:]+)       # username
-                      (?::(.*))?      # : password
-                      \@              # @
-                    )?
-                    (?:               # host
-                       (              #   IPv6...
-                         \[$IPv6_re\] #     [IPv6]
-                         |            #     or
-                         $IPv6_re     #     IPv6
-                       )
-                       |              #   or
-                       ([^\[\]\@:]+)  #   hostname / ipv4
-                    )
-                    (?::([^\@:]+))?   # port
-                    \s*               # space
-                   $}ix
-            or croak "bad host/target '$target' specification";
-
-    my $host_ssh;
-    if (defined $ipv6) {
-	($host_ssh) = $ipv6 =~ /^\[?(.*?)\]?$/;
-	$host = "[$host_ssh]";
-    }
-    else {
-	$host_ssh = $host;
-    }
-
     my $external_master = delete $opts{external_master};
     # reuse_master is an obsolete alias:
     $external_master = delete $opts{reuse_master} unless defined $external_master;
+
+    my ($user, $passwd, $ipv6, $host, $port, $host_ssh);
+    my $target = delete $opts{host};
+    if (defined $target) {
+        ($user, $passwd, $ipv6, $host, $port) =
+            $target =~ m{^
+                        \s*               # space
+                        (?:
+                          ([^\@:]+)       # username
+                          (?::(.*))?      # : password
+                          \@              # @
+                        )?
+                        (?:               # host
+                           (              #   IPv6...
+                             \[$IPv6_re\] #     [IPv6]
+                             |            #     or
+                             $IPv6_re     #     IPv6
+                           )
+                           |              #   or
+                           ([^\[\]\@:]+)  #   hostname / ipv4
+                        )
+                        (?::([^\@:]+))?   # port
+                        \s*               # space
+                        $}ix
+                or croak "bad host/target '$target' specification";
+
+        if (defined $ipv6) {
+            ($host_ssh) = $ipv6 =~ /^\[?(.*?)\]?$/;
+            $host = "[$host_ssh]";
+        }
+        else {
+            $host_ssh = $host;
+        }
+    }
+    else {
+        $external_master or croak "mandatory host argument missing";
+        $host_ssh = 'UNKNOWN'
+    }
 
     $user = delete $opts{user} unless defined $user;
     $port = delete $opts{port} unless defined $port;
@@ -2100,7 +2105,7 @@ Initial set of variables.
 
 Instead of launching a new OpenSSH client in master mode, the module
 tries to reuse an already existent one. C<ctl_path> must also be
-passed when this option is set. See also </get_ctl_path>.
+passed when this option is set. See also L</get_ctl_path>.
 
 Example:
 
@@ -2127,8 +2132,8 @@ Return the corresponding SSH login parameters.
 
 =item $ssh->get_ctl_path
 
-Returns the path to the socket where OpenSSH listens for new
-multiplexed connections.
+X<get_ctl_path>Returns the path to the socket where the OpenSSH master
+process listens for new multiplexed connections.
 
 =item ($in, $out, $err, $pid) = $ssh->open_ex(\%opts, @cmd)
 
