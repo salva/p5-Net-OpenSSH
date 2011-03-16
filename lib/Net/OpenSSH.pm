@@ -197,11 +197,15 @@ sub new {
     $target_os = 'unix' unless defined $target_os;
     my $expand_vars = delete $opts{expand_vars};
     my $vars = delete $opts{vars} || {};
+    my $default_encoding = delete $opts{default_encoding};
+    my $default_stream_encoding = delete $opts{default_stream_encoding};
+    $default_stream_encoding = $default_encoding unless defined $default_stream_encoding;
+    my $default_argument_encoding = delete $opts{default_argument_encoding};
+    $default_argument_encoding = $default_encoding unless defined $default_argument_encoding;
 
     my ($master_opts, @master_opts,
         $master_stdout_fh, $master_stderr_fh,
 	$master_stdout_discard, $master_stderr_discard);
-
     unless ($external_master) {
         ($master_stdout_fh = delete $opts{master_stdout_fh} or
          $master_stdout_discard = delete $opts{master_stdout_discard});
@@ -288,6 +292,8 @@ sub new {
 		 _master_stdout_discard => $master_stdout_discard,
 		 _master_stderr_discard => $master_stderr_discard,
 		 _target_os => $target_os,
+                 _default_stream_encoding => $default_stream_encoding,
+                 _default_argument_encoding => $default_argument_encoding,
 		 _expand_vars => $expand_vars,
 		 _vars => $vars };
     bless $self, $class;
@@ -792,14 +798,55 @@ sub _make_pipe {
     my $self = shift;
     my ($r, $w);
     unless (pipe ($r, $w)) {
-        $self->_set_error(OSSH_SLAVE_PIPE_FAILED, @_, "unable to create pipe: $!");
-        return ();
+        $self->_set_error(OSSH_SLAVE_PIPE_FAILED,
+                          @_, "unable to create pipe: $!");
+        return;
     }
     my $old = select;
     select $r; $ |= 1;
     select $w; $ |= 1;
     select $old;
     return ($r, $w);
+}
+
+sub _set_stream_encoding {
+    my $self = shift;
+    my $encoding = shift;
+    my $fh = shift;
+    if (defined $encoding) {
+        unless (binmode($fh, ':encode($encoding)')) {
+            $self->_set_error(OSSH_SLAVE_PIPE_FAILED,
+                              @_, "unable to set stream encoding to '$encoding'", $!);
+            return;
+        }
+    }
+    return 1;
+}
+
+sub _encode_args {
+    my $self = shift;
+    my $encoding = shift;
+    if (defined $encoding) {
+        require Encode;
+        my $enc = Encode::find_encoding($encoding);
+        unless (defined $enc) {
+            $self->_set_error(OSSH_ENCODING_ERROR, @_, "bad encoding '$encoding'");
+            return;
+        }
+        local $@;
+        eval {
+            my $args = shift;
+            for my $arg (@$args) {
+                defined $arg or next;
+                $arg = $enc->encode($arg, Encode::FB_CROAK());
+            }
+        };
+        if ($@) {
+            $self->_set_error(OSSH_ENCODING_ERROR, @_, "argument encoding failed");
+            return;
+        }
+    }
+    return 1;
 }
 
 my %loaded_module;
@@ -830,7 +877,7 @@ sub _arg_quoter {
     sub {
 	my $arg = shift;
 	return "''" if $arg eq '';
-        $arg =~ s|([^\w/\-.])|\\$1|g;
+        $arg =~ s|([^\w/\-.])|(ord($1) > 127 ? $1 : "\\$1")|ge;
         $arg
     }
 }
@@ -839,7 +886,7 @@ sub _arg_quoter_glob {
     sub {
 	my $arg = shift;
 	return "''" if $arg eq '';
-        $arg =~ s|(?<!\\)([^\w/\-+=*?\[\],{}:\@!.^\\~])|\\$1|g;
+        $arg =~ s|(?<!\\)([^\w/\-+=*?\[\],{}:\@!.^\\~])|(ord($1) > 127 ? $1 : "\\$1")|ge;
 	$arg;
     }
 }
@@ -977,14 +1024,33 @@ sub _exec_dpipe {
     }
 }
 
+sub _encoding_opts {
+    my ($self, $opts, $keep) = @_;
+    my $encoding = $opts->{encoding};
+    my ($stream_encoding)  = grep defined, ($opts->{stream_encoding},
+                                            $encoding,
+                                            $self->{_default_stream_encoding});
+    my ($argument_encoding) = grep defined, ($opts->{argument_encoding},
+                                            $encoding,
+                                            $self->{_default_argument_encoding});
+    unless ($keep) {
+        delete $opts->{$_} for (qw(encoding stream_encoding argument_encoding))
+    }
+    return (wantarray ? ($stream_encoding, $argument_encoding) : $stream_encoding);
+}
+
 sub open_ex {
     ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
     $self->_check_master_and_clear_error or return ();
     my %opts = (ref $_[0] eq 'HASH' ? %{shift()} : ());
 
-    my $tunnel = delete $opts{tunnel};
+    my ($stream_encoding, $argument_encoding) = $self->_encoding_opts(\%opts);
+    my $dont_encode_stdin  = delete $opts{_dont_encode_stdin};
+    my $dont_encode_stdout = delete $opts{_dont_encode_stdout};
+    my $dont_encode_stderr = delete $opts{_dont_encode_stderr};
 
+    my $tunnel = delete $opts{tunnel};
     my ($stdinout_socket, $stdinout_dpipe_is_parent);
     my $stdinout_dpipe = delete $opts{stdinout_dpipe};
     if ($stdinout_dpipe) {
@@ -1043,6 +1109,7 @@ sub open_ex {
 	$opts{quote_args_extended} = 1
 	    if (not defined $opts{quote_args_extended} and $cmd eq 'ssh');
 	@args = $self->_quote_args(\%opts, @_);
+        $self->_encode_args($argument_encoding, \@args, @error_prefix) or return;
     }
 
     _croak_bad_options %opts;
@@ -1064,11 +1131,17 @@ sub open_ex {
             $self->_set_error(OSSH_SLAVE_PIPE_FAILED, @error_prefix, "socketpair failed: $!");
             return ();
         }
+        $dont_encode_stdin
+            or $self->_set_stream_encoding($stream_encoding, $win, @error_prefix)
+                or return;
         $wout = $rin;
     }
     else {
         if ($stdin_pipe) {
             ($rin, $win) = $self->_make_pipe(@error_prefix) or return;
+            $dont_encode_stdin
+                or $self->_set_stream_encoding($stream_encoding, $win, @error_prefix)
+                    or return;
         }
         elsif ($stdin_pty) {
             _load_module('IO::Pty');
@@ -1089,6 +1162,9 @@ sub open_ex {
 
         if ($stdout_pipe) {
             ($rout, $wout) = $self->_make_pipe(@error_prefix) or return;
+            $dont_encode_stdout
+                or $self->_set_stream_encoding($stream_encoding, $rout, @error_prefix)
+                    or return;
         }
         elsif ($stdout_pty) {
             $wout = $rin;
@@ -1105,6 +1181,9 @@ sub open_ex {
     unless ($stderr_to_stdout) {
 	if ($stderr_pipe) {
 	    ($rerr, $werr) = $self->_make_pipe(@error_prefix) or return ();
+            $dont_encode_stderr
+                or $self->_set_stream_encoding($stream_encoding, $rerr, @error_prefix)
+                    or return;
 	}
 	elsif (defined $stderr_fh) {
 	    $werr = $stderr_fh;
@@ -1201,7 +1280,7 @@ sub pipe_out {
 }
 
 sub _io3 {
-    my ($self, $out, $err, $in, $stdin_data, $timeout) = @_;
+    my ($self, $out, $err, $in, $stdin_data, $timeout, $encoding) = @_;
     $self->_check_master_and_clear_error or return ();
     my @data = _array_or_scalar_to_list $stdin_data;
     my ($cout, $cerr, $cin) = (defined($out), defined($err), defined($in));
@@ -1211,6 +1290,27 @@ sub _io3 {
     croak "remote input channel is not defined but data is available for sending"
         if ($has_input and !$cin);
     close $in if ($cin and !$has_input);
+
+    my $enc;
+    if (defined $encoding) {
+        require Encode;
+        $enc = Encode::find_encoding($encoding);
+        unless (defined $enc) {
+            $self->_set_error(OSSH_ENCODING_ERROR, "bad encoding '$encoding'");
+            return;
+        }
+        local $@;
+        eval {
+            for my $data (@data) {
+                defined $data or next;
+                $_ = $enc->encode($data, Encode::FB_CROAK());
+            }
+        };
+        if ($@) {
+            $self->_set_error(OSSH_ENCODING_ERROR, "input data encoding failed");
+            return;
+        }
+    }
 
     my $bout = '';
     my $berr = '';
@@ -1300,13 +1400,31 @@ sub _io3 {
     close $out if $cout;
     close $err if $cerr;
     close $in if $cin;
+
+    if (defined $enc) {
+        local $@;
+        eval {
+            for my $data ($bout, $berr) {
+                defined $data or next;
+                $data = $enc->decode($data, Encode::FB_CROAK());
+            }
+        };
+        if ($@) {
+             $self->_set_error(OSSH_ENCODING_ERROR, @_, "bad output decoding");
+            return;
+        }
+    }
+
     $debug and $debug & 64 and _debug "leaving _io3()";
     return ($bout, $berr);
 }
 
+
+
 _sub_options spawn => qw(stderr_to_stdout stdin_discard stdin_fh stdin_file stdout_discard
                          stdout_fh stdout_file stderr_discard stderr_fh stderr_file
-                         stdinout_dpipe stdintout_dpipe_is_parent quote_args tty ssh_opts tunnel);
+                         stdinout_dpipe stdintout_dpipe_is_parent quote_args tty ssh_opts tunnel
+                         encoding stream_encoding argument_encoding);
 sub spawn {
     ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
@@ -1317,7 +1435,7 @@ sub spawn {
 }
 
 _sub_options open2 => qw(stderr_to_stdout stderr_discard stderr_fh stderr_file quote_args
-                         tty ssh_opts tunnel);
+                         tty ssh_opts tunnel encoding stream_encoding argument_encoding);
 sub open2 {
     ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
@@ -1331,9 +1449,8 @@ sub open2 {
     return ($in, $out, $pid);
 }
 
-_sub_options open2pty => qw(stderr_to_stdout stderr_discard stderr_fh
-                            stderr_file quote_args tty close_slave_pty
-                            ssh_opts);
+_sub_options open2pty => qw(stderr_to_stdout stderr_discard stderr_fh stderr_file quote_args tty
+                            close_slave_pty ssh_opts encoding argument_encoding);
 sub open2pty {
     ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
@@ -1348,9 +1465,8 @@ sub open2pty {
     return ($pty, $pid);
 }
 
-_sub_options open2socket => qw(stderr_to_stdout stderr_discard
-                               stderr_fh stderr_file quote_args tty
-                               ssh_opts tunnel);
+_sub_options open2socket => qw(stderr_to_stdout stderr_discard stderr_fh stderr_file quote_args tty
+                               ssh_opts tunnel encoding stream_encoding argument_encoding);
 sub open2socket {
     ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
@@ -1363,7 +1479,7 @@ sub open2socket {
     return ($socket, $pid);
 }
 
-_sub_options open3 => qw(quote_args tty ssh_opts);
+_sub_options open3 => qw(quote_args tty ssh_opts encoding stream_encoding argument_encoding);
 sub open3 {
     ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
@@ -1379,7 +1495,8 @@ sub open3 {
     return ($in, $out, $err, $pid);
 }
 
-_sub_options open3pty => qw(quote_args tty close_slave_pty ssh_opts);
+_sub_options open3pty => qw(quote_args tty close_slave_pty ssh_opts
+                            encoding stream_encoding argument_encoding);
 sub open3pty {
     ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
@@ -1398,8 +1515,8 @@ sub open3pty {
 
 _sub_options system => qw(stdout_discard stdout_fh stdin_discard stdout_file stdin_fh stdin_file
                           quote_args stderr_to_stdout stderr_discard stderr_fh stderr_file
-                          stdinout_dpipe stdinout_dpipe_is_parent tty ssh_opts tunnel);
-
+                          stdinout_dpipe stdinout_dpipe_is_parent tty ssh_opts tunnel encoding
+                          stream_encoding argument_encoding);
 sub system {
     ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
@@ -1411,19 +1528,25 @@ sub system {
 
     local $SIG{INT} = 'IGNORE';
     local $SIG{QUIT} = 'IGNORE';
+    local $SIG{CHLD};
 
-    $opts{stdin_pipe} = 1 if defined $stdin_data;
+    my $stream_encoding;
+    if (defined $stdin_data) {
+        $opts{stdin_pipe} = 1;
+        $opts{_dont_encode_stdin} = 1;
+        $stream_encoding = $self->_encoding_opts(\%opts, 1);
+    }
     my ($in, undef, undef, $pid) = $self->open_ex(\%opts, @_) or return undef;
 
-    $self->_io3(undef, undef, $in, $stdin_data, $timeout) if defined $stdin_data;
+    $self->_io3(undef, undef, $in, $stdin_data, $timeout, $stream_encoding) if defined $stdin_data;
     return $pid if $async;
     $self->_waitpid($pid, $timeout);
 }
 
 _sub_options test => qw(stdout_discard stdout_fh stdin_discard stdout_file stdin_fh stdin_file
                         quote_args stderr_to_stdout stderr_discard stderr_fh stderr_file
-                        stdinout_dpipe stdinout_dpipe_is_parent stdtty ssh_opts timeout stdin_data);
-
+                        stdinout_dpipe stdinout_dpipe_is_parent stdtty ssh_opts timeout stdin_data
+                        encoding stream_encoding argument_encoding);
 sub test {
     ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
@@ -1447,7 +1570,8 @@ sub test {
 }
 
 _sub_options capture => qw(stderr_to_stdout stderr_discard stderr_fh stderr_file
-                           stdin_discard stdin_fh stdin_file quote_args tty ssh_opts tunnel);
+                           stdin_discard stdin_fh stdin_file quote_args tty ssh_opts tunnel
+                           encoding stream_encoding argument_encoding);
 sub capture {
     ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
@@ -1458,11 +1582,17 @@ sub capture {
 
     local $SIG{INT} = 'IGNORE';
     local $SIG{QUIT} = 'IGNORE';
+    local $SIG{CHLD};
 
+    my $stream_encoding = $self->_encoding_opts(\%opts, 1);
     $opts{stdout_pipe} = 1;
-    $opts{stdin_pipe} = 1 if defined $stdin_data;
+    $opts{_dont_encode_stdout} = 1;
+    if (defined $stdin_data) {
+        $opts{stdin_pipe} = 1;
+        $opts{_dont_encode_stdin} = 1;
+    }
     my ($in, $out, undef, $pid) = $self->open_ex(\%opts, @_) or return ();
-    my ($output) = $self->_io3($out, undef, $in, $stdin_data, $timeout);
+    my ($output) = $self->_io3($out, undef, $in, $stdin_data, $timeout, $stream_encoding);
     $self->_waitpid($pid, $timeout);
     if (wantarray) {
         my $pattern = quotemeta $/;
@@ -1471,7 +1601,8 @@ sub capture {
     $output
 }
 
-_sub_options capture2 => qw(stdin_discard stdin_fh stdin_file quote_args tty ssh_opts);
+_sub_options capture2 => qw(stdin_discard stdin_fh stdin_file quote_args tty ssh_opts encoding
+                            stream_encoding argument_encoding);
 sub capture2 {
     ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
@@ -1482,17 +1613,22 @@ sub capture2 {
 
     local $SIG{INT} = 'IGNORE';
     local $SIG{QUIT} = 'IGNORE';
+    local $SIG{CHLD};
 
-    $opts{stdout_pipe} = 1;
-    $opts{stderr_pipe} = 1;
-    $opts{stdin_pipe} = 1 if defined $stdin_data;
+    my $stream_encoding = $self->_encoding_opts(\%opts, 1);
+    $opts{$_} = 1 for (qw(stdout_pipe stderr_pipe _dont_encode_stdout _dont_encode_stderr));
+    if (defined $stdin_data) {
+        $opts{stdin_pipe} = 1;
+        $opts{_dont_encode_stdin} = 1;
+    }
     my ($in, $out, $err, $pid) = $self->open_ex( \%opts, @_) or return ();
-    my @capture = $self->_io3($out, $err, $in, $stdin_data, $timeout);
+    my @capture = $self->_io3($out, $err, $in, $stdin_data, $timeout, $stream_encoding);
     $self->_waitpid($pid, $timeout);
     wantarray ? @capture : $capture[0];
 }
 
-_sub_options open_tunnel => qw(ssh_opts stderr_discard stderr_fh stderr_file);
+_sub_options open_tunnel => qw(ssh_opts stderr_discard stderr_fh stderr_file encoding
+                               stream_encoding argument_encoding);
 sub open_tunnel {
     ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
@@ -1507,7 +1643,8 @@ sub open_tunnel {
 
 _sub_options capture_tunnel => qw(ssh_opts stderr_discard stderr_fh
 				  stderr_file stdin_discard stdin_fh
-				  stdin_file stdin_data timeout);
+				  stdin_file stdin_data timeout encoding
+                                  stream_encoding argument_encoding);
 sub capture_tunnel {
     ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
@@ -1599,7 +1736,7 @@ sub rsync_put {
 
 _sub_options _scp => qw(stderr_to_stdout stderr_discard stderr_fh
 			stderr_file stdout_discard stdout_fh
-			stdout_file);
+			stdout_file encoding argument_encoding);
 sub _scp {
     my $self = shift;
     my %opts = (ref $_[0] eq 'HASH' ? %{shift()} : ());
@@ -1667,7 +1804,8 @@ my %rsync_error = (1, 'syntax or usage error',
 my %rsync_opt_open_ex = map { $_ => 1 } qw(stderr_to_stdout
 					   stderr_discard stderr_fh
 					   stderr_file stdout_discard
-					   stdout_fh stdout_file);
+					   stdout_fh stdout_file encoding
+                                           stream_encoding argument_encoding);
 sub _rsync {
     my $self = shift;
     my %opts = (ref $_[0] eq 'HASH' ? %{shift()} : ());
@@ -3043,6 +3181,10 @@ OpenSSH 5.4 or later is required for the tunnels functionality to
 work. Also, note that tunnel forwarding may be administratively
 forbidden at the server side (see L<sshd(8)> and L<sshd_config(5)> or
 the documentation provided by your SSH server vendor).
+
+=head2 Encoding handling
+
+On methods 
 
 =head1 3rd PARTY MODULE INTEGRATION
 

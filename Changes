@@ -1,5 +1,9 @@
 Revision history for Perl extension Net::OpenSSH.
 
+0.51_07
+        - undef $SIG{CHLD} inside blocking methods
+        - document how character encodings are (not) handled
+
 0.51_06  Mar 16, 2011
         - make hostname argument to constructor optional when
           external_master is set
