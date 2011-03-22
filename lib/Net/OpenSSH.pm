@@ -3179,6 +3179,10 @@ By default, if no encoding option is given on the constructor or on the
 method calls, Net::OpenSSH will not perform any encoding transformation,
 effectively processing the data as latin1.
 
+When some data can not be converted between the Perl internal
+representation and the selected encoding the affected method will fail
+with a C<OSSH_ENCODING_ERROR>.
+
 The encoding options are as follows:
 
 =over 4
@@ -3617,6 +3621,8 @@ C<Net::OpenSSH> to handle the connections.
 
 Support for tunnel forwarding is experimental and requires OpenSSH 5.4
 or later.
+
+Support for data encoding is highly experimental.
 
 Support for taint mode is still experimental.
 
