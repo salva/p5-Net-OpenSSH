@@ -1,5 +1,8 @@
 Revision history for Perl extension Net::OpenSSH.
 
+0.51_08
+        - document how to set StrictHostKeyChecking=no
+
 0.51_07  Mar 22, 2012
         - add encoding support
         - undef $SIG{CHLD} inside blocking methods

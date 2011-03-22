@@ -3476,6 +3476,13 @@ man-in-the-middle attacks, etc.
 I advice you to do not use that option unless you fully understand its
 implications from a security point of view.
 
+If you want to use it anyway, past it to the constructor:
+
+  $ssh = Net::OpenSSH->new($host,
+           master_opts => [-o => "StrictHostKeyChecking=no"],
+           ...);
+
+
 =item child process 14947 does not exist: No child processes
 
 B<Q>: Calls to C<system>, C<capture> or C<capture2> fail with the
