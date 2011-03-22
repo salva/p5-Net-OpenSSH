@@ -2214,6 +2214,14 @@ Example:
 
   $ssh = Net::OpenSSH->new('foo', external_master => 1, ctl_path = $path);
 
+=item default_encoding => $encoding
+
+=item default_stream_encoding => $encoding
+
+=item default_argument_encoding => $encoding
+
+Set default encodings. See L</Data encoding>.
+
 =back
 
 =item $ssh->error
@@ -2405,6 +2413,12 @@ Example:
   my ($in, $out, undef, $pid) = $ssh->open_ex({tunnel => 1}, $IP, $port);
 
 See also L</Tunnels>.
+
+=item encoding => $encoding
+
+=item argument_encoding => $encoding
+
+Set encodings. See L</Data encoding>.
 
 =back
 
@@ -3147,9 +3161,45 @@ work. Also, note that tunnel forwarding may be administratively
 forbidden at the server side (see L<sshd(8)> and L<sshd_config(5)> or
 the documentation provided by your SSH server vendor).
 
-=head2 Encoding handling
+=head2 Data encoding
 
-On methods 
+Net::OpenSSH has some support for transparently converting the data send
+or received from the remote server to Perl internal unicode
+representation.
+
+The methods supporting that feature are those that move data from/to
+Perl data structures (i.e. C<capture>, C<capture2>, C<capture_tunnel>
+and methods supporting the C<stdin_data> option). Data accessed through
+pipes, sockets or redirections is not affected by the encoding options.
+
+It is also possible to set the encoding of the command and arguments
+passed to the remote server.
+
+By default, if no encoding option is given on the constructor or on the
+method calls, Net::OpenSSH will not perform any encoding transformation,
+effectively processing the data as latin1.
+
+The encoding options are as follows:
+
+=over 4
+
+=item stream_encoding => $encoding
+
+sets the encoding of the data send and received on capture methods.
+
+=item argument_encoding => $encoding
+
+sets the encoding of the command line arguments
+
+=item encoding => $encoding
+
+sets both C<argument_encoding> and C<stream_encoding>.
+
+=back
+
+The constructor also accepts C<default_encoding>,
+C<default_stream_encoding> and C<default_argument_encoding> that set the
+defaults.
 
 =head1 3rd PARTY MODULE INTEGRATION
 
