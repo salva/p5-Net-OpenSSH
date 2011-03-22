@@ -186,15 +186,15 @@ sub new {
     my $ctl_path = delete $opts{ctl_path};
     my $ctl_dir = delete $opts{ctl_dir};
     my $ssh_cmd = _first_defined delete $opts{ssh_cmd}, 'ssh';
-    my $scp_cmd = delete $opts{scp_cmd};
     my $rsync_cmd = _first_defined delete $opts{rsync_cmd}, 'rsync';
+    my $scp_cmd = delete $opts{scp_cmd};
     my $timeout = delete $opts{timeout};
     my $kill_ssh_on_timeout = delete $opts{kill_ssh_on_timeout};
     my $strict_mode = _first_defined delete $opts{strict_mode}, 1;
     my $async = delete $opts{async};
     my $target_os = _first_defined delete $opts{target_os}, 'unix';
     my $expand_vars = delete $opts{expand_vars};
-    my $vars = delete $opts{vars} || {};
+    my $vars = _first_defined delete $opts{vars}, {};
     my $default_encoding = delete $opts{default_encoding};
     my $default_stream_encoding =
         _first_defined delete $opts{default_stream_encoding}, $default_encoding;
@@ -1250,11 +1250,9 @@ sub _encode {
 sub _encode_args {
     my $self = shift;
     my $encoding = shift;
-    if (defined $encoding and $encoding ne 'bytes') {
-        my $enc = $self->_find_encoding($encoding) or return;
-        $self->_encode($enc, @_) or return;
-    }
-    1;
+    my $enc = $self->_find_encoding($encoding);
+    $self->_encode($enc, @_);
+    return !$self->error;
 }
 
 sub _decode {
@@ -1289,8 +1287,8 @@ sub _io3 {
     close $in if ($cin and !$has_input);
 
     my $enc = $self->_find_encoding($encoding);
+    $self->_encode($enc, @data) if $has_input;
     return if $self->error;
-    $self->_encode($enc, @data) or return;
 
     my $bout = '';
     my $berr = '';
@@ -1547,13 +1545,14 @@ sub capture {
     my $timeout = delete $opts{timeout};
     _croak_bad_options %opts;
 
+    my $stream_encoding = $self->_delete_stream_encoding(\%opts);
+    $opts{stdout_pipe} = 1;
+    $opts{stdin_pipe} = 1 if defined $stdin_data;
+
     local $SIG{INT} = 'IGNORE';
     local $SIG{QUIT} = 'IGNORE';
     local $SIG{CHLD};
 
-    my $stream_encoding = $self->_delete_stream_encoding(\%opts);
-    $opts{stdout_pipe} = 1;
-    $opts{stdin_pipe} = 1 if defined $stdin_data;
     my ($in, $out, undef, $pid) = $self->open_ex(\%opts, @_) or return ();
     my ($output) = $self->_io3($out, undef, $in, $stdin_data, $timeout, $stream_encoding);
     $self->_waitpid($pid, $timeout);
@@ -1600,10 +1599,9 @@ sub open_tunnel {
     $self->open2socket(\%opts, @_);
 }
 
-_sub_options capture_tunnel => qw(ssh_opts stderr_discard stderr_fh
-				  stderr_file stdin_discard stdin_fh
-				  stdin_file stdin_data timeout encoding
-                                  stream_encoding argument_encoding);
+_sub_options capture_tunnel => qw(ssh_opts stderr_discard stderr_fh stderr_file stdin_discard
+				  stdin_fh stdin_file stdin_data timeout encoding stream_encoding
+				  argument_encoding);
 sub capture_tunnel {
     ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
@@ -1832,8 +1830,8 @@ sub sftp {
     my $stderr_fh = delete $opts{stderr_fh};
     my $stderr_discard = delete $opts{stderr_discard};
     my $fs_encoding = _first_defined(delete $opts{fs_encoding},
-                                     delete $opts{argument_encoding},
-                                     delete $opts{encoding},
+                                     $opts{argument_encoding},
+                                     $opts{encoding},
                                      $self->{_default_argument_encoding});
     _croak_bad_options %opts;
     $opts{timeout} = $self->{_timeout} unless defined $opts{timeout};
