@@ -1,6 +1,6 @@
 package Net::OpenSSH::Constants;
 
-our $VERSION = '0.39';
+our $VERSION = '0.51_07';
 
 use strict;
 use warnings;
