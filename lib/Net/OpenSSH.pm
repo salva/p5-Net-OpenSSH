@@ -788,6 +788,9 @@ sub _wait_for_master {
 
 sub _master_ctl {
     my ($self, $cmd) = @_;
+    # don't let the encoding stuff go in the way
+    local $self->{_default_stream_encoding};
+    local $self->{_default_argument_encoding};
     $self->capture({ stdin_discard => 1, tty => 0,
                      stderr_to_stdout => 1, ssh_opts => [-O => $cmd]});
 }
