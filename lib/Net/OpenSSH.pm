@@ -268,6 +268,7 @@ sub new {
     }
 
     my $self = { _error => 0,
+		 _error_prefix => [],
 		 _perl_pid => $$,
                  _ssh_cmd => $ssh_cmd,
 		 _scp_cmd => $scp_cmd,
@@ -679,13 +680,11 @@ sub wait_for_master {
     1;
 }
 
-my $wfm_error_prefix = "unable to establish master SSH connection";
-
 sub _wait_for_master {
     my ($self, $async, $reset) = @_;
 
     my $status = delete $self->{_wfm_status};
-    my $bout = \($self->{_wfm_bout});
+    my $bout = \ ($self->{_wfm_bout});
 
     my $mpty = $self->{_mpty};
     my $passwd = $deobfuscate->($self->{_passwd});
@@ -699,7 +698,6 @@ sub _wait_for_master {
                     : 'waiting_for_socket' );
     }
 
-
     my $ctl_path = $self->{_ctl_path};
     my $fnopty = fileno $mpty if defined $mpty;
     my $dt = ($async ? 0 : 0.1);
@@ -709,40 +707,43 @@ sub _wait_for_master {
     my $rv = '';
     vec($rv, $fnopty, 1) = 1 if $status eq 'waiting_for_password_prompt';
 
+    local $self->{_error_prefix} = [@{$self->{_error_prefix}}, 
+				    "unable to establish master SSH connection"];
     while (1) {
         last if (defined $timeout and (time - $start_time) > $timeout);
 
         if (-e $ctl_path) {
             unless (-S $ctl_path) {
-                $self->_set_error(OSSH_MASTER_FAILED, $wfm_error_prefix,
+                $self->_set_error(OSSH_MASTER_FAILED,
                                   "bad ssh master at $ctl_path, object is not a socket");
                 $self->_kill_master;
                 return undef;
             }
-            my $check = $self->_master_ctl('check');
-            my $error;
-            if (not defined $check) {
-                $error = "execution of control command failed: " . $self->error;
-            }
-            elsif ($check =~ /pid=(\d+)/) {
-                return 1 if (!$pid or $1 == $pid);
-
-                $error = "bad ssh master at $ctl_path, socket owned by pid $1 (pid $pid expected)";
-            }
-	    elsif ($check =~ /illegal option/i) {
-                $error = "OpenSSH 4.1 or later required";
+            my $check = do {
+		local $self->{_error_prefix} = [@{$self->{_error_prefix}}, 
+						"execution of control command failed"];
+		$self->_master_ctl('check');
+	    };
+            if (defined $check) {
+		my $error;
+		if ($check =~ /pid=(\d+)/) {
+		    return 1 if (!$pid or $1 == $pid);
+		    $error = "bad ssh master at $ctl_path, socket owned by pid $1 (pid $pid expected)";
+		}
+		elsif ($check =~ /illegal option/i) {
+		    $error = "OpenSSH 4.1 or later required";
+		}
+		else {
+		    $error = "Unknown error";
+		}
+		$self->_set_error(OSSH_MASTER_FAILED, $error);
 	    }
-	    else {
-                $error = "Unknown error";
-	    }
-
-            $self->_set_error(OSSH_MASTER_FAILED, $wfm_error_prefix, $error);
-            $self->_kill_master;
+	    $self->_kill_master;
             return undef;
         }
         if (!$pid) {
             $self->_set_error(OSSH_MASTER_FAILED,
-                              $wfm_error_prefix, "unable to reuse master socket because it does not exist");
+                              "unable to reuse master socket because it does not exist");
             return undef;
         }
         elsif (waitpid($pid, WNOHANG) == $pid or $! == Errno::ECHILD) {
