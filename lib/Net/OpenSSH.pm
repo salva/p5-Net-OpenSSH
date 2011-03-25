@@ -788,10 +788,9 @@ sub _wait_for_master {
 
 sub _master_ctl {
     my ($self, $cmd) = @_;
-    # don't let the encoding stuff go in the way
-    local $self->{_default_stream_encoding};
-    local $self->{_default_argument_encoding};
-    $self->capture({ stdin_discard => 1, tty => 0,
+    $self->capture({ encoding => 'bytes', # don't let the encoding
+					  # stuff go in the way
+		     stdin_discard => 1, tty => 0,
                      stderr_to_stdout => 1, ssh_opts => [-O => $cmd]});
 }
 
@@ -992,6 +991,13 @@ sub _delete_stream_encoding {
                    $self->{_default_stream_encoding});
 }
 
+sub _delete_argument_encoding {
+    my ($self, $opts) = @_;
+    _first_defined(delete $opts->{argument_encoding},
+                   delete $opts->{encoding},
+                   $self->{_default_argument_encoding});
+}
+
 sub open_ex {
     ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
@@ -1034,10 +1040,7 @@ sub open_ex {
       $stderr_to_stdout = delete $opts{stderr_to_stdout} or
       $stderr_file = delete $opts{stderr_file} );
 
-    my $argument_encoding = _first_defined(delete $opts{argument_encoding},
-                                           delete $opts{encoding},
-                                           $self->{_default_argument_encoding});
-
+    my $argument_encoding = $self->_delete_argument_encoding(\%opts);
     my @error_prefix = _array_or_scalar_to_list delete $opts{_error_prefix};
 
     my @ssh_opts = $self->_expand_vars(_array_or_scalar_to_list delete $opts{ssh_opts});
@@ -1193,7 +1196,9 @@ sub pipe_in {
     my $self = shift;
     $self->_check_master_and_clear_error or return ();
     my %opts = (ref $_[0] eq 'HASH' ? %{shift()} : ());
+    my $argument_encoding = $self->_delete_argument_encoding(\%opts);
     my @args = $self->_quote_args(\%opts, @_);
+    $self->_encode_args($argument_encoding, @args);
     _croak_bad_options %opts;
 
     my @call = $self->_make_ssh_call([], @args);
@@ -1208,7 +1213,9 @@ sub pipe_out {
     my $self = shift;
     $self->_check_master_and_clear_error or return ();
     my %opts = (ref $_[0] eq 'HASH' ? %{shift()} : ());
+    my $argument_encoding = $self->_delete_argument_encoding(\%opts);
     my @args = $self->_quote_args(\%opts, @_);
+    $self->_encode_args($argument_encoding, @args);
     _croak_bad_options %opts;
 
     my @call = $self->_make_ssh_call([], @args);
@@ -1219,8 +1226,8 @@ sub pipe_out {
 
 sub _find_encoding {
     my ($self, $encoding, $data) = @_;
-    require Encode;
     if (defined $encoding and $encoding ne 'bytes') {
+	_load_module('Encode');
         my $enc = Encode::find_encoding($encoding);
         unless (defined $enc) {
             $self->_set_error(OSSH_ENCODING_ERROR, "bad encoding '$encoding'");

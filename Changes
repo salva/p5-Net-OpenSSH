@@ -1,7 +1,10 @@
 Revision history for Perl extension Net::OpenSSH.
 
 0.51_08
+	- support argument_encoding in pipe_in and pipe_out
         - document how to set StrictHostKeyChecking=no
+	- use _load_module for Encode loading
+	- remove no-encoding hack on _master_ctl 
 
 0.51_07  Mar 22, 2012
         - add encoding support
@@ -11,13 +14,14 @@ Revision history for Perl extension Net::OpenSSH.
         - make hostname argument to constructor optional when
           external_master is set
         - better error handling in constructor
-        - s/reuse_master/external_master/. I never was happy with the
+        - s/reuse_master/external_master/. I never were happy with the
           old option name.
         - some minor doc corrections
 
 0.51_05  Mar 15, 2011
         - implement reuse_master feature
-        - do not propagate extra arguments from wait_for_master to _wait_for_master
+        - do not propagate extra arguments from wait_for_master to
+          _wait_for_master
         - accept ssh_opts in make_remote_command
 
 0.51_04  Mar 10, 2011
