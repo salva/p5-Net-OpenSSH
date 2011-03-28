@@ -1,6 +1,8 @@
 Revision history for Perl extension Net::OpenSSH.
 
 0.51_08
+        - pipe_in and pipe_out were not correctly setting error status
+          on failure
 	- support argument_encoding in pipe_in and pipe_out
         - document how to set StrictHostKeyChecking=no
 	- use _load_module for Encode loading
