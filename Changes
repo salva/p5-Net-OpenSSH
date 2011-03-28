@@ -1,14 +1,15 @@
 Revision history for Perl extension Net::OpenSSH.
 
-0.51_08
+0.51_08  Mar 28, 2011
         - pipe_in and pipe_out were not correctly setting error status
           on failure
 	- support argument_encoding in pipe_in and pipe_out
         - document how to set StrictHostKeyChecking=no
+        - replace @error_prefix arguments by a localized stack
 	- use _load_module for Encode loading
 	- remove no-encoding hack on _master_ctl 
 
-0.51_07  Mar 22, 2012
+0.51_07  Mar 22, 2011
         - add encoding support
         - undef $SIG{CHLD} inside blocking methods
 
