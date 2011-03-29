@@ -695,7 +695,7 @@ sub check_master {
 sub _wait_for_master {
     my ($self, $async, $reset) = @_;
 
-    my $status = delete $self->{_wfm_status} || '';
+    my $status = delete $self->{_wfm_status} || 'waiting_for_mux_socket';
     my $bout = \ ($self->{_wfm_bout});
 
     my $mpty = $self->{_mpty};
@@ -779,7 +779,7 @@ sub _wait_for_master {
                     if ($$bout =~ s/^(.*:)//s) {
                         $debug and $debug & 4 and _debug "passwd/passphrase requested ($1)";
                         print $mpty "$passwd\n";
-                        $status = 'password_sent';
+                        $status = 'waiting_for_mux_socket';
                     }
                 }
                 else { $$bout = '' }
