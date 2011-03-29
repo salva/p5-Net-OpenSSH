@@ -10,9 +10,10 @@ use lib "./t";
 use common;
 
 use Net::OpenSSH;
-use Net::OpenSSH::Constants qw(OSSH_ENCODING_ERROR);
+use Net::OpenSSH::Constants qw(OSSH_ENCODING_ERROR OSSH_MASTER_FAILED);
 
 my $timeout = 15;
+my $fallback;
 
 my $PS = find_cmd 'ps';
 defined $PS or plan skip_all => "ps command not found";
@@ -36,8 +37,12 @@ plan skip_all => 'OpenSSH 4.1 or later required'
 chomp $ver;
 diag "\nSSH client found: $ver.\nTrying to connect to localhost, timeout is ${timeout}s.\n";
 
-my $ssh = Net::OpenSSH->new('localhost', timeout => $timeout, strict_mode => 0,
-			    master_opts => [-o => "StrictHostKeyChecking no"]);
+my %ctor_opts = (host => 'localhost',
+            timeout => $timeout,
+            strict_mode => 0,
+            master_opts => [-o => "StrictHostKeyChecking no"]);
+
+my $ssh = Net::OpenSSH->new(%ctor_opts);
 
 # fallback
 if ($ssh->error and $num > 4.7) {
@@ -45,12 +50,10 @@ if ($ssh->error and $num > 4.7) {
     my $sshd_cmd = sshd_cmd;
     if (defined $sshd_cmd) {
 	my $here = File::Spec->rel2abs("t");
-	diag "sshd command found at $sshd_cmd.\n" .
-	    "Faking connection, timeout is ${timeout}s.\n" .
-	    "Using configuration from '$here'.";
-
+	diag join("\n", "sshd command found at $sshd_cmd.",
+                  "Faking connection, timeout is ${timeout}s.",
+                  "Using configuration from '$here'", "");
 	chmod 0600, "$here/test_user_key", "$here/test_server_key";;
-
 	my @sshd_cmd = ($sshd_cmd, '-i',
 			-h => "$here/test_server_key",
 			-o => "AuthorizedKeysFile $here/test_user_key.pub",
@@ -59,13 +62,14 @@ if ($ssh->error and $num > 4.7) {
 			-o => "PermitRootLogin yes");
 	s/(\W)/\\$1/g for @sshd_cmd;
 
-	$ssh = Net::OpenSSH->new('localhost', timeout => $timeout, strict_mode => 0,
-				 master_opts => [-o => "ProxyCommand @sshd_cmd",
-						 -o => "StrictHostKeyChecking no",
-						 -o => "NoHostAuthenticationForLocalhost yes",
-						 -o => "UserKnownHostsFile $here/known_hosts",
-						 -o => "GlobalKnownHostsFile $here/known_hosts"],
+	$ssh = Net::OpenSSH->new(%ctor_opts,
+                                 master_opts => [-o => "ProxyCommand @sshd_cmd",
+                                                 -o => "StrictHostKeyChecking no",
+                                                 -o => "NoHostAuthenticationForLocalhost yes",
+                                                 -o => "UserKnownHostsFile $here/known_hosts",
+                                                 -o => "GlobalKnownHostsFile $here/known_hosts"],
                                  key_path => "$here/test_user_key");
+        $fallback = 1;
     }
     else {
 	diag "sshd command not found!"
@@ -75,7 +79,7 @@ if ($ssh->error and $num > 4.7) {
 plan skip_all => 'Unable to establish SSH connection to localhost!'
     if $ssh->error;
 
-plan tests => 40;
+plan tests => 45;
 
 sub shell_quote {
     my $txt = shift;
@@ -126,6 +130,14 @@ is($output, $lines, "output") or diag $output;
     # DESTROY $ssh2
 }
 ok($ssh->check_master, "check_master") or diag "error: ", $ssh->error;
+
+$ssh->system({stdout_file => ['>', "$sq_cwd/test.dat.deleteme"],
+              stderr_discard => 1 }, "$CAT $sq_cwd/test.dat");
+is ($ssh->error, 0, "system ok");
+$output = $ssh->capture("$CAT $sq_cwd/test.dat.deleteme");
+is ($ssh->error, 0, "system ok") or diag "error: ", $ssh->error;
+is ($output, $lines, "redirection works");
+unlink "$sq_cwd/test.dat.deleteme";
 
 $output = $ssh->capture(cd => $sq_cwd, \\'&&', $CAT => 'test.dat');
 is ($output, $lines) or diag "error: ", $ssh->error;
@@ -185,6 +197,11 @@ chomp $captured_enne;
 is ($ssh->error+0, 0, "good encoding");
 is ($captured_enne, $enne, "capture and encoding");
 
+my $rcmd = $ssh->make_remote_command($ECHO => 'hello');
+my $pipe_out = readpipe $rcmd;
+chomp $pipe_out;
+is ($pipe_out, 'hello', 'make_remote_command');
+
 eval {
     my $ssh3 = $ssh;
     undef $ssh;
@@ -192,4 +209,13 @@ eval {
 };
 like($@, qr/^some text/, 'DESTROY should not clobber $@');
 
+SKIP: {
+    skip "no login with default key", 1 if $fallback;
+    my $ssh4;
+    for my $passwd (qw(foo bar)) {
+        $ssh4 = Net::OpenSSH->new(%ctor_opts, passwd => $passwd, master_stderr_discard => 1);
+        last if $ssh4->error;
+    }
+    is ($ssh4->error+0, OSSH_MASTER_FAILED, "bad password");
+}
 

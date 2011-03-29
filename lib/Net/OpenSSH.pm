@@ -363,6 +363,7 @@ sub new {
     }
 
     $self->{_ctl_path} = $ctl_path;
+
     if ($external_master) {
         $self->_wait_for_master($async, 1);
     }
@@ -3570,7 +3571,7 @@ B<A>: The reported stdio stream is closed or is not attached to a real
 file handle (i.e. it is a tied handle). Redirect it to C</dev/null> or
 to a real file:
 
-  my $out = $ssh->capture({discard_stdin => 1, stderr_to_stdout => 1},
+  my $out = $ssh->capture({stdin_discard => 1, stderr_to_stdout => 1},
                           $cmd);
 
 See also the L<mod_perl> entry above.
