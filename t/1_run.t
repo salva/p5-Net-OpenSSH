@@ -60,8 +60,8 @@ if ($ssh->error and $num > 4.7) {
 						 -o => "StrictHostKeyChecking no",
 						 -o => "NoHostAuthenticationForLocalhost yes",
 						 -o => "UserKnownHostsFile $here/known_hosts",
-						 -o => "GlobalKnownHostsFile $here/known_hosts",
-						 -i => "$here/test_user_key"]);
+						 -o => "GlobalKnownHostsFile $here/known_hosts"],
+                                 key_path => "$here/test_user_key");
     }
     else {
 	diag "sshd command not found!"
