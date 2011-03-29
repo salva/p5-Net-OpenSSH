@@ -71,7 +71,7 @@ if ($ssh->error and $num > 4.7) {
 plan skip_all => 'Unable to establish SSH connection to localhost!'
     if $ssh->error;
 
-plan tests => 32;
+plan tests => 35;
 
 sub shell_quote {
     my $txt = shift;
@@ -113,6 +113,15 @@ ok(-f "$cwd/test.dat");
 my ($output, $errput) = $ssh->capture2("$CAT $sq_cwd/test.dat");
 is($errput, '', "errput");
 is($output, $lines, "output") or diag $output;
+
+{
+    my $ssh2 = Net::OpenSSH->new(external_master => 1, ctl_path => $ssh->get_ctl_path);
+    my ($output, $errput) = $ssh2->capture2("$CAT $sq_cwd/test.dat");
+    is($errput, '', "external_master 1");
+    is($output, $lines, "external_master 2") or diag $output;
+    # DESTROY $ssh2
+}
+ok($ssh->check_master, "check_master") or diag "error: ", $ssh->error;
 
 $output = $ssh->capture(cd => $sq_cwd, \\'&&', $CAT => 'test.dat');
 is ($output, $lines) or diag "error: ", $ssh->error;
@@ -160,8 +169,10 @@ is ($ssh->shell_quote(\\'foo%FOO%foo%%foo'), 'foo%FOO%foo%%foo');
 is (Net::OpenSSH->shell_quote(\\'foo%FOO%foo%%foo'), 'foo%FOO%foo%%foo');
 
 eval {
-    my $ssh2 = $ssh;
+    my $ssh3 = $ssh;
     undef $ssh;
     die "some text";
 };
 like($@, qr/^some text/, 'DESTROY should not clobber $@');
+
+
