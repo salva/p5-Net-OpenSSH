@@ -947,13 +947,15 @@ sub _open_file {
     }
 }
 
-sub _fileno_dup_dangerous {
+sub _fileno_dup_over {
     my ($good_fn, $fh) = @_;
     if (defined $fh) {
+        my @keep_open;
         my $fn = fileno $fh;
         for (1..5) {
             $fn >= $good_fn and return $fn;
             $fn = POSIX::dup($fn);
+            push @keep_open, $fn;
         }
         POSIX::_exit(255);
     }
@@ -962,8 +964,8 @@ sub _fileno_dup_dangerous {
 
 sub _exec_dpipe {
     my ($self, $cmd, $io, $err) = @_;
-    my $io_fd  = _fileno_dup_dangerous(3 => $io);
-    my $err_fd = _fileno_dup_dangerous(3 => $err);
+    my $io_fd  = _fileno_dup_over(3 => $io);
+    my $err_fd = _fileno_dup_over(3 => $err);
     POSIX::dup2($io_fd, 0);
     POSIX::dup2($io_fd, 1);
     POSIX::dup2($err_fd, 2) if defined $err_fd;
@@ -1156,9 +1158,9 @@ sub open_ex {
             }
         }
 
-        my $rin_fd = _fileno_dup_dangerous(0 => $rin);
-        my $wout_fd = _fileno_dup_dangerous(1 => $wout);
-        my $werr_fd = _fileno_dup_dangerous(2 => $werr);
+        my $rin_fd  = _fileno_dup_over(0 => $rin);
+        my $wout_fd = _fileno_dup_over(1 => $wout);
+        my $werr_fd = _fileno_dup_over(2 => $werr);
 
         if (defined $rin_fd) {
             $win->make_slave_controlling_terminal if $stdin_pty;

@@ -1,5 +1,8 @@
 Revision history for Perl extension Net::OpenSSH.
 
+0.51_09
+        - bug solved in _fileno_dup_dangerous
+
 0.51_08  Mar 28, 2011
         - pipe_in and pipe_out were not correctly setting error status
           on failure
