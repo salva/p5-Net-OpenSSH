@@ -1,6 +1,6 @@
 Revision history for Perl extension Net::OpenSSH.
 
-0.51_09
+0.51_09  Mar 29, 2011
         - add support for passphrase protected keys
         - add support for passing the private key path as an explicit
           constructor option
