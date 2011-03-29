@@ -1,6 +1,6 @@
 package Net::OpenSSH;
 
-our $VERSION = '0.51_09';
+our $VERSION = '0.51_10';
 
 use strict;
 use warnings;
@@ -118,6 +118,7 @@ my $obfuscate = sub {
         if defined $txt;
     $txt;
 };
+
 my $deobfuscate = $obfuscate;
 
 # regexp from Regexp::IPv6
@@ -672,11 +673,9 @@ sub _waitpid {
 sub wait_for_master {
     my $self = shift;
     @_ <= 1 or croak 'Usage: $ssh->wait_for_master([$async])';
-    $self->{error} = 0;
-    $self->{_wfm_status} and
-	return $self->_wait_for_master($_[0]);
-    $self->{_error} == OSSH_MASTER_FAILED and
-	return undef;
+    return undef if $self->{_error} == OSSH_MASTER_FAILED;
+    $self->{_error} = 0;
+    return $self->_wait_for_master($_[0]) if $self->{_wfm_status};
 
     unless (-S $self->{_ctl_path}) {
 	$self->_set_error(OSSH_MASTER_FAILED, "master ssh connection broken");
@@ -1211,9 +1210,9 @@ sub pipe_in {
     my %opts = (ref $_[0] eq 'HASH' ? %{shift()} : ());
     my $argument_encoding = $self->_delete_argument_encoding(\%opts);
     my @args = $self->_quote_args(\%opts, @_);
-    $self->_encode_args($argument_encoding, @args);
     _croak_bad_options %opts;
 
+    $self->_encode_args($argument_encoding, @args) or return;
     my @call = $self->_make_ssh_call([], @args);
     $debug and $debug & 16 and _debug_dump pipe_in => @call;
     my $pid = open my $rin, '|-', @call;
@@ -1232,9 +1231,9 @@ sub pipe_out {
     my %opts = (ref $_[0] eq 'HASH' ? %{shift()} : ());
     my $argument_encoding = $self->_delete_argument_encoding(\%opts);
     my @args = $self->_quote_args(\%opts, @_);
-    $self->_encode_args($argument_encoding, @args);
     _croak_bad_options %opts;
 
+    $self->_encode_args($argument_encoding, @args) or return;
     my @call = $self->_make_ssh_call([], @args);
     $debug and $debug & 16 and _debug_dump pipe_out => @call;
     my $pid = open my $rout, '-|', @call;
@@ -1257,7 +1256,7 @@ sub _find_encoding {
         }
         return $enc
     }
-    return
+    return undef
 }
 
 sub _encode {
@@ -1272,7 +1271,7 @@ sub _encode {
             }
         };
         if ($@) {
-            $self->_set_error(OSSH_ENCODING_ERROR, "encoding failed");
+            $self->_set_error(OSSH_ENCODING_ERROR, $@);
             return;
         }
     }
@@ -1280,28 +1279,33 @@ sub _encode {
 }
 
 sub _encode_args {
-    my $self = shift;
-    my $encoding = shift;
-    my $enc = $self->_find_encoding($encoding);
-    $self->_encode($enc, @_);
-    return !$self->error;
+    if (@_ > 2) {
+        my $self = shift;
+        my $encoding = shift;
+
+        my $enc = $self->_find_encoding($encoding);
+        if ($enc) {
+            local $self->{_error_prefix} = [@{$self->{_error_prefix}}, "argument encoding failed"];
+            $self->_encode($enc, @_);
+        }
+        return !$self->error;
+    }
+    1;
 }
 
 sub _decode {
     my $self = shift;
     my $enc = shift;
-    if (defined $enc and @_) {
-        local $@;
-        eval {
-            for (@_) {
-                defined or next;
-                $_ = $enc->decode($_, Encode::FB_CROAK());
-            }
-        };
-        if ($@) {
-            $self->_set_error(OSSH_ENCODING_ERROR, "bad output decoding");
-            return;
+    local $@;
+    eval {
+        for (@_) {
+            defined or next;
+            $_ = $enc->decode($_, Encode::FB_CROAK());
         }
+    };
+    if ($@) {
+        $self->_set_error(OSSH_ENCODING_ERROR, $@);
+        return;
     }
     1;
 }
@@ -1319,8 +1323,11 @@ sub _io3 {
     close $in if ($cin and !$has_input);
 
     my $enc = $self->_find_encoding($encoding);
-    $self->_encode($enc, @data) if $has_input;
-    return if $self->error;
+    if ($enc and @data) {
+        local $self->{_error_prefix} = [@{$self->{_error_prefix}}, "stdin data encoding failed"];
+        $self->_encode($enc, @data) if $has_input;
+        return if $self->error;
+    }
 
     my $bout = '';
     my $berr = '';
@@ -1362,7 +1369,7 @@ sub _io3 {
                     my $offset = length $bout;
                     my $read = sysread($out, $bout, 20480, $offset);
                     if ($debug and $debug & 64) {
-                        _debug "stdout, bytes read: " . (defined $read ? $read : '<undef>') . " at offset $offset";
+                        _debug "stdout, bytes read: ", $read, " at offset $offset";
                         $read and $debug & 128 and _hexdump substr $bout, $offset;
                     }
                     unless ($read) {
@@ -1374,7 +1381,7 @@ sub _io3 {
                 }
                 if ($cerr and vec($rv1, $fnoerr, 1)) {
                     my $read = sysread($err, $berr, 20480, length($berr));
-                    $debug and $debug & 64 and _debug "stderr, bytes read: " . (defined $read ? $read : '<undef>');
+                    $debug and $debug & 64 and _debug "stderr, bytes read: ", $read;
                     unless ($read) {
                         close $err;
                         undef $cerr;
@@ -1384,7 +1391,7 @@ sub _io3 {
                 if ($cin and vec($wv1, $fnoin, 1)) {
                     my $written = syswrite($in, $data[0], 20480);
                     if ($debug and $debug & 64) {
-                        _debug "stdin, bytes written: " . (defined $written ? $written : '<undef>');
+                        _debug "stdin, bytes written: ", $written;
                         $written and $debug & 128 and _hexdump substr $data[0], 0, $written;
                     }
                     if ($written) {
@@ -1402,7 +1409,7 @@ sub _io3 {
             }
             else {
                 next if ($n < 0 and $! == Errno::EINTR());
-                $self->_set_error(OSSH_SLAVE_TIMEOUT, "ssh slave failed", "timed out");
+                $self->_set_error(OSSH_SLAVE_TIMEOUT, 'ssh slave failed', 'timed out');
                 last MLOOP;
             }
         }
@@ -1411,8 +1418,13 @@ sub _io3 {
     close $err if $cerr;
     close $in if $cin;
 
-    $self->_decode($enc, $bout, $berr);
-
+    if ($enc) {
+        local $self->{_error_prefix} = [@{$self->{_error_prefix}}, 'output decoding failed'];
+        unless ($self->_decode($enc, $bout, $berr)) {
+            undef $bout;
+            undef $berr;
+        }
+    }
     $debug and $debug & 64 and _debug "leaving _io3()";
     return ($bout, $berr);
 }
@@ -1891,7 +1903,7 @@ sub DESTROY {
     my $self = shift;
     my $pid = $self->{_pid};
     local $@;
-    $debug and $debug & 2 and _debug("DESTROY($self, pid => ".(defined $pid ? $pid : '<undef>').")");
+    $debug and $debug & 2 and _debug("DESTROY($self, pid: ", $pid, ")");
     if ($pid and $self->{_perl_pid} == $$) {
 	$debug and $debug & 32 and _debug("killing master");
         local $?;
