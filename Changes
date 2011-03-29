@@ -2,6 +2,7 @@ Revision history for Perl extension Net::OpenSSH.
 
 0.51_10
         - error status was not reset between calls (regresion)
+        - remove internal line numbers from error messages
         - encoding errors were not propageted in pipe_in and pipe_out
           methods
         - minor debuging cleanup

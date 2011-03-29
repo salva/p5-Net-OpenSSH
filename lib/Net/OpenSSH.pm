@@ -104,6 +104,22 @@ sub _set_error {
     return $err
 }
 
+my $check_eval_re = do {
+    my $path = quotemeta $INC{"Net/OpenSSH.pm"};
+    qr/at $path line \d+.$/
+};
+
+sub _check_eval_ok {
+    my ($self, $code) = @_;
+    if ($@) {
+        my $err = $@;
+        $err =~ s/$after_eval_re//;
+        $self->_set_error($code, $err);
+        return;
+    }
+    1
+}
+
 sub _or_set_error {
     my $self = shift;
     $self->{_error} or $self->_set_error(@_);
@@ -1270,10 +1286,7 @@ sub _encode {
                 $_ = $enc->encode($_, Encode::FB_CROAK());
             }
         };
-        if ($@) {
-            $self->_set_error(OSSH_ENCODING_ERROR, $@);
-            return;
-        }
+        $self->_check_eval_ok(OSSH_ENCODING_ERROR) or return undef;
     }
     1;
 }
@@ -1303,11 +1316,7 @@ sub _decode {
             $_ = $enc->decode($_, Encode::FB_CROAK());
         }
     };
-    if ($@) {
-        $self->_set_error(OSSH_ENCODING_ERROR, $@);
-        return;
-    }
-    1;
+    $self->_check_eval_ok(OSSH_ENCODING_ERROR);
 }
 
 sub _io3 {
