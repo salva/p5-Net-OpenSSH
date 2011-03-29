@@ -113,7 +113,7 @@ sub _check_eval_ok {
     my ($self, $code) = @_;
     if ($@) {
         my $err = $@;
-        $err =~ s/$after_eval_re//;
+        $err =~ s/$check_eval_re//;
         $self->_set_error($code, $err);
         return;
     }
