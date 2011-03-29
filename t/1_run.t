@@ -10,6 +10,8 @@ use lib "./t";
 use common;
 
 use Net::OpenSSH;
+use Net::OpenSSH::Constants qw(OSSH_ENCODING_ERROR);
+
 my $timeout = 15;
 
 my $PS = find_cmd 'ps';
@@ -18,6 +20,8 @@ my $LS = find_cmd('ls');
 defined $LS or plan skip_all => "ls command not found";
 my $CAT = find_cmd('cat');
 defined $CAT or plan skip_all => "cat command not found";
+my $ECHO = find_cmd('echo');
+defined $ECHO or plan skip_all => "echo command not found";
 
 my $PS_P = ($^O =~ /sunos|solaris/i ? "$PS -p" : "$PS p");
 
@@ -71,7 +75,7 @@ if ($ssh->error and $num > 4.7) {
 plan skip_all => 'Unable to establish SSH connection to localhost!'
     if $ssh->error;
 
-plan tests => 35;
+plan tests => 40;
 
 sub shell_quote {
     my $txt = shift;
@@ -86,7 +90,7 @@ is((stat $muxs)[2] & 0777, 0600, "mux socket permissions");
 my $cwd = cwd;
 my $sq_cwd = shell_quote $cwd;
 
-my $rshell = $ssh->capture('echo $SHELL');
+my $rshell = $ssh->capture($ECHO => '$SHELL');
 my $rshell_is_csh = ($rshell =~ /\bcsh$/);
 
 my @ls_good= sort `$LS $sq_cwd`;
@@ -167,6 +171,19 @@ is ($ssh->shell_quote('foo%FOO%foo%%foo'), 'fooBarfoo\%foo');
 $ssh->set_expand_vars(0);
 is ($ssh->shell_quote(\\'foo%FOO%foo%%foo'), 'foo%FOO%foo%%foo');
 is (Net::OpenSSH->shell_quote(\\'foo%FOO%foo%%foo'), 'foo%FOO%foo%%foo');
+
+my $enne = "letra e\xf1e";
+
+$ssh->capture({encoding => 'ascii'}, $ECHO => $enne);
+is ($ssh->error+0, OSSH_ENCODING_ERROR, "bad encoding");
+$ssh->wait_for_master;
+is ($ssh->error, 0, "wait_for_master resets error");
+$ssh->capture({encoding => 'ascii'}, $ECHO => $enne);
+is ($ssh->error+0, OSSH_ENCODING_ERROR, "bad encoding");
+my $captured_enne = $ssh->capture({encoding => 'latin1'}, $ECHO => $enne);
+chomp $captured_enne;
+is ($ssh->error+0, 0, "good encoding");
+is ($captured_enne, $enne, "capture and encoding");
 
 eval {
     my $ssh3 = $ssh;
