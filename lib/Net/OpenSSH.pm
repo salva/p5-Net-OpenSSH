@@ -140,7 +140,7 @@ sub new {
     # reuse_master is an obsolete alias:
     $external_master = delete $opts{reuse_master} unless defined $external_master;
 
-    my ($user, $passwd, $ipv6, $host, $port, $host_ssh);
+    my ($user, $passwd, $ipv6, $host, $port, $host_ssh, $passphrase, $key_path);
     my $target = delete $opts{host};
     if (defined $target) {
         ($user, $passwd, $ipv6, $host, $port) =
@@ -182,6 +182,11 @@ sub new {
     $port = delete $opts{port} unless defined $port;
     $passwd = delete $opts{passwd} unless defined $passwd;
     $passwd = delete $opts{password} unless defined $passwd;
+    unless (defined $passwd) {
+        $passwd = delete $opts{passphrase};
+        $passphrase = 1 if defined $passwd;
+        $key_path = delete $opts{key_path};
+    }
     my $ctl_path = delete $opts{ctl_path};
     my $ctl_dir = delete $opts{ctl_dir};
     my $ssh_cmd = _first_defined delete $opts{ssh_cmd}, 'ssh';
@@ -278,6 +283,8 @@ sub new {
                  _user => $user,
                  _port => $port,
                  _passwd => $obfuscate->($passwd),
+                 _passphrase => $passphrase,
+                 _key_path => $key_path,
                  _timeout => $timeout,
                  _kill_ssh_on_timeout => $kill_ssh_on_timeout,
                  _home => $home,
@@ -551,13 +558,23 @@ sub _connect {
                        -o => "ServerAliveInterval=$timeout",
                        '-xMN');
 
+    my $pref_auths;
     my $mpty;
     if (defined $self->{_passwd}) {
         _load_module('IO::Pty');
         $self->{_mpty} = $mpty = IO::Pty->new;
-	push @master_opts, (-o => 'NumberOfPasswordPrompts=1',
-			    -o => 'PreferredAuthentications=keyboard-interactive,password');
+        $pref_auths = ($self->{_passphrase}
+                       ? 'publickey'
+                       : 'keyboard-interactive,password');
+        push @master_opts, -o => 'NumberOfPasswordPrompts=1';
     }
+    if (defined $self->{_key_path}) {
+        $pref_auths = 'publickey';
+        push @master_opts, -i => $self->{_key_path};
+    }
+
+    push @master_opts, -o => "PreferredAuthentications=$pref_auths"
+        if defined $pref_auths;
 
     my @call = $self->_make_ssh_call(\@master_opts);
 
@@ -573,7 +590,7 @@ sub _connect {
 	$self->_master_redirect('STDOUT');
 	$self->_master_redirect('STDERR');
 
-	if (defined $self->{passwd}) {
+	if (defined $self->{_passwd}) {
 	    delete $ENV{SSH_ASKPASS};
 	    delete $ENV{SSH_AUTH_SOCK};
 	}
@@ -756,7 +773,7 @@ sub _wait_for_master {
                         return undef;
                     }
                     if ($$bout =~ s/^(.*:)//s) {
-                        $debug and $debug & 4 and _debug "passwd requested ($1)";
+                        $debug and $debug & 4 and _debug "passwd/passphrase requested ($1)";
                         print $mpty "$passwd\n";
                         $status = 'password_sent';
                     }
@@ -2078,11 +2095,19 @@ TCP port number where the server is running
 
 =item password => $passwd
 
-User password for logins on the remote side
+User given password for authentication.
 
 Note that using password authentication in automated scripts is a very
 bad idea. When possible, you should use public key authentication
 instead.
+
+=item passphrase => $passphrase
+
+Use given passphrase to open private key.
+
+=item key_path => $private_key_path
+
+Use the key stored on the given file path for authentication.
 
 =item ctl_dir => $path
 
@@ -3183,17 +3208,17 @@ and methods supporting the C<stdin_data> option). Data accessed through
 pipes, sockets or redirections is not affected by the encoding options.
 
 It is also possible to set the encoding of the command and arguments
-passed to the remote server.
+passed to the remote server on the command line.
 
 By default, if no encoding option is given on the constructor or on the
 method calls, Net::OpenSSH will not perform any encoding transformation,
 effectively processing the data as latin1.
 
-When some data can not be converted between the Perl internal
-representation and the selected encoding the affected method will fail
-with a C<OSSH_ENCODING_ERROR>.
+When data can not be converted between the Perl internal
+representation and the selected encoding inside some Net::OpenSSH
+method, it will fail with an C<OSSH_ENCODING_ERROR> error.
 
-The encoding options are as follows:
+The supported encoding options are as follows:
 
 =over 4
 
@@ -3542,8 +3567,9 @@ as follows:
   $ssh = Net::OpenSSH->new($host,
                            ssh_cmd => '/usr/local/bin/ssh');
 
-AIX and probably some other unixen, also bundle SSH clients lacking the
-multiplexing functionality and require installation of OpenSSH.
+AIX and probably some other unixen, also bundle SSH clients lacking
+the multiplexing functionality and require installation of the real
+OpenSSH.
 
 =item Can't change working directory
 
@@ -3636,14 +3662,13 @@ C<Net::OpenSSH> to handle the connections.
 
 =head1 BUGS AND SUPPORT
 
-Support for tunnel forwarding is experimental and requires OpenSSH 5.4
-or later.
-
 Support for data encoding is highly experimental.
 
-Support for taint mode is still experimental.
+Support for passphrase handling is experimental.
 
-Tested on Linux, OpenBSD and NetBSD with OpenSSH 5.1 to 5.5.
+Support for taint mode is experimental.
+
+Tested on Linux, OpenBSD, NetBSD and Solaris with OpenSSH 5.1 to 5.8.
 
 Net::OpenSSH does not work on Windows. OpenSSH multiplexing feature
 requires passing file handles through sockets something that is not
@@ -3683,8 +3708,6 @@ upon: L<http://www.openssh.org/donations.html>.
 - *** add tests for scp, rsync and sftp methods
 
 - *** add support for more target OSs (quoting, OpenVMS, Windows & others)
-
-- passphrase handling
 
 - better timeout handling in system and capture methods
 
