@@ -754,7 +754,10 @@ sub _wait_for_master {
             return undef;
         }
         elsif (waitpid($pid, WNOHANG) == $pid or $! == Errno::ECHILD) {
-            $self->_set_error(OSSH_MASTER_FAILED, "master process exited unexpectedly");
+            my $error = "master process exited unexpectedly";
+            $error =  "bad pass" . ($self->{_passphrase} ? 'phrase' : 'word') . " or $error"
+                if defined $self->{_passwd};
+            $self->_set_error(OSSH_MASTER_FAILED, $error);
             return undef;
         }
         my $rv1 = $rv;
