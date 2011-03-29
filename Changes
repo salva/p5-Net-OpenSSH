@@ -1,5 +1,9 @@
 Revision history for Perl extension Net::OpenSSH.
 
+0.51_11
+        - more tests
+        - bad sample in documentation corrected
+
 0.51_10  Mar 29, 2011
         - error status was not reset between calls (regresion)
         - remove internal line numbers from error messages
