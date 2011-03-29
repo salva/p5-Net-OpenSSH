@@ -109,13 +109,6 @@ sub _or_set_error {
     $self->{_error} or $self->_set_error(@_);
 }
 
-sub _check_master_and_clear_error {
-    my $self = shift;
-    $self->wait_for_master or return undef;
-    $self->{_error} = 0;
-    1;
-}
-
 sub _first_defined { defined && return $_ for @_; return }
 
 my $obfuscate = sub {
@@ -679,6 +672,7 @@ sub _waitpid {
 sub wait_for_master {
     my $self = shift;
     @_ <= 1 or croak 'Usage: $ssh->wait_for_master([$async])';
+    $self->{error} = 0;
     $self->{_wfm_status} and
 	return $self->_wait_for_master($_[0]);
     $self->{_error} == OSSH_MASTER_FAILED and
@@ -691,10 +685,17 @@ sub wait_for_master {
     1;
 }
 
+sub check_master {
+    my $self = shift;
+    @_ and croak 'Usage: $ssh->check_master()';
+    $self->{_error} = 0;
+    $self->_wait_for_master;
+}
+
 sub _wait_for_master {
     my ($self, $async, $reset) = @_;
 
-    my $status = delete $self->{_wfm_status};
+    my $status = delete $self->{_wfm_status} || '';
     my $bout = \ ($self->{_wfm_bout});
 
     my $mpty = $self->{_mpty};
@@ -932,7 +933,7 @@ sub _array_or_scalar_to_list { map { defined($_) ? (ref $_ eq 'ARRAY' ? @$_ : $_
 
 sub make_remote_command {
     my $self = shift;
-    $self->_check_master_and_clear_error or return ();
+    $self->wait_for_master or return;
     my %opts = (ref $_[0] eq 'HASH' ? %{shift()} : ());
     my $tty = delete $opts{tty};
     my @ssh_opts = _array_or_scalar_to_list delete $opts{ssh_opts};
@@ -1014,7 +1015,7 @@ sub _delete_argument_encoding {
 sub open_ex {
     ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
-    $self->_check_master_and_clear_error or return;
+    $self->wait_for_master or return;
     my %opts = (ref $_[0] eq 'HASH' ? %{shift()} : ());
     my $tunnel = delete $opts{tunnel};
     my ($stdinout_socket, $stdinout_dpipe_is_parent);
@@ -1206,7 +1207,7 @@ sub open_ex {
 sub pipe_in {
     ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
-    $self->_check_master_and_clear_error or return;
+    $self->wait_for_master or return;
     my %opts = (ref $_[0] eq 'HASH' ? %{shift()} : ());
     my $argument_encoding = $self->_delete_argument_encoding(\%opts);
     my @args = $self->_quote_args(\%opts, @_);
@@ -1227,7 +1228,7 @@ sub pipe_in {
 sub pipe_out {
     ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
-    $self->_check_master_and_clear_error or return ();
+    $self->wait_for_master or return;
     my %opts = (ref $_[0] eq 'HASH' ? %{shift()} : ());
     my $argument_encoding = $self->_delete_argument_encoding(\%opts);
     my @args = $self->_quote_args(\%opts, @_);
@@ -1307,7 +1308,7 @@ sub _decode {
 
 sub _io3 {
     my ($self, $out, $err, $in, $stdin_data, $timeout, $encoding) = @_;
-    $self->_check_master_and_clear_error or return ();
+    $self->wait_for_master or return;
     my @data = _array_or_scalar_to_list $stdin_data;
     my ($cout, $cerr, $cin) = (defined($out), defined($err), defined($in));
     $timeout = $self->{_timeout} unless defined $timeout;
@@ -1868,7 +1869,7 @@ sub sftp {
     undef $fs_encoding if (defined $fs_encoding and $fs_encoding == 'bytes');
     _croak_bad_options %opts;
     $opts{timeout} = $self->{_timeout} unless defined $opts{timeout};
-    $self->_check_master_and_clear_error or return undef;
+    $self->wait_for_master or return undef;
     my ($in, $out, $pid) = $self->open2( { ssh_opts => '-s',
 					   stderr_fh => $stderr_fh,
 					   stderr_discard => $stderr_discard,
@@ -2911,6 +2912,11 @@ It returns a true value after the connection has been succesfully
 established. False is returned if the connection process fails or if
 it has not yet completed (then, the L</error> method can be used to
 distinguish between both cases).
+
+=item $ssh->check_master
+
+This method runs several checks to ensure that the master connection
+is still alive.
 
 =item $ssh->shell_quote(@args)
 

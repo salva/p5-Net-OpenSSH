@@ -6,6 +6,8 @@ Revision history for Perl extension Net::OpenSSH.
           constructor option
         - bug solved on password handling
         - bug solved in _fileno_dup_over
+        - remove redundant _check_master_and_clear_error
+        - more tests
         - some doc improvements
 
 0.51_08  Mar 28, 2011
