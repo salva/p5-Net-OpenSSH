@@ -2,6 +2,7 @@ Revision history for Perl extension Net::OpenSSH.
 
 0.51_11
         - more tests
+        - add sample for usage with Net::Telnet
         - bad sample in documentation corrected
 
 0.51_10  Mar 29, 2011

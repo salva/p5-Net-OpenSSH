@@ -15,3 +15,4 @@ t/known_hosts
 sample/expect.pl
 sample/change_passwd.pl
 sample/autosudo.pl
+sample/net-telnet.pl
