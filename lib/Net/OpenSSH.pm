@@ -513,7 +513,7 @@ sub _kill_master {
     my $self = shift;
     my $pid = delete $self->{_pid};
     $debug and $debug & 32 and _debug '_kill_master: ', $pid;
-    if ($pid) {
+    if ($pid and $self->{_perl_pid} == $$) {
 	local $SIG{CHLD} = sub {};
         for my $sig (0, 0, 'TERM', 'TERM', 'TERM', 'KILL', 'KILL') {
             if ($sig) {
@@ -763,6 +763,11 @@ sub _wait_for_master {
                 $self->_or_set_error(OSSH_MASTER_FAILED, $error);
             }
 	    $self->_kill_master;
+            return undef;
+        }
+        if ($self->{_perl_pid} != $$) {
+            $self->_set_error(OSSH_MASTER_FAILED,
+                              "process was forked before SSH connection had been established");
             return undef;
         }
         if (!$pid) {
@@ -1894,13 +1899,13 @@ sub sftp {
     $self->wait_for_master or return undef;
     my ($in, $out, $pid) = $self->open2( { ssh_opts => '-s',
 					   stderr_fh => $stderr_fh,
-					   stderr_discard => $stderr_discard,
-                                           fs_encoding => $fs_encoding },
+					   stderr_discard => $stderr_discard },
 					 'sftp' )
 	or return undef;
 
     my $sftp = Net::SFTP::Foreign->new(transport => [$out, $in, $pid],
 				       dirty_cleanup => 0,
+                                       fs_encoding => $fs_encoding,
 				       %opts);
     if ($sftp->error) {
 	$self->_or_set_error(OSSH_SLAVE_SFTP_FAILED, "unable to create SFTP client", $sftp->error);

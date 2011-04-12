@@ -1,12 +1,14 @@
 Revision history for Perl extension Net::OpenSSH.
 
 0.51_11
+        - sftp method was broken (regression)
+        - better support for sharing SSH connections with children
         - more tests
         - add sample for usage with Net::Telnet
         - bad sample in documentation corrected
 
 0.51_10  Mar 29, 2011
-        - error status was not reset between calls (regresion)
+        - error status was not reset between calls (regression)
         - remove internal line numbers from error messages
         - encoding errors were not propageted in pipe_in and pipe_out
           methods
