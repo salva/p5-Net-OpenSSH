@@ -3522,6 +3522,10 @@ shell prompt again, repeat from 3). The best tool for this task is
 probably L<Expect>, used alone, as wrapped by L<Net::SSH::Expect> or
 combined with Net::OpenSSH (see L</Expect>).
 
+There are some devices that support command mode but that only accept
+one command per connection. In that cases, using L<Expect> is also
+probably the best option.
+
 =item Connection fails
 
 B<Q>: I am unable to make the module connect to the remote host...
