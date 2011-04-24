@@ -1,6 +1,8 @@
 Revision history for Perl extension Net::OpenSSH.
 
-0.51_11
+0.51_11  Apr 24, 2011
+        - encoding handling in sftp method was broken (bug report and
+          solution by Todd Rinaldo)
         - sftp method was broken (regression)
         - better support for sharing SSH connections with children
         - more tests

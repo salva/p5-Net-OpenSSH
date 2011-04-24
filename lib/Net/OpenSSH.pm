@@ -1893,7 +1893,7 @@ sub sftp {
                                      $opts{argument_encoding},
                                      $opts{encoding},
                                      $self->{_default_argument_encoding});
-    undef $fs_encoding if (defined $fs_encoding and $fs_encoding == 'bytes');
+    undef $fs_encoding if (defined $fs_encoding and $fs_encoding eq 'bytes');
     _croak_bad_options %opts;
     $opts{timeout} = $self->{_timeout} unless defined $opts{timeout};
     $self->wait_for_master or return undef;
