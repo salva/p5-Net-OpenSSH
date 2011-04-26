@@ -1,6 +1,6 @@
 package Net::OpenSSH;
 
-our $VERSION = '0.51_11';
+our $VERSION = '0.51_12';
 
 use strict;
 use warnings;
@@ -567,7 +567,7 @@ sub _connect {
     my $timeout = int((($self->{_timeout} || 90) + 2)/3);
     my @master_opts = (@{$self->{_master_opts}},
                        -o => "ServerAliveInterval=$timeout",
-                       '-xMN');
+                       '-x2MN');
 
     my $pref_auths;
     my $mpty;
@@ -727,13 +727,16 @@ sub _wait_for_master {
     }
 
     my $ctl_path = $self->{_ctl_path};
-    my $fnopty = fileno $mpty if defined $mpty;
     my $dt = ($async ? 0 : 0.1);
     my $timeout = $self->{_timeout};
     my $start_time = time;
 
+    my $fnopty;
     my $rv = '';
-    vec($rv, $fnopty, 1) = 1 if $status eq 'waiting_for_password_prompt';
+    if ($status eq 'waiting_for_password_prompt') {
+        $fnopty = fileno $mpty;
+        vec($rv, $fnopty, 1) = 1
+    }
 
     local $self->{_error_prefix} = [@{$self->{_error_prefix}},
 				    "unable to establish master SSH connection"];
@@ -741,6 +744,7 @@ sub _wait_for_master {
         last if (defined $timeout and (time - $start_time) > $timeout);
 
         if (-e $ctl_path) {
+            $debug and $debug & 4 and _debug "file object found at $ctl_path";
             unless (-S $ctl_path) {
                 $self->_set_error(OSSH_MASTER_FAILED,
                                   "bad ssh master at $ctl_path, object is not a socket");
@@ -765,6 +769,8 @@ sub _wait_for_master {
 	    $self->_kill_master;
             return undef;
         }
+        $debug and $debug & 4 and _debug "file object not yet found at $ctl_path";
+
         if ($self->{_perl_pid} != $$) {
             $self->_set_error(OSSH_MASTER_FAILED,
                               "process was forked before SSH connection had been established");
@@ -2057,6 +2063,9 @@ installed. Other modules and binaries are also required to implement
 specific functionality (for instance
 L<Net::SFTP::Foreign|Net::SFTP::Foreign>, L<Expect|Expect> or
 L<rsync(1)|rsync(1)|>).
+
+Net::OpenSSH and Net::SSH2 do not support version 1 of the SSH
+protocol.
 
 =head1 API
 

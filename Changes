@@ -1,5 +1,10 @@
 Revision history for Perl extension Net::OpenSSH.
 
+0.51_12
+        - require version 2 of the SSH protocol (bug report by Jo
+          Rhett)
+        - remove harmless "my $foo = ... if ..." bug
+
 0.51_11  Apr 24, 2011
         - encoding handling in sftp method was broken (bug report and
           solution by Todd Rinaldo)
