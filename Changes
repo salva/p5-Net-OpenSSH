@@ -1,5 +1,8 @@
 Revision history for Perl extension Net::OpenSSH.
 
+0.52  May 9, 2011
+        - release as stable
+
 0.51_12  May 2, 2011
         - require version 2 of the SSH protocol (bug report by Jo
           Rhett)
