@@ -1,5 +1,8 @@
 Revision history for Perl extension Net::OpenSSH.
 
+0.53
+        - minor doc improvements
+
 0.52  May 9, 2011
         - release as stable
         - skip bad passwd test when IO::Pty is not available
