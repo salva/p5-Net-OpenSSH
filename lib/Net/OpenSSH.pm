@@ -1,6 +1,6 @@
 package Net::OpenSSH;
 
-our $VERSION = '0.51_12';
+our $VERSION = '0.53';
 
 use strict;
 use warnings;
@@ -3387,14 +3387,14 @@ Ensure that you have a version of C<ssh> recent enough:
 
 OpenSSH version 4.1 was the first to support the multiplexing feature
 and is the minimal required by the module to work. I advise you to use
-the latest OpenSSH (currently 5.5) or at least a more recent
+the latest OpenSSH (currently 5.8) or at least a more recent
 version.
 
 The C<ssh_cmd> constructor option lets you select the C<ssh> binary to
 use. For instance:
 
   $ssh = Net::OpenSSH->new($host,
-                           ssh_cmd => "/opt/OpenSSH/5.5/bin/ssh")
+                           ssh_cmd => "/opt/OpenSSH/5.8/bin/ssh")
 
 Some hardware vendors (i.e. Sun) include custom versions of OpenSSH
 bundled with the operative system. In priciple, Net::OpenSSH should
@@ -3705,11 +3705,14 @@ Other Perl SSH clients: L<Net::SSH::Perl|Net::SSH::Perl>,
 L<Net::SSH2|Net::SSH2>, L<Net::SSH|Net::SSH>,
 L<Net::SSH::Expect|Net::SSH::Expect>, L<Net::SCP|Net::SCP>.
 
+L<Net::OpenSSH::Compat> is a package offering a set of compatibility
+layers for other SSH modules on top of Net::OpenSSH.
+
 L<IPC::PerlSSH|IPC::PerlSSH>, L<GRID::Machine|GRID::Machine> allow
 execution of Perl code in remote machines through SSH.
 
 L<SSH::RPC|SSH::RPC> implements an RPC mechanism on top of SSH using
-C<Net::OpenSSH> to handle the connections.
+Net::OpenSSH to handle the connections.
 
 =head1 BUGS AND SUPPORT
 
