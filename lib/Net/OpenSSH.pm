@@ -874,18 +874,20 @@ sub _load_module {
 
 sub _arg_quoter {
     sub {
-	my $arg = shift;
-	return "''" if $arg eq '';
-        $arg =~ s|([^\w/\-.])|(ord($1) > 127 ? $1 : "\\$1")|ge;
-        $arg
+        my $arg = join '',
+            map { ( m|^'$|         ? "\\'"  :
+                    m|^[\w/\-=\@]*$| ? $_     :
+                                     "'$_'" ) } split /(')/, $_[0];
+        length $arg ? $arg : "''";
     }
 }
 
 sub _arg_quoter_glob {
     sub {
 	my $arg = shift;
+        return $arg if $arg =~ m|^[\w/\-+=?\[\],{}\@!.^~]+$|;
 	return "''" if $arg eq '';
-        $arg =~ s|(?<!\\)([^\w/\-+=*?\[\],{}:\@!.^\\~])|(ord($1) > 127 ? $1 : "\\$1")|ge;
+        $arg =~ s|(?<!\\)([^\w/\-+=*?\[\],{}:\@!.^\\~])|ord($1) > 127 ? $1 : $1 eq "\n" ? "'\n'" : "\\$1"|ge;
 	$arg;
     }
 }
