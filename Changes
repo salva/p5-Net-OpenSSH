@@ -1,6 +1,8 @@
 Revision history for Perl extension Net::OpenSSH.
 
-0.53
+0.53_01
+        - quoter was not handling \n correctly (bug report and work
+          around by Skeeve)
         - minor doc improvements
 
 0.52  May 9, 2011
