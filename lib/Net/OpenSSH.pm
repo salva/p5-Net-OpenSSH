@@ -1,6 +1,6 @@
 package Net::OpenSSH;
 
-our $VERSION = '0.53';
+our $VERSION = '0.53_01';
 
 use strict;
 use warnings;
@@ -872,23 +872,53 @@ sub _load_module {
     1
 }
 
+my $noquote_class = '\\w/\\-=@';
+my $glob_class    = '*?\\[\\],{}:!.^~';
+
 sub _arg_quoter {
     sub {
-        my $arg = join '',
-            map { ( m|^'$|         ? "\\'"  :
-                    m|^[\w/\-=\@]*$| ? $_     :
-                                     "'$_'" ) } split /(')/, $_[0];
-        length $arg ? $arg : "''";
+        my $quoted = join '',
+            map { ( m|^'$|                  ? "\\'"  :
+                    m|^[$noquote_class]*$|o ? $_     :
+                                              "'$_'" ) } split /(')/, $_[0];
+        length $quoted ? $quoted : "''";
     }
 }
 
 sub _arg_quoter_glob {
     sub {
 	my $arg = shift;
-        return $arg if $arg =~ m|^[\w/\-+=?\[\],{}\@!.^~]+$|;
-	return "''" if $arg eq '';
-        $arg =~ s|(?<!\\)([^\w/\-+=*?\[\],{}:\@!.^\\~])|ord($1) > 127 ? $1 : $1 eq "\n" ? "'\n'" : "\\$1"|ge;
-	$arg;
+        my @parts;
+        while ((pos $arg ||0) < length $arg) {
+            if ($arg =~ m|\G'|gc) {
+                push @parts, "\\'";
+            }
+            elsif ($arg =~ m|\G([$noquote_class$glob_class]+)|gco) {
+                push @parts, $1;
+            }
+            elsif ($arg =~ m|\G(\\[$glob_class\\])|gco) {
+                push @parts, $1;
+            }
+            elsif ($arg =~ m|\G\\|gc) {
+                push @parts, '\\\\'
+            }
+            elsif ($arg =~ m|\G([^$glob_class\\']+)|gco) {
+                push @parts, "'$1'";
+            }
+            else {
+                require Data::Dumper;
+                $arg =~ m|\G(.+)|gc;
+                die "Internal error: unquotable string:\n". Data::Dumper::Dumper($1) ."\n";
+            }
+        }
+        my $quoted = join('', @parts);
+        length $quoted ? $quoted : "''";
+
+	# my $arg = shift;
+        # return $arg if $arg =~ m|^[\w/\-+=?\[\],{}\@!.^~]+$|;
+	# return "''" if $arg eq '';
+        # $arg =~ s|(?<!\\)([^\w/\-+=*?\[\],{}:\@!.^\\~])|ord($1) > 127 ? $1 : $1 eq "\n" ? "'\n'" : "\\$1"|ge;
+	# $arg;
     }
 }
 

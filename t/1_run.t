@@ -79,7 +79,7 @@ if ($ssh->error and $num > 4.7) {
 plan skip_all => 'Unable to establish SSH connection to localhost!'
     if $ssh->error;
 
-plan tests => 45;
+plan tests => 46;
 
 sub shell_quote {
     my $txt = shift;
@@ -166,20 +166,26 @@ $output = $ssh->capture(echo => $string);
 chomp $output;
 is ($output, $string, "quote_args");
 
+$string .= "\nline1\nline2";
+
+$output = $ssh->capture(echo => $string);
+chomp $output;
+is ($output, $string, "quote_args with new lines");
+
 eval { $ssh->capture({foo => 1}, 'bar') };
 ok($@ =~ /option/ and $@ =~ /foo/);
 
 is ($ssh->shell_quote('/foo/'), '/foo/');
-is ($ssh->shell_quote('./foo*/bar&biz;'), './foo\\*/bar\\&biz\\;');
-is (Net::OpenSSH->shell_quote('./foo*/bar&biz;'), './foo\\*/bar\\&biz\\;');
-is ($ssh->_quote_args({quote_args => 1, glob_quoting => 1}, './foo*/bar&biz;'), './foo*/bar\\&biz\\;');
-is ($ssh->shell_quote_glob('./foo*/bar&biz;'), './foo*/bar\\&biz\\;');
-is (Net::OpenSSH->shell_quote_glob('./foo*/bar&biz;'), './foo*/bar\\&biz\\;');
+is ($ssh->shell_quote('./foo*/bar&biz;'), "'./foo*/bar&biz;'");
+is (Net::OpenSSH->shell_quote('./foo*/bar&biz;'), "'./foo*/bar&biz;'");
+is ($ssh->_quote_args({quote_args => 1, glob_quoting => 1}, './foo*/bar&biz;'), "./foo*/bar'&biz;'");
+is ($ssh->shell_quote_glob('./foo*/bar&biz;'),  "./foo*/bar'&biz;'");
+is (Net::OpenSSH->shell_quote_glob('./foo*/bar&biz;'),  "./foo*/bar'&biz;'");
 
 $ssh->set_expand_vars(1);
 $ssh->set_var(FOO => 'Bar');
 is ($ssh->shell_quote(\\'foo%FOO%foo%%foo'), 'fooBarfoo%foo');
-is ($ssh->shell_quote('foo%FOO%foo%%foo'), 'fooBarfoo\%foo');
+is ($ssh->shell_quote('foo%FOO%foo%%foo'), "'fooBarfoo\%foo'");
 $ssh->set_expand_vars(0);
 is ($ssh->shell_quote(\\'foo%FOO%foo%%foo'), 'foo%FOO%foo%%foo');
 is (Net::OpenSSH->shell_quote(\\'foo%FOO%foo%%foo'), 'foo%FOO%foo%%foo');
