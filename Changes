@@ -1,5 +1,9 @@
 Revision history for Perl extension Net::OpenSSH.
 
+0.53_02
+        - add support for custom login handlers
+        - remove SIG{__WARN__} localizations
+
 0.53_01 May 15, 2011
         - quoter and glob_quoter fully rewritten from scratch
         - quoter was not handling "\n" correctly (bug report and work
