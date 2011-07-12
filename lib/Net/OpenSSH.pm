@@ -2355,9 +2355,9 @@ Set default encodings. See L</Data encoding>.
 
 =item login_handler => \&custom_login_handler
 
-Some remote SSH server may require some custom login/authentication
+Some remote SSH server may require a custom login/authentication
 interaction not natively supported by Net::OpenSSH. In that cases, you
-can use that option to replace the default login logic.
+can use this option to replace the default login logic.
 
 The callback will be invoked repeatly as C<custom_login_handler($ssh,
 $pty, $data)> where C<$ssh> is the current Net::OpenSSH object, C<pty>
@@ -2376,7 +2376,8 @@ See also the sample script C<login_handler.pl> in the C<samples>
 directory.
 
 Usage of this option is incompatible with the C<password> and
-C<passphrase> options.
+C<passphrase> options, you will have to handle password or passphrases
+from the custom handler yourself.
 
 =back
 
