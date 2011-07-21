@@ -1,5 +1,9 @@
 Revision history for Perl extension Net::OpenSSH.
 
+0.53_03
+
+        - using { stdin_data => [] } on system was generating warnings
+
 0.53_02  Jul 12, 2011
         - add support for custom login handlers
         - remove SIG{__WARN__} localizations
