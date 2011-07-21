@@ -1371,9 +1371,13 @@ sub _io3 {
     $timeout = $self->{_timeout} unless defined $timeout;
 
     my $has_input = grep { defined and length } @data;
-    croak "remote input channel is not defined but data is available for sending"
-        if ($has_input and !$cin);
-    close $in if ($cin and !$has_input);
+    if ($cin and !$has_input) {
+        close $in;
+        undef $cin;
+    }
+    elsif (!$cin and $has_input) {
+        croak "remote input channel is not defined but data is available for sending"
+    }
 
     my $enc = $self->_find_encoding($encoding);
     if ($enc and @data) {
