@@ -1,6 +1,6 @@
 package Net::OpenSSH;
 
-our $VERSION = '0.53_01';
+our $VERSION = '0.53_02';
 
 use strict;
 use warnings;
@@ -150,7 +150,7 @@ sub new {
     # reuse_master is an obsolete alias:
     $external_master = delete $opts{reuse_master} unless defined $external_master;
 
-    my ($user, $passwd, $ipv6, $host, $port, $host_ssh, $passphrase, $key_path);
+    my ($user, $passwd, $ipv6, $host, $port, $host_ssh, $passphrase, $key_path, $login_handler);
     my $target = delete $opts{host};
     if (defined $target) {
         ($user, $passwd, $ipv6, $host, $port) =
@@ -193,9 +193,14 @@ sub new {
     $passwd = delete $opts{passwd} unless defined $passwd;
     $passwd = delete $opts{password} unless defined $passwd;
     unless (defined $passwd) {
-        $passwd = delete $opts{passphrase};
-        $passphrase = 1 if defined $passwd;
         $key_path = delete $opts{key_path};
+        $passwd = delete $opts{passphrase};
+        if (defined $passwd) {
+            $passphrase = 1;
+        }
+        else {
+            $login_handler = delete $opts{login_handler};
+        }
     }
     my $ctl_path = delete $opts{ctl_path};
     my $ctl_dir = delete $opts{ctl_dir};
@@ -270,7 +275,6 @@ sub new {
 
     my $home = do {
 	local $SIG{__DIE__};
-	local $SIG{__WARN__};
 	local $@;
 	eval { Cwd::realpath((getpwuid $>)[7]) }
     };
@@ -295,6 +299,7 @@ sub new {
                  _passwd => $obfuscate->($passwd),
                  _passphrase => $passphrase,
                  _key_path => $key_path,
+                 _login_handler => $login_handler,
                  _timeout => $timeout,
                  _kill_ssh_on_timeout => $kill_ssh_on_timeout,
                  _home => $home,
@@ -504,7 +509,7 @@ sub _make_tunnel_call {
 sub master_exited {
     my $self = shift;
     my $pid = delete $self->{_pid};
-    delete $self->{_wfm_status};
+    delete $self->{_wfm_state};
     $self->_set_error(OSSH_MASTER_FAILED, "master ssh connection broken");
     undef;
 }
@@ -569,11 +574,10 @@ sub _connect {
                        -o => "ServerAliveInterval=$timeout",
                        '-x2MN');
 
-    my $pref_auths;
-    my $mpty;
+    my ($mpty, $use_pty, $pref_auths);
+    $use_pty = 1 if defined $self->{_login_handler};
     if (defined $self->{_passwd}) {
-        _load_module('IO::Pty');
-        $self->{_mpty} = $mpty = IO::Pty->new;
+        $use_pty = 1;
         $pref_auths = ($self->{_passphrase}
                        ? 'publickey'
                        : 'keyboard-interactive,password');
@@ -582,6 +586,11 @@ sub _connect {
     if (defined $self->{_key_path}) {
         $pref_auths = 'publickey';
         push @master_opts, -i => $self->{_key_path};
+    }
+
+    if ($use_pty) {
+        _load_module('IO::Pty');
+        $self->{_mpty} = $mpty = IO::Pty->new;
     }
 
     push @master_opts, -o => "PreferredAuthentications=$pref_auths"
@@ -607,7 +616,6 @@ sub _connect {
 	}
 
 	local $SIG{__DIE__};
-	local $SIG{__WARN__};
         eval { exec @call };
         POSIX::_exit(255);
     }
@@ -692,7 +700,7 @@ sub wait_for_master {
     @_ <= 1 or croak 'Usage: $ssh->wait_for_master([$async])';
     return undef if $self->{_error} == OSSH_MASTER_FAILED;
     $self->{_error} = 0;
-    return $self->_wait_for_master($_[0]) if $self->{_wfm_status};
+    return $self->_wait_for_master($_[0]) if $self->{_wfm_state};
 
     unless (-S $self->{_ctl_path}) {
 	$self->_set_error(OSSH_MASTER_FAILED, "master ssh connection broken");
@@ -711,19 +719,20 @@ sub check_master {
 sub _wait_for_master {
     my ($self, $async, $reset) = @_;
 
-    my $status = delete $self->{_wfm_status} || 'waiting_for_mux_socket';
+    my $state = delete $self->{_wfm_state} || 'waiting_for_mux_socket';
     my $bout = \ ($self->{_wfm_bout});
 
     my $mpty = $self->{_mpty};
     my $passwd = $deobfuscate->($self->{_passwd});
+    my $login_handler = $self->{_login_handler};
     my $pid = $self->{_pid};
     # an undefined pid indicates we are reusing a master connection
 
     if ($reset) {
         $$bout = '';
-        $status = ( (defined $passwd and $pid)
-                    ? 'waiting_for_password_prompt'
-                    : 'waiting_for_socket' );
+        $state = ( (defined $passwd and $pid) ? 'waiting_for_password_prompt' :
+                    (defined $login_handler)   ? 'waiting_for_login_handler'  :
+                                                 'waiting_for_mux_socket' );
     }
 
     my $ctl_path = $self->{_ctl_path};
@@ -733,7 +742,7 @@ sub _wait_for_master {
 
     my $fnopty;
     my $rv = '';
-    if ($status eq 'waiting_for_password_prompt') {
+    if ($state eq 'waiting_for_password_prompt') {
         $fnopty = fileno $mpty;
         vec($rv, $fnopty, 1) = 1
     }
@@ -788,35 +797,52 @@ sub _wait_for_master {
             $self->_set_error(OSSH_MASTER_FAILED, $error);
             return undef;
         }
-        my $rv1 = $rv;
-        my $n = select($rv1, undef, undef, $dt);
-        if ($n > 0) {
-            vec($rv1, $fnopty, 1)
-                or die "internal error";
-            my $read = sysread($mpty, $$bout, 4096, length $$bout);
-            if ($read) {
-                if ($status eq 'waiting_for_password_prompt') {
-                    if ($$bout =~ /The authenticity of host.*can't be established/si) {
-                        $self->_set_error(OSSH_MASTER_FAILED,
-                                          "the authenticity of the target host can't be established, the remote host "
-                                          . "public key is probably not present on the '~/.ssh/known_hosts' file");
-                        $self->_kill_master;
-                        return undef;
-                    }
-                    if ($$bout =~ s/^(.*:)//s) {
-                        $debug and $debug & 4 and _debug "passwd/passphrase requested ($1)";
-                        print $mpty "$passwd\n";
-                        $status = 'waiting_for_mux_socket';
-                    }
-                }
-                else { $$bout = '' }
+        if ($state eq 'waiting_for_login_handler') {
+            local $SIG{__DIE__};
+            local $@;
+            if (eval { $login_handler->($self, $mpty, $bout) }) {
+                $state = 'waiting_for_mux_socket';
                 next;
             }
-            $async or select(undef, undef, undef, $dt);
+            if ($@) {
+                $self->_set_error(OSSH_MASTER_FAILED,
+                                  "custom login handler failed: $@");
+                return undef;
+            }
+        }
+        else {
+            my $rv1 = $rv;
+            my $n = select($rv1, undef, undef, $dt);
+            if ($n > 0) {
+                vec($rv1, $fnopty, 1)
+                    or die "internal error";
+                my $read = sysread($mpty, $$bout, 4096, length $$bout);
+                if ($read) {
+                    if ($state eq 'waiting_for_password_prompt') {
+                        if ($$bout =~ /The authenticity of host.*can't be established/si) {
+                            $self->_set_error(OSSH_MASTER_FAILED,
+                                              "the authenticity of the target host can't be established, the remote host "
+                                              . "public key is probably not present on the '~/.ssh/known_hosts' file");
+                            $self->_kill_master;
+                            return undef;
+                        }
+                        if ($$bout =~ s/^(.*:)//s) {
+                            $debug and $debug & 4 and _debug "passwd/passphrase requested ($1)";
+                            print $mpty "$passwd\n";
+                            $state = 'waiting_for_mux_socket';
+                        }
+                    }
+                    else { $$bout = '' }
+                    next;
+                }
+            }
         }
         if ($async) {
-            $self->{_wfm_status} = $status;
+            $self->{_wfm_state} = $state;
             return 0;
+        }
+        else {
+            select(undef, undef, undef, $dt);
         }
     }
     $self->_set_error(OSSH_MASTER_FAILED, "login timeout");
@@ -854,7 +880,6 @@ sub _load_module {
     $loaded_module{$module} ||= do {
 	do {
 	    local $SIG{__DIE__};
-	    local $SIG{__WARN__};
 	    local $@;
 	    eval "require $module; 1"
 	} or croak "unable to load Perl module $module";
@@ -862,7 +887,6 @@ sub _load_module {
     };
     if (defined $version) {
 	local $SIG{__DIE__};
-	local $SIG{__WARN__};
 	local $@;
 	my $mv = eval "\$${module}::VERSION" || 0;
 	(my $mv1 = $mv) =~ s/_\d*$//;
@@ -1966,7 +1990,7 @@ sub DESTROY {
         local $?;
 	local $!;
 
-	unless ($self->{_wfm_status}) {
+	unless ($self->{_wfm_state}) {
 	    # we have successfully created the master connection so we
 	    # can send control commands:
 	    $debug and $debug & 32 and _debug("sending exit control to master");
@@ -2332,6 +2356,32 @@ Example:
 =item default_argument_encoding => $encoding
 
 Set default encodings. See L</Data encoding>.
+
+=item login_handler => \&custom_login_handler
+
+Some remote SSH server may require a custom login/authentication
+interaction not natively supported by Net::OpenSSH. In that cases, you
+can use this option to replace the default login logic.
+
+The callback will be invoked repeatly as C<custom_login_handler($ssh,
+$pty, $data)> where C<$ssh> is the current Net::OpenSSH object, C<pty>
+a L<IO::Pty> object attached to the slave C<ssh> process tty and
+C<$data> a reference to an scalar you can use at will.
+
+The login handler must return 1 after the login process has completed
+successfully or 0 in case it still needs to do something else. If some
+error happens, it must die.
+
+Note, that blocking operations should not be performed inside the
+login handler (at least if you want the C<async> and C<timeout>
+features to work).
+
+See also the sample script C<login_handler.pl> in the C<samples>
+directory.
+
+Usage of this option is incompatible with the C<password> and
+C<passphrase> options, you will have to handle password or passphrases
+from the custom handler yourself.
 
 =back
 

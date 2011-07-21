@@ -16,3 +16,4 @@ sample/expect.pl
 sample/change_passwd.pl
 sample/autosudo.pl
 sample/net-telnet.pl
+sample/login_handler.pl
