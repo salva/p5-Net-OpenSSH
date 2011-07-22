@@ -3,6 +3,12 @@
 use strict;
 use warnings;
 
+# This script monitorizes a directory using inotify and when some
+# change is detected, uses rsync to update a remote copy.
+#
+# See: http://stackoverflow.com/q/6781104/124951
+
+
 use Net::OpenSSH;
 use Linux::Inotify2;
 use Time::HiRes qw(sleep);
