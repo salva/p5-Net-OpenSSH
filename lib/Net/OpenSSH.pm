@@ -2953,7 +2953,7 @@ parallel as follows:
   }
   for my $host (@hosts) {
     if (my $pid = $pid{$host}) {
-      if (waitpit($pid, 0) > 0) {
+      if (waitpid($pid, 0) > 0) {
         my $exit = ($? >> 8);
         $exit and warn "transfer of file to $host failed ($exit)\n";
       }
