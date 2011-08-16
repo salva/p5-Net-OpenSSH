@@ -421,6 +421,12 @@ sub _expand_vars {
 
 sub error { shift->{_error} }
 
+sub die_on_error {
+    my $ssh = shift;
+    $ssh->{_error} and croak(@_ ? "@_: $ssh->{_error}" : $ssh->{_error});
+}
+
+
 sub _is_secure_path {
     my ($self, $path) = @_;
     my @parts = File::Spec->splitdir(Cwd::realpath($path));

@@ -1,6 +1,7 @@
 Revision history for Perl extension Net::OpenSSH.
 
 0.53_03
+        - add support for die_on_error
         - add support for batch_mode feature
         - using { stdin_data => [] } on system was generating warnings
 
