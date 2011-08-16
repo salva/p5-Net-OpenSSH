@@ -1,6 +1,6 @@
 package Net::OpenSSH;
 
-our $VERSION = '0.53_02';
+our $VERSION = '0.53_03';
 
 use strict;
 use warnings;
@@ -202,6 +202,7 @@ sub new {
             $login_handler = delete $opts{login_handler};
         }
     }
+    my $batch_mode = delete $opts{batch_mode};
     my $ctl_path = delete $opts{ctl_path};
     my $ctl_dir = delete $opts{ctl_dir};
     my $ssh_cmd = _first_defined delete $opts{ssh_cmd}, 'ssh';
@@ -583,6 +584,10 @@ sub _connect {
                        : 'keyboard-interactive,password');
         push @master_opts, -o => 'NumberOfPasswordPrompts=1';
     }
+    elsif ($self->{batch_more}) {
+        push @master_opts, -o => 'BatchMode=yes';
+    }
+
     if (defined $self->{_key_path}) {
         $pref_auths = 'publickey';
         push @master_opts, -i => $self->{_key_path};
@@ -2203,11 +2208,15 @@ instead.
 
 =item passphrase => $passphrase
 
-Use given passphrase to open private key.
+Uses given passphrase to open private key.
 
 =item key_path => $private_key_path
 
-Use the key stored on the given file path for authentication.
+Uses the key stored on the given file path for authentication.
+
+=item batch_mode => 1
+
+Disables querying the user for password and passphrases.
 
 =item ctl_dir => $path
 
