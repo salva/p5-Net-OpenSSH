@@ -1,6 +1,7 @@
 Revision history for Perl extension Net::OpenSSH.
 
 0.53_03
+        - add FACTORY hook
         - place '--' in ssh command after host name
         - add support for die_on_error
         - add support for batch_mode feature
