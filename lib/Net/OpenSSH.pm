@@ -303,6 +303,7 @@ sub new {
                  _login_handler => $login_handler,
                  _timeout => $timeout,
                  _kill_ssh_on_timeout => $kill_ssh_on_timeout,
+                 _batch_mode => $batch_mode,
                  _home => $home,
                  _external_master => $external_master,
 		 _default_stdin_fh => $default_stdin_fh,
@@ -450,7 +451,8 @@ sub _make_ssh_call {
     my @before = @{shift || []};
     my @args = ($self->{_ssh_cmd}, @before,
 		-S => $self->{_ctl_path},
-                @{$self->{_ssh_opts}}, '--', $self->{_host_ssh},
+                @{$self->{_ssh_opts}}, $self->{_host_ssh},
+                '--',
                 (@_ ? "@_" : ()));
     $debug and $debug & 8 and _debug_dump 'call args' => \@args;
     @args;
@@ -590,7 +592,7 @@ sub _connect {
                        : 'keyboard-interactive,password');
         push @master_opts, -o => 'NumberOfPasswordPrompts=1';
     }
-    elsif ($self->{batch_more}) {
+    elsif ($self->{_batch_mode}) {
         push @master_opts, -o => 'BatchMode=yes';
     }
 
