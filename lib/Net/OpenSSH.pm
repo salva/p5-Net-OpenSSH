@@ -7,6 +7,8 @@ use warnings;
 
 our $debug ||= 0;
 
+our $FACTORY;
+
 use Carp qw(carp croak);
 use POSIX qw(:sys_wait_h);
 use Socket;
@@ -142,8 +144,12 @@ my $IPv6_re = qr((?-xism::(?::[0-9a-fA-F]{1,4}){0,5}(?:(?::[0-9a-fA-F]{1,4}){1,2
 
 sub new {
     ${^TAINT} and &_catch_tainted_args;
+
     my $class = shift;
     @_ & 1 and unshift @_, 'host';
+
+    return $FACTORY->($class, @_) if defined $FACTORY;
+
     my %opts = @_;
 
     my $external_master = delete $opts{external_master};
@@ -3430,6 +3436,28 @@ under a different user account.
 
 At a minimum, ensure that C<~www-data/.ssh> (or similar) is not
 accessible through the web server!
+
+=head2 Diverting C<new>
+
+When a code ref is installed at C<$Net::OpenSSH::FACTORY>, calls to new
+will be diverted through it.
+
+That feature can be used to transparently implement connection
+caching, for instance:
+
+  my %cache;
+  sub factory {
+    my ($class, %opts) = @_;
+    my $signature = join("\0", $class, map { $_ => $opts{$_} }, sort keys %opts);
+    my $old = $cache{signature};
+    return $old if ($old and $old->error != OSSH_MASTER_FAILED);
+    local $Net::OpenSSH::FACTORY;
+    $cache{$signature} = $class->new(%opts);
+  }
+
+  $Net::OpenSSH::FACTORY = \&factory;
+
+... and I am sure it can be abused in several other ways!
 
 =head2 Other modules
 
