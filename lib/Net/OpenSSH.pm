@@ -3451,13 +3451,15 @@ will be diverted through it.
 That feature can be used to transparently implement connection
 caching, for instance:
 
+  my $old_factory = $Net::OpenSSH::FACTORY;
   my %cache;
+
   sub factory {
     my ($class, %opts) = @_;
     my $signature = join("\0", $class, map { $_ => $opts{$_} }, sort keys %opts);
     my $old = $cache{signature};
     return $old if ($old and $old->error != OSSH_MASTER_FAILED);
-    local $Net::OpenSSH::FACTORY;
+    local $Net::OpenSSH::FACTORY = $old_factory;
     $cache{$signature} = $class->new(%opts);
   }
 
