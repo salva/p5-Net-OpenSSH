@@ -3910,6 +3910,8 @@ upon: L<http://www.openssh.org/donations.html>.
 
 - currently wait_for_master does not honor timeout
 
+- auto_discard_streams feature for mod_perl2 and similar environments
+
 Send your feature requests, ideas or any feedback, please!
 
 =head1 COPYRIGHT AND LICENSE
