@@ -1,12 +1,15 @@
 Revision history for Perl extension Net::OpenSSH.
 
-0.53_03
+0.53_03  Aug 18, 2011
+        - handling of default_std*_file was broken (bug report and
+          patch by Nic Sandfield)
+        - keep errors from opening default slave streams
         - add FACTORY hook
         - place '--' in ssh command after host name
         - add support for die_on_error
         - add support for batch_mode feature
         - typo in sample code corrected (reported by Fernando Sierra)
-        - using { stdin_data => [] } on system was generating warnings
+        - using { stdin_data => [] } was generating warnings
 
 0.53_02  Jul 12, 2011
         - add support for custom login handlers

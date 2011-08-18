@@ -256,19 +256,19 @@ sub new {
 
     $default_stdout_file = (delete $opts{default_stdout_discard}
 			    ? '/dev/null'
-			    : delete $opts{default_stdout_discard});
+			    : delete $opts{default_stdout_file});
     $default_stdout_fh = delete $opts{default_stdout_fh}
 	unless defined $default_stdout_file;
 
     $default_stderr_file = (delete $opts{default_stderr_discard}
 			    ? '/dev/null'
-			    : delete $opts{default_stderr_discard});
+			    : delete $opts{default_stderr_file});
     $default_stderr_fh = delete $opts{default_stderr_fh}
 	unless defined $default_stderr_file;
 
     $default_stdin_file = (delete $opts{default_stdin_discard}
 			    ? '/dev/null'
-			    : delete $opts{default_stdin_discard});
+			    : delete $opts{default_stdin_file});
     $default_stdin_fh = delete $opts{default_stdin_fh}
 	unless defined $default_stdin_file;
 
@@ -334,6 +334,12 @@ sub new {
 	if defined $default_stderr_file;
     $self->{_default_stdin_fh} = $self->_open_file('<', $default_stdin_file)
 	if defined $default_stdin_file;
+
+    if ($self->error == OSSH_SLAVE_PIPE_FAILED) {
+        $self->_set_error(OSSH_MASTER_FAILED,
+                          "Unable to create default slave stream: " . $self->error);
+        return $self;
+    }
 
     $self->{_ssh_opts} = [$self->_expand_vars(@ssh_opts)];
     $self->{_master_opts} = [$self->_expand_vars(@master_opts)];
