@@ -4,6 +4,7 @@ Revision history for Perl extension Net::OpenSSH.
         - handling of default_std*_file was broken (bug report and
           patch by Nic Sandfield)
         - keep errors from opening default slave streams
+        - add Net::OpenSSH::ConnectionCache package
         - add FACTORY hook
         - place '--' in ssh command after host name
         - add support for die_on_error
