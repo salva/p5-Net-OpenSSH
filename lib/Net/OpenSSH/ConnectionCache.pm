@@ -12,7 +12,7 @@ my %cache;
 sub _factory {
     my $class = shift;
     my %opts = @_;
-    my $dump = Data::Dumper->new(\%opts);
+    my $dump = Data::Dumper->new([\%opts], ['s']);
     $dump->Indent(0);
     $dump->Sortkeys(1);
     $dump->Deepcopy(1);
