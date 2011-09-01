@@ -1,6 +1,6 @@
 package Net::OpenSSH;
 
-our $VERSION = '0.53_03';
+our $VERSION = '0.53_04';
 
 use strict;
 use warnings;
@@ -350,8 +350,14 @@ sub new {
     unless (defined $ctl_path) {
         $external_master and croak "external_master is set but ctl_path is not defined";
 
-        $ctl_dir = File::Spec->catdir($self->{_home}, ".libnet-openssh-perl")
-	    unless defined $ctl_dir;
+        unless (defined $ctl_dir) {
+            unless (defined $self->{_home}) {
+                $self->_set_error(OSSH_MASTER_FAILED, "unable to determine home directory for uid $>");
+                return $self;
+            }
+
+            $ctl_dir = File::Spec->catdir($self->{_home}, ".libnet-openssh-perl");
+        }
 
 	my $old_umask = umask 077;
         mkdir $ctl_dir;

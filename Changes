@@ -2,6 +2,7 @@ Revision history for Perl extension Net::OpenSSH.
 
 0.53_04
         - move FACTORY docs to the right place
+        - getpwuid may fail, check $home is defined before using it
 
 0.53_03  Aug 18, 2011
         - handling of default_std*_file was broken (bug report and
