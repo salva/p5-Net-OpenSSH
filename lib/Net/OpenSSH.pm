@@ -277,8 +277,8 @@ sub new {
     my @ssh_opts;
     # TODO: are those options really requiered or just do they eat on
     # the command line limited length?
-    push @ssh_opts, -o => "User=$user" if defined $user;
-    push @ssh_opts, -o => "Port=$port" if defined $port;
+    push @ssh_opts, -l => $user if defined $user;
+    push @ssh_opts, -p => $port if defined $port;
 
     my $home = do {
 	local $SIG{__DIE__};
