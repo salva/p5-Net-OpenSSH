@@ -239,7 +239,7 @@ sub new {
 
         $master_opts = delete $opts{master_opts};
         if (defined $master_opts) {
-            if (ref($master_opts)) {
+            if (ref $master_opts) {
                 @master_opts = @$master_opts;
             }
             else {
@@ -247,6 +247,19 @@ sub new {
                     if $master_opts =~ /^-\w\s+\S/;
                 @master_opts = $master_opts;
             }
+        }
+    }
+
+    my $default_ssh_opts = delete $opts{default_ssh_opts};
+    my @ssh_opts;
+    if (defined $default_ssh_opts) {
+        if (ref $default_ssh_opts) {
+            @ssh_opts = @$default_ssh_opts;
+        }
+        else {
+            carp "'default_ssh_opts' argument looks like if it should be splited first"
+                    if $default_ssh_opts =~ /^-\w\s+\S/;
+                @ssh_opts = $default_ssh_opts;
         }
     }
 
@@ -274,7 +287,6 @@ sub new {
 
     _croak_bad_options %opts;
 
-    my @ssh_opts;
     # TODO: are those options really requiered or just do they eat on
     # the command line limited length?
     push @ssh_opts, -l => $user if defined $user;
@@ -2321,6 +2333,15 @@ master connection. For instance:
   my $ssh = Net::OpenSSH->new($host,
       master_opts => [-o => "ProxyCommand corkscrew httpproxy 8080 $host"]);
 
+=item default_ssh_opts => [...]
+
+Default slave SSH command line options.
+
+For instance:
+
+  my $ssh = Net::OpenSSH->new($host,
+      default_ssh_options => [-o => "ConnectionAttempts=0"]);
+
 =item default_stdin_fh => $fh
 
 =item default_stdout_fh => $fh
@@ -3814,6 +3835,25 @@ written in Perl you can use L<App::Daemon> for that (actually, there
 are several CPAN modules that provided that kind of functionality).
 
 In any case, note that you shouldn't use L</spawn> for that.
+
+=item MaxSessions server limit reached
+
+B<Q>: I created an C<$ssh> object and then fork a lot children
+processes which use this object. When the children number is bigger
+than C<MaxSessions> as defined in sshd configuration (defaults to 10),
+trying to fork new remote commands will prompt the user for the
+password.
+
+B<A>: When the slave SSH client gets a response from the remote
+servers saying that the maximum number of sessions for the current
+connection has been reached, it fallbacks to open a new direct
+connection without going through the multiplexing socket.
+
+To stop that for happening, the following hack can be used:
+
+  $ssh = Net::OpenSSH->new(host,
+      default_ssh_opts => ['-oConnectionAttempts=0'],
+      ...);
 
 =back
 

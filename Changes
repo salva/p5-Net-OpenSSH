@@ -1,8 +1,10 @@
 Revision history for Perl extension Net::OpenSSH.
 
-0.53_04
-        - move FACTORY docs to the right place
+0.53_04  Sep 2, 2011
+        - add default_ssh_opts feature
         - getpwuid may fail, check $home is defined before using it
+        - add FAQ entry about MaxSessions limit reached
+        - move FACTORY docs to the right place
 
 0.53_03  Aug 18, 2011
         - handling of default_std*_file was broken (bug report and
