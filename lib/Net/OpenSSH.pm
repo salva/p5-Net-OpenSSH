@@ -251,17 +251,8 @@ sub new {
     }
 
     my $default_ssh_opts = delete $opts{default_ssh_opts};
-    my @ssh_opts;
-    if (defined $default_ssh_opts) {
-        if (ref $default_ssh_opts) {
-            @ssh_opts = @$default_ssh_opts;
-        }
-        else {
-            carp "'default_ssh_opts' argument looks like if it should be splited first"
-                    if $default_ssh_opts =~ /^-\w\s+\S/;
-                @ssh_opts = $default_ssh_opts;
-        }
-    }
+    carp "'default_ssh_opts' argument looks like if it should be splited first"
+        if defined $default_ssh_opts and not ref $default_ssh_opts and $default_ssh_opts =~ /^-\w\s+\S/;
 
     my ($default_stdout_fh, $default_stderr_fh, $default_stdin_fh,
 	$default_stdout_file, $default_stderr_file, $default_stdin_file,
@@ -287,6 +278,7 @@ sub new {
 
     _croak_bad_options %opts;
 
+    my @ssh_opts;
     # TODO: are those options really requiered or just do they eat on
     # the command line limited length?
     push @ssh_opts, -l => $user if defined $user;
@@ -324,6 +316,7 @@ sub new {
                  _batch_mode => $batch_mode,
                  _home => $home,
                  _external_master => $external_master,
+                 _default_ssh_opts => $default_ssh_opts,
 		 _default_stdin_fh => $default_stdin_fh,
 		 _default_stdout_fh => $default_stdout_fh,
 		 _default_stderr_fh => $default_stderr_fh,
@@ -1182,7 +1175,9 @@ sub open_ex {
 
     my $argument_encoding = $self->_delete_argument_encoding(\%opts);
 
-    my @ssh_opts = $self->_expand_vars(_array_or_scalar_to_list delete $opts{ssh_opts});
+    my $ssh_opts = delete $opts{ssh_opts};
+    $ssh_opts = $self->{_default_ssh_opts} unless defined $ssh_opts;
+    my @ssh_opts = $self->_expand_vars(_array_or_scalar_to_list $ssh_opts);
 
     my ($cmd, $close_slave_pty, @args);
     if ($tunnel) {
@@ -2335,7 +2330,8 @@ master connection. For instance:
 
 =item default_ssh_opts => [...]
 
-Default slave SSH command line options.
+Default slave SSH command line options for L</open_ex> and derived
+methods.
 
 For instance:
 
@@ -2348,8 +2344,8 @@ For instance:
 
 =item default_stderr_fh => $fh
 
-Default I/O streams for open_ex and derived methods (currently, that
-means any method but C<pipe_in> and C<pipe_out> and I plan to remove
+Default I/O streams for L</open_ex> and derived methods (currently, that
+means any method but L</pipe_in> and L</pipe_out> and I plan to remove
 those exceptions soon!).
 
 For instance:
@@ -2465,7 +2461,7 @@ process listens for new multiplexed connections.
 
 =item ($in, $out, $err, $pid) = $ssh->open_ex(\%opts, @cmd)
 
-I<Note: this is a low level method that, probably, you don't need to use!>
+X<open_ex>I<Note: this is a low level method that, probably, you don't need to use!>
 
 That method starts the command C<@cmd> on the remote machine creating
 new pipes for the IO channels as specified on the C<%opts> hash.
@@ -2845,7 +2841,7 @@ options.
 
 =item ($in, $pid) = $ssh->pipe_in(\%opts, @cmd)
 
-This method is similar to the following Perl C<open> call
+X<pipe_in>This method is similar to the following Perl C<open> call
 
   $pid = open $in, '|-', @cmd
 
@@ -2865,7 +2861,7 @@ Example:
 
 =item ($out, $pid) = $ssh->pipe_out(\%opts, @cmd)
 
-Reciprocal to previous method, it is equivalent to
+X<pipe_out>Reciprocal to previous method, it is equivalent to
 
   $pid = open $out, '-|', @cmd
 
