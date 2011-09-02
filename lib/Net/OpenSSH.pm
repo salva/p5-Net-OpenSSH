@@ -1,6 +1,6 @@
 package Net::OpenSSH;
 
-our $VERSION = '0.53_03';
+our $VERSION = '0.53_04';
 
 use strict;
 use warnings;
@@ -350,8 +350,14 @@ sub new {
     unless (defined $ctl_path) {
         $external_master and croak "external_master is set but ctl_path is not defined";
 
-        $ctl_dir = File::Spec->catdir($self->{_home}, ".libnet-openssh-perl")
-	    unless defined $ctl_dir;
+        unless (defined $ctl_dir) {
+            unless (defined $self->{_home}) {
+                $self->_set_error(OSSH_MASTER_FAILED, "unable to determine home directory for uid $>");
+                return $self;
+            }
+
+            $ctl_dir = File::Spec->catdir($self->{_home}, ".libnet-openssh-perl");
+        }
 
 	my $old_umask = umask 077;
         mkdir $ctl_dir;
@@ -3400,6 +3406,31 @@ The constructor also accepts C<default_encoding>,
 C<default_stream_encoding> and C<default_argument_encoding> that set the
 defaults.
 
+=head2 Diverting C<new>
+
+When a code ref is installed at C<$Net::OpenSSH::FACTORY>, calls to new
+will be diverted through it.
+
+That feature can be used to transparently implement connection
+caching, for instance:
+
+  my $old_factory = $Net::OpenSSH::FACTORY;
+  my %cache;
+
+  sub factory {
+    my ($class, %opts) = @_;
+    my $signature = join("\0", $class, map { $_ => $opts{$_} }, sort keys %opts);
+    my $old = $cache{signature};
+    return $old if ($old and $old->error != OSSH_MASTER_FAILED);
+    local $Net::OpenSSH::FACTORY = $old_factory;
+    $cache{$signature} = $class->new(%opts);
+  }
+
+  $Net::OpenSSH::FACTORY = \&factory;
+
+... and I am sure it can be abused in several other ways!
+
+
 =head1 3rd PARTY MODULE INTEGRATION
 
 =head2 Expect
@@ -3442,30 +3473,6 @@ under a different user account.
 
 At a minimum, ensure that C<~www-data/.ssh> (or similar) is not
 accessible through the web server!
-
-=head2 Diverting C<new>
-
-When a code ref is installed at C<$Net::OpenSSH::FACTORY>, calls to new
-will be diverted through it.
-
-That feature can be used to transparently implement connection
-caching, for instance:
-
-  my $old_factory = $Net::OpenSSH::FACTORY;
-  my %cache;
-
-  sub factory {
-    my ($class, %opts) = @_;
-    my $signature = join("\0", $class, map { $_ => $opts{$_} }, sort keys %opts);
-    my $old = $cache{signature};
-    return $old if ($old and $old->error != OSSH_MASTER_FAILED);
-    local $Net::OpenSSH::FACTORY = $old_factory;
-    $cache{$signature} = $class->new(%opts);
-  }
-
-  $Net::OpenSSH::FACTORY = \&factory;
-
-... and I am sure it can be abused in several other ways!
 
 =head2 Other modules
 
