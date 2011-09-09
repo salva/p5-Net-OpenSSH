@@ -3638,7 +3638,7 @@ The requirements for that directory and all its parents are:
 
 =over 4
 
-=item * 
+=item *
 
 They have to be owned by the user executing the script or by root
 
@@ -3651,6 +3651,14 @@ else has permissions to perform write operations on them.
 
 The constructor option C<strict_mode> disables these security checks,
 but you should not use it unless you understand its implications.
+
+=item 5 - file system must support sockets
+
+Some file systems (as for instance FAT or AFS) do not support placing
+sockets inside them.
+
+Ensure that the C<ctl_dir> path does not lay into one of those file
+systems.
 
 =back
 
