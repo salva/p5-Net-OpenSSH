@@ -3480,6 +3480,11 @@ This example is adapted from L<Net::Telnet> documentation:
 
   my @lines = $telnet->cmd("who");
 
+  ...
+
+  $telnet->close;
+  waitpid($pid, 0);
+
 =head2 mod_perl and mod_perl2
 
 L<mod_perl> and L<mod_perl2> tie STDIN and STDOUT to objects that are
