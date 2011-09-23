@@ -1,5 +1,8 @@
 Revision history for Perl extension Net::OpenSSH.
 
+0.53_05
+        - add sample for Net::Telnet integration
+
 0.53_04  Sep 2, 2011
         - add default_ssh_opts feature
         - getpwuid may fail, check $home is defined before using it

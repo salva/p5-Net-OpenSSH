@@ -1,6 +1,6 @@
 package Net::OpenSSH;
 
-our $VERSION = '0.53_04';
+our $VERSION = '0.53_05';
 
 use strict;
 use warnings;
@@ -3461,6 +3461,24 @@ running in the remote host. You can do it as follows:
 
 Then, you will be able to use the new Expect object in C<$expect> as
 usual.
+
+=head2 Net::Telnet
+
+This example is adapted from L<Net::Telnet> documentation:
+
+  my ($pty, $pid) = $ssh->open2pty({stderr_to_stdout => 1})
+    or die "unable to start remote shell: " . $ssh->error;
+  my $telnet = Net::Telnet->new(-fhopen => $pty,
+                                -prompt => '/.*\$ $/',
+                                -telnetmode => 0,
+                                -cmd_remove_mode => 1,
+                                -output_record_separator => "\r");
+
+  $telnet->waitfor(-match => $telnet->prompt,
+                   -errmode => "return")
+    or die "login failed: " . $telnet->lastline;
+
+  my @lines = $telnet->cmd("who");
 
 =head2 mod_perl and mod_perl2
 
