@@ -142,6 +142,59 @@ my $deobfuscate = $obfuscate;
 # regexp from Regexp::IPv6
 my $IPv6_re = qr((?-xism::(?::[0-9a-fA-F]{1,4}){0,5}(?:(?::[0-9a-fA-F]{1,4}){1,2}|:(?:(?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})[.](?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})[.](?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})[.](?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})))|[0-9a-fA-F]{1,4}:(?:[0-9a-fA-F]{1,4}:(?:[0-9a-fA-F]{1,4}:(?:[0-9a-fA-F]{1,4}:(?:[0-9a-fA-F]{1,4}:(?:[0-9a-fA-F]{1,4}:(?:[0-9a-fA-F]{1,4}:(?:[0-9a-fA-F]{1,4}|:)|(?::(?:[0-9a-fA-F]{1,4})?|(?:(?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})[.](?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})[.](?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})[.](?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2}))))|:(?:(?:(?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})[.](?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})[.](?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})[.](?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2}))|[0-9a-fA-F]{1,4}(?::[0-9a-fA-F]{1,4})?|))|(?::(?:(?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})[.](?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})[.](?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})[.](?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2}))|:[0-9a-fA-F]{1,4}(?::(?:(?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})[.](?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})[.](?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})[.](?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2}))|(?::[0-9a-fA-F]{1,4}){0,2})|:))|(?:(?::[0-9a-fA-F]{1,4}){0,2}(?::(?:(?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})[.](?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})[.](?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})[.](?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2}))|(?::[0-9a-fA-F]{1,4}){1,2})|:))|(?:(?::[0-9a-fA-F]{1,4}){0,3}(?::(?:(?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})[.](?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})[.](?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})[.](?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2}))|(?::[0-9a-fA-F]{1,4}){1,2})|:))|(?:(?::[0-9a-fA-F]{1,4}){0,4}(?::(?:(?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})[.](?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})[.](?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})[.](?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2}))|(?::[0-9a-fA-F]{1,4}){1,2})|:))));
 
+sub parse_connection_opts {
+    my ($class, $opts) = @_;
+    my ($user, $passwd, $ipv6, $host, $port, $host_squared);
+
+    my $target = delete $opts->{host};
+    defined $target or croak "mandatory host argument missing";
+
+    ($user, $passwd, $ipv6, $host, $port) =
+        $target =~ m{^
+                       \s*               # space
+                       (?:
+                         ([^\@:]+)       # username
+                         (?::(.*))?      # : password
+                         \@              # @
+                       )?
+                       (?:               # host
+                          (              #   IPv6...
+                            \[$IPv6_re\] #     [IPv6]
+                            |            #     or
+                            $IPv6_re     #     IPv6
+                          )
+                          |              #   or
+                          ([^\[\]\@:]+)  #   hostname / ipv4
+                       )
+                       (?::([^\@:]+))?   # port
+                       \s*               # space
+                     $}ix
+                or croak "bad host/target '$target' specification";
+
+    if (defined $ipv6) {
+        ($host) = $ipv6 =~ /^\[?(.*?)\]?$/;
+        $host_squared = "[$host]";
+    }
+    else {
+        $host_squared = $host;
+    }
+
+    $user = delete $opts->{user} unless defined $user;
+    $port = delete $opts->{port} unless defined $port;
+    $passwd = delete $opts->{passwd} unless defined $passwd;
+    $passwd = delete $opts->{password} unless defined $passwd;
+
+    wantarray and return ($host, $port, $user, $passwd, $host_squared);
+
+    my %r = ( user => $user,
+              password => $passwd,
+              host => $host,
+              host_squared => $host_squared,
+              port => $port );
+    $r{ipv6} = 1 if defined $ipv6;
+    return \%r;
+}
+
 sub new {
     ${^TAINT} and &_catch_tainted_args;
 
@@ -156,48 +209,14 @@ sub new {
     # reuse_master is an obsolete alias:
     $external_master = delete $opts{reuse_master} unless defined $external_master;
 
-    my ($user, $passwd, $ipv6, $host, $port, $host_ssh, $passphrase, $key_path, $login_handler);
-    my $target = delete $opts{host};
-    if (defined $target) {
-        ($user, $passwd, $ipv6, $host, $port) =
-            $target =~ m{^
-                        \s*               # space
-                        (?:
-                          ([^\@:]+)       # username
-                          (?::(.*))?      # : password
-                          \@              # @
-                        )?
-                        (?:               # host
-                           (              #   IPv6...
-                             \[$IPv6_re\] #     [IPv6]
-                             |            #     or
-                             $IPv6_re     #     IPv6
-                           )
-                           |              #   or
-                           ([^\[\]\@:]+)  #   hostname / ipv4
-                        )
-                        (?::([^\@:]+))?   # port
-                        \s*               # space
-                        $}ix
-                or croak "bad host/target '$target' specification";
-
-        if (defined $ipv6) {
-            ($host_ssh) = $ipv6 =~ /^\[?(.*?)\]?$/;
-            $host = "[$host_ssh]";
-        }
-        else {
-            $host_ssh = $host;
-        }
-    }
-    else {
-        $external_master or croak "mandatory host argument missing";
-        $host_ssh = 'UNKNOWN'
+    if (not defined $opts{ssh} and defined $external_master) {
+        $opts{ssh} = 'UNKNOWN';
     }
 
-    $user = delete $opts{user} unless defined $user;
-    $port = delete $opts{port} unless defined $port;
-    $passwd = delete $opts{passwd} unless defined $passwd;
-    $passwd = delete $opts{password} unless defined $passwd;
+    my ($host, $port, $user, $passwd, $host_squared) = $class->parse_connection_opts(\%opts);
+
+    my ($passphrase, $key_path, $login_handler);
+
     unless (defined $passwd) {
         $key_path = delete $opts{key_path};
         $passwd = delete $opts{passphrase};
@@ -208,6 +227,7 @@ sub new {
             $login_handler = delete $opts{login_handler};
         }
     }
+
     my $batch_mode = delete $opts{batch_mode};
     my $ctl_path = delete $opts{ctl_path};
     my $ctl_dir = delete $opts{ctl_dir};
@@ -300,7 +320,7 @@ sub new {
 		 _rsync_cmd => $rsync_cmd,
                  _pid => undef,
                  _host => $host,
-		 _host_ssh => $host_ssh,
+		 _host_squared => $host_squared,
                  _user => $user,
                  _port => $port,
                  _passwd => $obfuscate->($passwd),
@@ -469,7 +489,7 @@ sub _make_ssh_call {
     my @before = @{shift || []};
     my @args = ($self->{_ssh_cmd}, @before,
 		-S => $self->{_ctl_path},
-                @{$self->{_ssh_opts}}, $self->{_host_ssh},
+                @{$self->{_ssh_opts}}, $self->{_host_squared},
                 '--',
                 (@_ ? "@_" : ()));
     $debug and $debug & 8 and _debug_dump 'call args' => \@args;
@@ -1787,9 +1807,9 @@ sub _scp_get_args {
     my $target = (@_ > 1 ? pop @_ : '.');
     $target =~ m|^[^/]*:| and $target = "./$target";
 
-    my @src = map "$self->{_host}:$_", $self->_quote_args({quote_args => 1,
-							   glob_quoting => $glob},
-							  @_);
+    my @src = map "$self->{_host_squared}:$_", $self->_quote_args({quote_args => 1,
+                                                                   glob_quoting => $glob},
+                                                                  @_);
     ($self, \%opts, $target, @src);
 }
 
@@ -1815,9 +1835,9 @@ sub _scp_put_args {
     my $glob = delete $opts{glob};
     my $glob_flags = ($glob ? delete $opts{glob_flags} || 0 : undef);
 
-    my $target = $self->{_host}. ':' . ( @_ > 1
-					 ? $self->_quote_args({quote_args => 1}, pop(@_))
-					 : '');
+    my $target = $self->{_host_squared}. ':' . ( @_ > 1
+                                                 ? $self->_quote_args({quote_args => 1}, pop(@_))
+                                                 : '');
 
     my @src = @_;
     if ($glob) {
