@@ -1,6 +1,9 @@
 Revision history for Perl extension Net::OpenSSH.
 
 0.53_04
+        - implement parse_connections_opts
+        - solve bug related to expansion of HOST var when an IPv6
+          address was given
         - move FACTORY docs to the right place
         - getpwuid may fail, check $home is defined before using it
 
