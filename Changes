@@ -1,11 +1,17 @@
 Revision history for Perl extension Net::OpenSSH.
 
-0.53_04
+0.53_05
         - implement parse_connections_opts
         - solve bug related to expansion of HOST var when an IPv6
           address was given
         - move FACTORY docs to the right place
+        - add sample for Net::Telnet integration
+
+0.53_04  Sep 2, 2011
+        - add default_ssh_opts feature
         - getpwuid may fail, check $home is defined before using it
+        - add FAQ entry about MaxSessions limit reached
+        - move FACTORY docs to the right place
 
 0.53_03  Aug 18, 2011
         - handling of default_std*_file was broken (bug report and
@@ -425,4 +431,3 @@ Revision history for Perl extension Net::OpenSSH.
 0.01  Fri Nov 14 01:02:40 2008
 	- original version; created by h2xs 1.23 with options
 		-AXn Net::OpenSSH
-
