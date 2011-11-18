@@ -1069,11 +1069,20 @@ sub make_remote_command {
     my $self = shift;
     $self->wait_for_master or return;
     my %opts = (ref $_[0] eq 'HASH' ? %{shift()} : ());
-    my $tty = delete $opts{tty};
     my @ssh_opts = _array_or_scalar_to_list delete $opts{ssh_opts};
-    my @args = $self->_quote_args(\%opts, @_);
-    _croak_bad_options %opts;
+    my $tty = delete $opts{tty};
     push @ssh_opts, ($tty ? '-qtt' : '-T') if defined $tty;
+    my $tunnel = delete $opts{tunnel};
+    my (@args);
+    if ($tunnel) {
+        @_ == 2 or croak "two arguments are required for tunnel command";
+        push @ssh_opts, "-W" . join(":", @_);
+    }
+    else {
+        @args = $self->_quote_args(\%opts, @_);
+    }
+    _croak_bad_options %opts;
+
     my @call = $self->_make_ssh_call(\@ssh_opts, @args);
     if (wantarray) {
 	$debug and $debug & 16 and _debug_dump make_remote_command => \@call;
