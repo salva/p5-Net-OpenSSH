@@ -3911,6 +3911,21 @@ To stop that for happening, the following hack can be used:
       default_ssh_opts => ['-oConnectionAttempts=0'],
       ...);
 
+=item Running remote commands with sudo
+
+B<Q>: How can I run remote commands using C<sudo> to become root first?
+
+A<Q>: The simplest way is to tell C<sudo> to read the password from
+stdin with the C<-S> flag and to do not use cached credentials
+with the C<-k> flag. You may also like to use the C<-p> flag to tell
+C<sudo> to print an empty prompt. For instance:
+
+  my @out = $ssh->capture({stdin_data => $sudo_passwd},
+                          'sudo', '-Sk',
+                          '-p', '',
+                          '--',
+                          @cmd);
+
 =back
 
 =head1 SEE ALSO

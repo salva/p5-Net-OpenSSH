@@ -19,3 +19,4 @@ sample/net-telnet.pl
 sample/login_handler.pl
 sample/mod_perl_openssh.pm
 sample/keep_in_sync.pl
+sample/password_from_data.pl

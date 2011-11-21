@@ -5,7 +5,9 @@ Revision history for Perl extension Net::OpenSSH.
         - solve bug related to expansion of HOST var when an IPv6
           address was given
         - move FACTORY docs to the right place
+        - add FAQ about running remote commands via sudo
         - add sample for Net::Telnet integration
+        - add sample for sudo usage reading password from DATA
 
 0.53_04  Sep 2, 2011
         - add default_ssh_opts feature
