@@ -1,6 +1,9 @@
 Revision history for Perl extension Net::OpenSSH.
 
-0.53_05
+0.53_05  Nov 23, 2011
+        - scp methods were broken when a user was given (bug report by
+          Andrew J. Slezak)
+        - add support for verbose option in scp methods
         - implement parse_connections_opts
         - solve bug related to expansion of HOST var when an IPv6
           address was given

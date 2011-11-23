@@ -515,7 +515,9 @@ sub _make_scp_call {
     my @before = @{shift || []};
     my @args = ($self->_scp_cmd, @before,
 		-o => "ControlPath=$self->{_ctl_path}",
-                @{$self->{_ssh_opts}}, '--', @_);
+                -S => $self->{_ssh_cmd},
+                (defined $self->{_port} ? (-P => $self->{_port}) : ()),
+                '--', @_);
 
     $debug and $debug & 8 and _debug_dump 'scp call args' => \@args;
     @args;
@@ -1823,9 +1825,11 @@ sub _scp_get_args {
     my $target = (@_ > 1 ? pop @_ : '.');
     $target =~ m|^[^/]*:| and $target = "./$target";
 
-    my @src = map "$self->{_host_squared}:$_", $self->_quote_args({quote_args => 1,
-                                                                   glob_quoting => $glob},
-                                                                  @_);
+    my $prefix = $self->{_host_squared};
+    $prefix = "$self->{_user}\@$prefix" if defined $self->{_user};
+    my @src = map "$prefix:$_", $self->_quote_args({quote_args => 1,
+                                                    glob_quoting => $glob},
+                                                   @_);
     ($self, \%opts, $target, @src);
 }
 
@@ -1851,7 +1855,10 @@ sub _scp_put_args {
     my $glob = delete $opts{glob};
     my $glob_flags = ($glob ? delete $opts{glob_flags} || 0 : undef);
 
-    my $target = $self->{_host_squared}. ':' . ( @_ > 1
+    my $prefix = $self->{_host_squared};
+    $prefix = "$self->{_user}\@$prefix" if defined $self->{_user};
+
+    my $target = $prefix . ':' . ( @_ > 1
                                                  ? $self->_quote_args({quote_args => 1}, pop(@_))
                                                  : '');
 
@@ -1896,11 +1903,13 @@ sub _scp {
     my $async = delete $opts{async};
     my $ssh_opts = delete $opts{ssh_opts};
     my $timeout = delete $opts{timeout};
+    my $verbose = delete $opts{verbose};
     _croak_bad_options %opts;
 
     my @opts;
     @opts = @$ssh_opts if $ssh_opts;
     push @opts, '-q' if $quiet;
+    push @opts, '-v' if $verbose;
     push @opts, '-r' if $recursive;
     push @opts, '-p' if $copy_attrs;
     push @opts, '-l', $bwlimit if defined $bwlimit;
@@ -2986,6 +2995,10 @@ Accepted options:
 By default, C<scp> is called with the quiet flag C<-q> enabled in
 order to suppress progress information. This option allows reenabling
 the progress indication bar.
+
+=item verbose => 1
+
+Calls C<scp> with the C<-v> flag.
 
 =item recursive => 1
 
