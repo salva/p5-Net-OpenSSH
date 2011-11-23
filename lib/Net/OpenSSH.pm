@@ -209,8 +209,8 @@ sub new {
     # reuse_master is an obsolete alias:
     $external_master = delete $opts{reuse_master} unless defined $external_master;
 
-    if (not defined $opts{ssh} and defined $external_master) {
-        $opts{ssh} = 'UNKNOWN';
+    if (not defined $opts{host} and defined $external_master) {
+        $opts{host} = 'UNKNOWN';
     }
 
     my ($host, $port, $user, $passwd, $host_squared) = $class->parse_connection_opts(\%opts);
@@ -3928,7 +3928,7 @@ To stop that for happening, the following hack can be used:
 
 B<Q>: How can I run remote commands using C<sudo> to become root first?
 
-A<Q>: The simplest way is to tell C<sudo> to read the password from
+B<A>: The simplest way is to tell C<sudo> to read the password from
 stdin with the C<-S> flag and to do not use cached credentials
 with the C<-k> flag. You may also like to use the C<-p> flag to tell
 C<sudo> to print an empty prompt. For instance:
