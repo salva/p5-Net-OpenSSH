@@ -1,5 +1,14 @@
 Revision history for Perl extension Net::OpenSSH.
 
+0.55  Dec 6, 2011
+        - solve regression from 0.53_03: rsync methods were broken
+          because the hostname was not being correctly removed from
+          the ssh command passed to rsync (bug report by Mithun
+          Ayachit)
+
+0.54  Dec 4, 2011
+        - release as stable
+
 0.53_05  Nov 23, 2011
         - scp methods were broken when a user was given (bug report by
           Andrew J. Slezak)

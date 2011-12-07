@@ -1,6 +1,6 @@
 package Net::OpenSSH;
 
-our $VERSION = '0.53_05';
+our $VERSION = '0.55';
 
 use strict;
 use warnings;
@@ -539,7 +539,9 @@ sub _make_rsync_call {
     my $self = shift;
     my $before = shift;
     my @ssh_args = $self->_make_ssh_call($before);
-    pop @ssh_args; # rsync adds the target host itself
+    splice @ssh_args, -2, 1; # rsync adds the target host itself,
+                             # remove it from the list leaving the
+                             # double dash after it.
     my $transport = join(' ', $self->_rsync_quote(@ssh_args));
     my @args = ( $self->{_rsync_cmd},
 		 -e => $transport,
@@ -4042,6 +4044,9 @@ upon: L<http://www.openssh.org/donations.html>.
 - currently wait_for_master does not honor timeout
 
 - auto_discard_streams feature for mod_perl2 and similar environments
+
+- add proper shell quoting for Windows (see
+  L<http://blogs.msdn.com/b/twistylittlepassagesallalike/archive/2011/04/23/everyone-quotes-arguments-the-wrong-way.aspx>).
 
 Send your feature requests, ideas or any feedback, please!
 
