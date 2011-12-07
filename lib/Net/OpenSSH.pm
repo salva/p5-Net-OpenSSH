@@ -235,6 +235,8 @@ sub new {
     my $batch_mode = delete $opts{batch_mode};
     my $ctl_path = delete $opts{ctl_path};
     my $ctl_dir = delete $opts{ctl_dir};
+    my $proxy_command = delete $opts{proxy_command};
+    my $gateway = delete $opts{gateway} unless defined $proxy_command;
     my $ssh_cmd = _first_defined delete $opts{ssh_cmd}, 'ssh';
     my $rsync_cmd = _first_defined delete $opts{rsync_cmd}, 'rsync';
     my $scp_cmd = delete $opts{scp_cmd};
@@ -337,6 +339,8 @@ sub new {
                  _key_path => $key_path,
                  _login_handler => $login_handler,
                  _timeout => $timeout,
+                 _proxy_command => $proxy_command,
+                 _gateway_args => $gateway,
                  _kill_ssh_on_timeout => $kill_ssh_on_timeout,
                  _batch_mode => $batch_mode,
                  _home => $home,
@@ -651,6 +655,35 @@ sub _connect {
     if (defined $self->{_key_path}) {
         $pref_auths = 'publickey';
         push @master_opts, -i => $self->{_key_path};
+    }
+
+    my $proxy_command = $self->{_proxy_command};
+
+    my $gateway;
+    if (my $gateway_args = $self->{_gateway_args}) {
+        if (ref $gateway_args eq 'HASH') {
+            require Net::OpenSSH::Gateway;
+            my $errors;
+            unless ($gateway = Net::OpenSSH::Gateway->find_gateway(errors => $errors,
+                                                                   host => $self->{_host}, port => $self->{_port},
+                                                                   %$gateway_args)) {
+                $self->_set_error(OSSH_MASTER_FAILED, 'Unable to build gateway object', join(', ', @$errors));
+                return undef;
+            }
+        }
+        else {
+            $gateway = $gateway_args
+        }
+        $self->{_gateway} = $gateway;
+        unless ($gateway->before_ssh_connect) {
+            $self->_set_error(OSSH_MASTER_FAILED, 'Gateway setup failed', join(', ', $gateway->errors));
+            return;
+        }
+        $proxy_command = $gateway->proxy_command;
+    }
+
+    if (defined $proxy_command) {
+        push @master_opts, -o => "ProxyCommand=$proxy_command";
     }
 
     if ($use_pty) {
@@ -4021,16 +4054,16 @@ Net::OpenSSH to handle the connections.
 
 =head1 BUGS AND SUPPORT
 
-Support for data encoding is highly experimental.
+Support for the gateway feature is highly experimental.
 
-Support for passphrase handling is experimental.
+Support for data encoding is experimental.
 
 Support for taint mode is experimental.
 
-Tested on Linux, OpenBSD, NetBSD and Solaris with OpenSSH 5.1 to 5.8.
+Tested on Linux, OpenBSD, NetBSD and Solaris with OpenSSH 5.1 to 5.9.
 
 Net::OpenSSH does not work on Windows. OpenSSH multiplexing feature
-requires passing file handles through sockets something that is not
+requires passing file handles through sockets, something that is not
 supported by any version of Windows.
 
 It doesn't work on VMS either... well, probably, it doesn't work on
