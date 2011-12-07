@@ -1,6 +1,6 @@
 package Net::OpenSSH;
 
-our $VERSION = '0.55';
+our $VERSION = '0.56_01';
 
 use strict;
 use warnings;
@@ -17,6 +17,10 @@ use Cwd ();
 use Scalar::Util ();
 use Errno ();
 use Net::OpenSSH::Constants qw(:error);
+
+my $thread_generation = 0;
+
+sub CLONE { $thread_generation++ };
 
 sub _debug { print STDERR '# ', (map { defined($_) ? $_ : '<undef>' } @_), "\n" }
 
@@ -319,6 +323,7 @@ sub new {
     my $self = { _error => 0,
 		 _error_prefix => [],
 		 _perl_pid => $$,
+                 _thread_generation => $thread_generation,
                  _ssh_cmd => $ssh_cmd,
 		 _scp_cmd => $scp_cmd,
 		 _rsync_cmd => $rsync_cmd,
@@ -574,7 +579,7 @@ sub _kill_master {
     my $self = shift;
     my $pid = delete $self->{_pid};
     $debug and $debug & 32 and _debug '_kill_master: ', $pid;
-    if ($pid and $self->{_perl_pid} == $$) {
+    if ($pid and $self->{_perl_pid} == $$ and $self->{_thread_generation} == $thread_generation) {
 	local $SIG{CHLD} = sub {};
         for my $sig (0, 0, 'TERM', 'TERM', 'TERM', 'KILL', 'KILL') {
             if ($sig) {
@@ -840,9 +845,9 @@ sub _wait_for_master {
         }
         $debug and $debug & 4 and _debug "file object not yet found at $ctl_path";
 
-        if ($self->{_perl_pid} != $$) {
+        if ($self->{_perl_pid} != $$ or $self->{_thread_generation} != $thread_generation) {
             $self->_set_error(OSSH_MASTER_FAILED,
-                              "process was forked before SSH connection had been established");
+                              "process was forked or threaded before SSH connection had been established");
             return undef;
         }
         if (!$pid) {
@@ -2063,7 +2068,7 @@ sub DESTROY {
     my $pid = $self->{_pid};
     local $@;
     $debug and $debug & 2 and _debug("DESTROY($self, pid: ", $pid, ")");
-    if ($pid and $self->{_perl_pid} == $$) {
+    if ($pid and $self->{_perl_pid} == $$ and $self->{_thread_generation} == $thread_generation) {
 	$debug and $debug & 32 and _debug("killing master");
         local $?;
 	local $!;
@@ -2287,6 +2292,30 @@ Uses given passphrase to open private key.
 
 Uses the key stored on the given file path for authentication.
 
+=item gateway => $gateway
+
+If the given argument is a gateway object as returned by
+L<Net::OpenSSH::Gateway/find_gateway> method, use it to connect to
+the remote host.
+
+If it is a hash reference, call the C<find_gateway> method first.
+
+For instance, the following code fragments are equivalent:
+
+  my $gateway = Net::OpenSSH::Gateway->find_gateway(
+          proxy => 'http://proxy.corporate.com');
+  $ssh = Net::OpenSSH->new($host, gateway => $gateway);
+
+and
+
+  $ssh = Net::OpenSSH->new($host,
+          gateway => { proxy => 'http://proxy.corporate.com'});
+
+=item proxy_command => $proxy_command
+
+Use the given command to establish the connection to the remote host
+(see C<ProxyCommand> on L<ssh_config(5)>).
+
 =item batch_mode => 1
 
 Disables querying the user for password and passphrases.
@@ -2505,6 +2534,8 @@ X<open_ex>I<Note: this is a low level method that, probably, you don't need to u
 
 That method starts the command C<@cmd> on the remote machine creating
 new pipes for the IO channels as specified on the C<%opts> hash.
+
+If C<@cmd> is omitted, the remote user shell is run.
 
 Returns four values, the first three (C<$in>, C<$out> and C<$err>)
 correspond to the local side of the pipes created (they can be undef)
@@ -3950,6 +3981,10 @@ web L<http://www.openssh.org> and its FAQ
 L<http://www.openbsd.org/openssh/faq.html>. L<scp(1)> and
 L<rsync(1)>. The OpenSSH Wikibook
 L<http://en.wikibooks.org/wiki/OpenSSH>.
+
+L<Net::OpenSSH::Gateway> for detailed instruction about how to get
+this module to connect to hosts through proxies and other SSH gateway
+servers.
 
 Core perl documentation L<perlipc>, L<perlfunc/open>,
 L<perlfunc/waitpid>.

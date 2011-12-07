@@ -1,5 +1,9 @@
 Revision history for Perl extension Net::OpenSSH.
 
+0.56_01
+        - detect when the destructor is being called from a different
+          thread (bug report by troy99 at PerlMonks).
+
 0.55  Dec 6, 2011
         - solve regression from 0.53_03: rsync methods were broken
           because the hostname was not being correctly removed from
