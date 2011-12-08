@@ -541,17 +541,15 @@ sub _rsync_quote {
 	}
 	s/%/%%/;
     }
-    @args
+    wantarray ? @args : join(' ', @args);
 }
 
 sub _make_rsync_call {
     my $self = shift;
     my $before = shift;
-    my @ssh_args = $self->_make_ssh_call($before);
-    splice @ssh_args, -2, 1; # rsync adds the target host itself,
-                             # remove it from the list leaving the
-                             # double dash after it.
-    my $transport = join(' ', $self->_rsync_quote(@ssh_args));
+    my @transport = ($self->{_ssh_cmd}, @$before,
+                    -S => $self->{_ctl_path});
+    my $transport = $self->_rsync_quote(@transport);
     my @args = ( $self->{_rsync_cmd},
 		 -e => $transport,
 		 @_);
@@ -662,7 +660,7 @@ sub _connect {
     my $gateway;
     if (my $gateway_args = $self->{_gateway_args}) {
         if (ref $gateway_args eq 'HASH') {
-            require Net::OpenSSH::Gateway;
+            _load_module('Net::OpenSSH::Gateway');
             my $errors;
             unless ($gateway = Net::OpenSSH::Gateway->find_gateway(errors => $errors,
                                                                    host => $self->{_host}, port => $self->{_port},
@@ -1899,8 +1897,8 @@ sub _scp_put_args {
     $prefix = "$self->{_user}\@$prefix" if defined $self->{_user};
 
     my $target = $prefix . ':' . ( @_ > 1
-                                                 ? $self->_quote_args({quote_args => 1}, pop(@_))
-                                                 : '');
+                                   ? $self->_quote_args({quote_args => 1}, pop(@_))
+                                   : '');
 
     my @src = @_;
     if ($glob) {
