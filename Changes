@@ -1,6 +1,6 @@
 Revision history for Perl extension Net::OpenSSH.
 
-0.56_01  
+0.56_01  Dec 8, 2011
         - rsync methods were failing when user was defined (bug report
           by black_fire)
         - detect when the destructor is being called from a different
