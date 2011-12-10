@@ -1,5 +1,9 @@
 Revision history for Perl extension Net::OpenSSH.
 
+0.56_02
+        - quote equal sign
+        - do not quote commas
+
 0.56_01  Dec 8, 2011
         - rsync methods were failing when user was defined (bug report
           by black_fire)
