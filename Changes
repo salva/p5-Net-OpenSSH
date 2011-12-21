@@ -1,6 +1,6 @@
 Revision history for Perl extension Net::OpenSSH.
 
-0.56_02
+0.57  Dec 21, 2011
         - quote equal sign
         - do not quote commas
 
