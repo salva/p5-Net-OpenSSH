@@ -357,7 +357,8 @@ sub new {
                  _default_stream_encoding => $default_stream_encoding,
                  _default_argument_encoding => $default_argument_encoding,
 		 _expand_vars => $expand_vars,
-		 _vars => $vars };
+		 _vars => $vars,
+               };
     bless $self, $class;
 
     # default file handles are opened so late in order to have the
@@ -701,6 +702,11 @@ sub _connect {
         return undef;
     }
     unless ($pid) {
+        if ($debug and $debug & 512) {
+            require Net::OpenSSH::OSTracer;
+            Net::OpenSSH::OSTracer->trace;
+        }
+
         $mpty->make_slave_controlling_terminal if $mpty;
 
 	$self->_master_redirect('STDOUT');
