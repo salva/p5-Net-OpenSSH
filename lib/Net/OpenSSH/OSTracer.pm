@@ -15,6 +15,7 @@ our @EXTRA_ARGS;
 
 my %type_by_os = (linux   => 'strace',
                   openbsd => 'ktrace',
+                  freebsd => 'ktrace',
                   bsd     => 'ktruss',
                   'hp-ux' => 'tusc',
                   aix     => 'truss',
@@ -30,7 +31,7 @@ sub trace {
         if ( defined $cmd and $cmd =~ /([sk]trace|k?truss|tusc)$/) {
             $type = $1;
         }
-        elsif ($os =~ /(linux|openbsd|bsd|hp-ux|aix|solaris)/) {
+        elsif ($os =~ /(linux|openbsd|freebsd|bsd|hp-ux|aix|solaris)/) {
             $type = $type_by_os{$1};
         }
         else {
