@@ -14,6 +14,7 @@ our $delay;
 our @EXTRA_ARGS;
 
 my %type_by_os = (linux   => 'strace',
+                  openbsd => 'ktrace',
                   bsd     => 'ktruss',
                   'hp-ux' => 'tusc',
                   aix     => 'truss',
@@ -26,10 +27,10 @@ sub trace {
 
     if (not defined $type) {
         my $os = lc $^O;
-        if ( defined $cmd and $cmd =~ /(strace|k?truss|tusc)$/) {
+        if ( defined $cmd and $cmd =~ /([sk]trace|k?truss|tusc)$/) {
             $type = $1;
         }
-        elsif ($os =~ /(linux|bsd|hp-ux|aix|solaris)/) {
+        elsif ($os =~ /(linux|openbsd|bsd|hp-ux|aix|solaris)/) {
             $type = $type_by_os{$1};
         }
         else {
@@ -50,6 +51,9 @@ sub trace {
     }
     elsif ($type eq 'ktruss') {
         @args = (-o => $file, -p => $$, -m => 1024, '-d');
+    }
+    elsif ($type eq 'ktrace') {
+        @args = (-f => $file, -p => $$, '-id');
     }
     elsif ($type eq 'tusc') {
         @args = (-o => $file, -b => 1024, '-fa', $$)
