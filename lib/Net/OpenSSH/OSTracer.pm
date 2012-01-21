@@ -113,8 +113,87 @@ Net::OpenSSH::OSTracer - trace ssh master process at the OS level
 
 =head1 DESCRIPTION
 
-This is a Net::OpenSSH helper module that allows you to use your
-favourite OS level tracer (i.e, strace, truss, ktruss, tusc, etc.) to
-trace the ssh master process easyly.
+This is a Net::OpenSSH helper module that allows you to trace the
+master ssh process at the operating system level using the proper
+utility available in your system (i.e, strace, truss, ktruss, tusc,
+etc.).
+
+This feature can be used when debugging your programs or to report
+bugs on the module.
+
+It is enabled setting the flag 512 on the C<$Net::OpenSSH::debug> variable:
+
+  $Net::OpenSSH::debug |= 512;
+
+By default the ouput files of the tracer are saved as
+C</tmp/net_openssh_master.$pid.$tracer_type>.
+
+Also, the output send by the tracer to stdout/stderr is saved as
+C</tmp/net_openssh_master.$pid.txt>.
+
+The module can be configured through the following global variables:
+
+=over 4
+
+=item $Net::OpenSSH::OSTracer::type
+
+By default, the module decides which tracer to use in base to the
+operative system name. This variable allows to select a different
+tracer.
+
+Currently accepted types are: strace (linux), ktrace (*bsd), tusc
+(hp-ux) and truss (solaris and aix).
+
+=item $Net::OpenSSH::OSTracer::cmd
+
+Command to execute for tracing the ssh process.
+
+By default, it inferres it from the tracer type selected.
+
+=item $Net::OpenSSH::OSTracer::output
+
+Basename for the destination file. The PID of the ssh process and the
+tracer type will be appended.
+
+=item $Net::OpenSSH::OSTracer::sudo
+
+This variable can be used to request the tracer to be run with C<sudo>
+(some operating systems as for example Ubuntu, do not allow to attach
+tracers, even to your own processes, unless you do it as root).
+
+The variable has to be set with the path of the C<sudo> binary. For
+instance:
+
+  $Net::OpenSSH::OSTracer::sudo = '/usr/bin/sudo';
+
+If you need to pass a password to C<sudo>, set the environment
+variable C<SUDO_ASKPASS>. For instance:
+
+  SUDO_ASKPASS=/usr/bin/ssh-askpass
+
+=item $Net::OpenSSH::OSTracer::delay
+
+This variable can be used to delay the ssh execution so that the
+tracer can attach the process first. This is specially handy when
+using C<sudo> with a password.
+
+=back
+
+=head1 BUGS
+
+This module has not been tested under all the operating systems is
+says to support.
+
+If you find any problem, just report it, please!
+
+=head1 COPYRIGHT AND LICENSE
+
+Copyright (C) 2012 by Salvador FandiE<ntilde>o
+(sfandino@yahoo.com)
+
+This library is free software; you can redistribute it and/or modify
+it under the same terms as Perl itself, either Perl version 5.10.0 or,
+at your option, any later version of Perl 5 you may have available.
+
 
 =cut
