@@ -61,7 +61,7 @@ sub trace {
         @args = (-o => $file, -b => 1024, '-fa', $$)
     }
     elsif ($type eq 'truss') {
-        @args = (-o => $file, -p => $$, -s => 1024, '-f');
+        @args = (-o => $file, -faep => $$);
     }
     else {
         Net::OpenSSH::_debug("tracer type $type not supported");
