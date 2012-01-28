@@ -3797,6 +3797,65 @@ systems.
 
 =back
 
+=head1 DEBUGGING
+
+Debugging of Net::OpenSSH internals is controlled through the variable
+C<$Net::OpenSSH::debug>.  Every bit of this variable activates
+debugging of some subsystem as follows:
+
+=item bit 1 - errors
+
+Dumps changes on the internal object attribute where errors are stored.
+
+=item bit 2 - ctl_path
+
+Dumps information about ctl_path calculation and the tests performed
+on that directory in order to decide if it is secure to place the
+multiplexing socket inside.
+
+=item bit 4 - connecting
+
+Dumps information about the establishment of new master connections.
+
+=item bit 8 - commands and arguments
+
+Dumps the command and arguments for every system/exec call.
+
+=item bit 16 - command execution
+
+Dumps information about the progress of command execution.
+
+=item bit 32 - destruction
+
+Dumps information about the destruction of Net::OpenSSH objects and
+the termination of the SSH master processes.
+
+=item bit 64 - IO loop
+
+Dumps information about the progress of the IO loop on capture
+operations.
+
+=item bit 128 - IO hexdumps
+
+Generates hexdumps of the information that travels through the SSH
+streams inside capture operations.
+
+=item bit 512 - OS tracing of the master process
+
+Use the module L<Net::OpenSSH::OSTracer> to trace the SSH master
+process at the OS level.
+
+=back
+
+For instance, in order to activate all the debugging flags, you can
+use:
+
+  $Net::OpenSSH::debug = ~0;
+
+Note that the meaning of the flags and the information generated is
+only intended for debugging of the module and may change without
+notice between releases.
+
 =head1 FAQ
 
 Frequent questions about the module:
