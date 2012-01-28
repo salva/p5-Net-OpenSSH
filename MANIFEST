@@ -6,6 +6,7 @@ t/1_run.t
 t/2_pods.t
 lib/Net/OpenSSH.pm
 lib/Net/OpenSSH/Constants.pm
+lib/Net/OpenSSH/ConnectionCache.pm
 lib/Net/OpenSSH/OSTracer.pm
 t/common.pm
 t/test_server_key
