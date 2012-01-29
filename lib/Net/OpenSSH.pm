@@ -4062,11 +4062,31 @@ stdin with the C<-S> flag and to do not use cached credentials
 with the C<-k> flag. You may also like to use the C<-p> flag to tell
 C<sudo> to print an empty prompt. For instance:
 
-  my @out = $ssh->capture({stdin_data => $sudo_passwd},
+  my @out = $ssh->capture({stdin_data => "$sudo_passwd\n"},
                           'sudo', '-Sk',
                           '-p', '',
                           '--',
                           @cmd);
+
+If the version of sudo installed on the remote host does not support
+the C<-S> flag (it tells sudo to read the password from its STDIN
+stream), you can do it as follows:
+
+  my @out = $ssh->capture({tty => 1,
+                           stdin_data => "$sudo_passwd\n"},
+                           'sudo', '-k',
+                           '-p', '',
+                           '--',
+                           @cmd);
+
+This may generate an spurious and harmless warning from the SSH master
+connection (because we are requesting allocation of a tty on the
+remote side and locally we are attaching it to a regular pair of
+pipes).
+
+If for whatever reason the methods described above fail, you can
+always revert to using Expect to talk to the remote C<sudo>. See the
+C<sample/expect.pl> script from this module distribution.
 
 =back
 
