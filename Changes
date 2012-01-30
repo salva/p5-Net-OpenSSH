@@ -4,6 +4,8 @@ Revision history for Perl extension Net::OpenSSH.
         - add new documentation section about debugging
         - new helper module Net::OpenSSH::OSTracer added
         - ConnectionCache module was missing from MANIFEST
+        - correction on default_ssh_opts feature documentation
+          (reported by Yann Kerhervé)
 
 0.57  Dec 21, 2011
         - quote equal sign

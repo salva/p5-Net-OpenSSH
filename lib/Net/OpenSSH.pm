@@ -2442,7 +2442,7 @@ methods.
 For instance:
 
   my $ssh = Net::OpenSSH->new($host,
-      default_ssh_options => [-o => "ConnectionAttempts=0"]);
+      default_ssh_opts => [-o => "ConnectionAttempts=0"]);
 
 =item default_stdin_fh => $fh
 
