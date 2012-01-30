@@ -1,6 +1,6 @@
 Revision history for Perl extension Net::OpenSSH.
 
-0.58_01
+0.58_01  Jan 30, 2012
         - add new documentation section about debugging
         - new helper module Net::OpenSSH::OSTracer added
         - ConnectionCache module was missing from MANIFEST

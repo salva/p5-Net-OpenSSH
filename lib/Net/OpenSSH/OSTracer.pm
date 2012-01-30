@@ -1,5 +1,7 @@
 package Net::OpenSSH::OSTracer;
 
+our $VERSION = '0.58_01';
+
 use strict;
 use warnings;
 

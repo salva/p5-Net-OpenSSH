@@ -1,6 +1,6 @@
 package Net::OpenSSH;
 
-our $VERSION = '0.57';
+our $VERSION = '0.58_01';
 
 use strict;
 use warnings;
@@ -3802,6 +3802,8 @@ systems.
 Debugging of Net::OpenSSH internals is controlled through the variable
 C<$Net::OpenSSH::debug>.  Every bit of this variable activates
 debugging of some subsystem as follows:
+
+=over 4
 
 =item bit 1 - errors
 
