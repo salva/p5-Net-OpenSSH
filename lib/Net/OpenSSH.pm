@@ -2451,12 +2451,12 @@ For instance:
   my $ssh = Net::OpenSSH->new($host,
       default_ssh_opts => [-o => "ConnectionAttempts=0"]);
 
-=item agent_forwarding => 1
+=item forward_agent => 1
 
-Enables forwarding on the authentication agent.
+Enables forwarding of the authentication agent.
 
-This option can not be used when passing a passphrase to unlock the
-login private key via L</passphrase>.
+This option can not be used when passing a passphrase (via
+L</passphrase>) to unlock the login private key.
 
 =item default_stdin_fh => $fh
 
