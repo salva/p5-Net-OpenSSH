@@ -3,6 +3,7 @@ Revision history for Perl extension Net::OpenSSH.
 0.58_02
         - add forward_agent feature
         - do not disable ssh-agent when using password authentication
+        - some documentation improvements
 
 0.58_01  Jan 30, 2012
         - add new documentation section about debugging
