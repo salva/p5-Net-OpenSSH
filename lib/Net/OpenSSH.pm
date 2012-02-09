@@ -252,6 +252,9 @@ sub new {
         _first_defined delete $opts{default_stream_encoding}, $default_encoding;
     my $default_argument_encoding =
         _first_defined delete $opts{default_argument_encoding}, $default_encoding;
+    my $forward_agent = delete $opts{forward_agent};
+    $forward_agent and $passphrase and
+        croak "agent forwarding can not be used when a passphrase has also been given";
 
     my ($master_opts, @master_opts,
         $master_stdout_fh, $master_stderr_fh,
@@ -344,6 +347,7 @@ sub new {
                  _kill_ssh_on_timeout => $kill_ssh_on_timeout,
                  _batch_mode => $batch_mode,
                  _home => $home,
+                 _forward_agent => $forward_agent,
                  _external_master => $external_master,
                  _default_ssh_opts => $default_ssh_opts,
 		 _default_stdin_fh => $default_stdin_fh,
@@ -656,6 +660,10 @@ sub _connect {
         push @master_opts, -i => $self->{_key_path};
     }
 
+    if (defined $self->{_forward_agent}) {
+        push @master_opts, ($self->{_forward_agent} ? '-A' : '-a');
+    }
+
     my $proxy_command = $self->{_proxy_command};
 
     my $gateway;
@@ -712,10 +720,8 @@ sub _connect {
 	$self->_master_redirect('STDOUT');
 	$self->_master_redirect('STDERR');
 
-	if (defined $self->{_passwd}) {
-	    delete $ENV{SSH_ASKPASS};
-	    delete $ENV{SSH_AUTH_SOCK};
-	}
+        delete $ENV{SSH_ASKPASS} if defined $self->{_passwd};
+        delete $ENV{SSH_AUTH_SOCK} if defined $self->{_passphrase};
 
 	local $SIG{__DIE__};
         eval { exec @call };
@@ -2321,9 +2327,10 @@ Note that using password authentication in automated scripts is a very
 bad idea. When possible, you should use public key authentication
 instead.
 
+
 =item passphrase => $passphrase
 
-Uses given passphrase to open private key.
+X<passphrase>Uses given passphrase to open private key.
 
 =item key_path => $private_key_path
 
@@ -2443,6 +2450,13 @@ For instance:
 
   my $ssh = Net::OpenSSH->new($host,
       default_ssh_opts => [-o => "ConnectionAttempts=0"]);
+
+=item agent_forwarding => 1
+
+Enables forwarding on the authentication agent.
+
+This option can not be used when passing a passphrase to unlock the
+login private key via L</passphrase>.
 
 =item default_stdin_fh => $fh
 
