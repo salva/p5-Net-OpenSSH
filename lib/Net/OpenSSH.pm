@@ -1129,6 +1129,10 @@ sub make_remote_command {
     my @ssh_opts = _array_or_scalar_to_list delete $opts{ssh_opts};
     my $tty = delete $opts{tty};
     push @ssh_opts, ($tty ? '-qtt' : '-T') if defined $tty;
+    if ($self->{_forward_agent}) {
+        my $forward_agent = delete $opts{forward_agent};
+        push @ssh_opts, ($forward_agent ? '-A' : '-a') if defined $forward_agent;
+    }
     my $tunnel = delete $opts{tunnel};
     my (@args);
     if ($tunnel) {
@@ -1255,10 +1259,14 @@ sub open_ex {
       $stderr_file = delete $opts{stderr_file} );
 
     my $argument_encoding = $self->_delete_argument_encoding(\%opts);
-
     my $ssh_opts = delete $opts{ssh_opts};
     $ssh_opts = $self->{_default_ssh_opts} unless defined $ssh_opts;
     my @ssh_opts = $self->_expand_vars(_array_or_scalar_to_list $ssh_opts);
+
+    if ($self->{_forward_agent}) {
+        my $forward_agent = delete $opts{forward_agent};
+        push @ssh_opts, ($forward_agent ? '-A' : '-a') if defined $forward_agent;
+    }
 
     my ($cmd, $close_slave_pty, @args);
     if ($tunnel) {
@@ -1634,7 +1642,7 @@ sub _io3 {
 _sub_options spawn => qw(stderr_to_stdout stdin_discard stdin_fh stdin_file stdout_discard
                          stdout_fh stdout_file stderr_discard stderr_fh stderr_file
                          stdinout_dpipe stdintout_dpipe_is_parent quote_args tty ssh_opts tunnel
-                         encoding argument_encoding);
+                         encoding argument_encoding forward_agent);
 sub spawn {
     ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
@@ -1645,7 +1653,7 @@ sub spawn {
 }
 
 _sub_options open2 => qw(stderr_to_stdout stderr_discard stderr_fh stderr_file quote_args
-                         tty ssh_opts tunnel encoding argument_encoding);
+                         tty ssh_opts tunnel encoding argument_encoding forward_agent);
 sub open2 {
     ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
@@ -1660,7 +1668,7 @@ sub open2 {
 }
 
 _sub_options open2pty => qw(stderr_to_stdout stderr_discard stderr_fh stderr_file quote_args tty
-                            close_slave_pty ssh_opts encoding argument_encoding);
+                            close_slave_pty ssh_opts encoding argument_encoding forward_agent);
 sub open2pty {
     ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
@@ -1676,7 +1684,7 @@ sub open2pty {
 }
 
 _sub_options open2socket => qw(stderr_to_stdout stderr_discard stderr_fh stderr_file quote_args tty
-                               ssh_opts tunnel encoding argument_encoding);
+                               ssh_opts tunnel encoding argument_encoding forward_agent);
 sub open2socket {
     ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
@@ -1689,7 +1697,7 @@ sub open2socket {
     return ($socket, $pid);
 }
 
-_sub_options open3 => qw(quote_args tty ssh_opts encoding argument_encoding);
+_sub_options open3 => qw(quote_args tty ssh_opts encoding argument_encoding forward_agent);
 sub open3 {
     ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
@@ -1706,7 +1714,7 @@ sub open3 {
 }
 
 _sub_options open3pty => qw(quote_args tty close_slave_pty ssh_opts
-                            encoding argument_encoding);
+                            encoding argument_encoding forward_agent);
 sub open3pty {
     ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
@@ -1726,7 +1734,7 @@ sub open3pty {
 _sub_options system => qw(stdout_discard stdout_fh stdin_discard stdout_file stdin_fh stdin_file
                           quote_args stderr_to_stdout stderr_discard stderr_fh stderr_file
                           stdinout_dpipe stdinout_dpipe_is_parent tty ssh_opts tunnel encoding
-                          argument_encoding);
+                          argument_encoding forward_agent);
 sub system {
     ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
@@ -1755,7 +1763,7 @@ sub system {
 _sub_options test => qw(stdout_discard stdout_fh stdin_discard stdout_file stdin_fh stdin_file
                         quote_args stderr_to_stdout stderr_discard stderr_fh stderr_file
                         stdinout_dpipe stdinout_dpipe_is_parent stdtty ssh_opts timeout stdin_data
-                        encoding stream_encoding argument_encoding);
+                        encoding stream_encoding argument_encoding forward_agent);
 sub test {
     ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
@@ -1780,7 +1788,7 @@ sub test {
 
 _sub_options capture => qw(stderr_to_stdout stderr_discard stderr_fh stderr_file
                            stdin_discard stdin_fh stdin_file quote_args tty ssh_opts tunnel
-                           encoding argument_encoding);
+                           encoding argument_encoding forward_agent);
 sub capture {
     ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
@@ -1807,7 +1815,9 @@ sub capture {
     $output
 }
 
-_sub_options capture2 => qw(stdin_discard stdin_fh stdin_file quote_args tty ssh_opts encoding argument_encoding);
+_sub_options capture2 => qw(stdin_discard stdin_fh stdin_file
+                            quote_args tty ssh_opts encoding
+                            argument_encoding forward_agent);
 sub capture2 {
     ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
@@ -1831,7 +1841,7 @@ sub capture2 {
     wantarray ? @capture : $capture[0];
 }
 
-_sub_options open_tunnel => qw(ssh_opts stderr_discard stderr_fh stderr_file encoding argument_encoding);
+_sub_options open_tunnel => qw(ssh_opts stderr_discard stderr_fh stderr_file encoding argument_encoding forward_agent);
 sub open_tunnel {
     ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
@@ -1845,7 +1855,7 @@ sub open_tunnel {
 
 _sub_options capture_tunnel => qw(ssh_opts stderr_discard stderr_fh stderr_file stdin_discard
 				  stdin_fh stdin_file stdin_data timeout encoding stream_encoding
-				  argument_encoding);
+				  argument_encoding forward_agent);
 sub capture_tunnel {
     ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
@@ -1941,7 +1951,8 @@ sub rsync_put {
 
 _sub_options _scp => qw(stderr_to_stdout stderr_discard stderr_fh
 			stderr_file stdout_discard stdout_fh
-			stdout_file encoding argument_encoding);
+			stdout_file encoding argument_encoding
+                        forward_agent);
 sub _scp {
     my $self = shift;
     my %opts = (ref $_[0] eq 'HASH' ? %{shift()} : ());
@@ -2072,7 +2083,7 @@ sub _rsync {
 }
 
 _sub_options sftp => qw(autoflush timeout argument_encoding encoding block_size
-			queue_size late_set_perm);
+			queue_size late_set_perm forward_agent);
 
 sub sftp {
     ${^TAINT} and &_catch_tainted_args;
@@ -2730,6 +2741,13 @@ be explicitly closed (see L<IO::Pty|IO::Pty>)
 
 See L</"Shell quoting"> below.
 
+=item forward_agent => $bool
+
+Enables/disables forwarding of the authentication agent.
+
+This option can only be used when agent forwarding has been previously
+requested on the constructor.
+
 =item ssh_opts => \@opts
 
 List of extra options for the C<ssh> command.
@@ -2883,6 +2901,8 @@ its output.
 In scalar context returns the output as a scalar. In list context
 returns the output broken into lines (it honors C<$/>, see
 L<perlvar/"$/">).
+
+The exit status of the remote command is returned in C<$?>.
 
 When an error happens while capturing (for instance, the operation
 times out), the partial captured output will be returned. Error
@@ -3178,10 +3198,10 @@ For instance:
 
 =item $sftp = $ssh->sftp(%sftp_opts)
 
-Creates a new L<Net::SFTP::Foreign|Net::SFTP::Foreign> object for SFTP interaction that
-runs through the ssh master connection.
+Creates a new L<Net::SFTP::Foreign|Net::SFTP::Foreign> object for SFTP
+interaction that runs through the ssh master connection.
 
-=item @call = $ssh->make_remote_command(%opts, @cmd)
+=item @call = $ssh->make_remote_command(\%opts, @cmd)
 
 =item $call = $ssh->make_remote_command(\%opts, @cmd)
 
@@ -3196,6 +3216,31 @@ string:
 
   my $remote = $ssh->make_remote_comand("cd /tmp/ && tar xf -");
   system "tar cf - . | $remote";
+
+The options accepted are as follows:
+
+=over 4
+
+=item tty => $bool
+
+Enables/disables allocation of a tty on the remote side.
+
+=item forward_agent => $bool
+
+Enables/disables forwarding of authentication agent.
+
+This option can only be used when agent forwarding has been previously
+requested on the constructor.
+
+=item tunnel => 1
+
+Return a command to create a connection to some TCP server reachable
+from the remote host. In that case the arguments are the destination
+address and port. For instance:
+
+  $cmd = $ssh->make_remote_command({tunnel => 1}, $host, $port);
+
+=back
 
 =item $ssh->wait_for_master($async)
 
