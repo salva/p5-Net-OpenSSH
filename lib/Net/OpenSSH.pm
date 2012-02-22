@@ -973,6 +973,29 @@ sub _master_ctl {
                      stderr_to_stdout => 1, ssh_opts => [-O => $cmd]});
 }
 
+sub stop {
+    # FIXME: this method currently fails because of a bug in ssh.
+    my ($self, $timeout) = @_;
+    my $pid = $self->{_pid};
+    $self->_master_ctl('stop');
+    if (not $self->error           and
+        $pid                       and
+        $self->{_perl_pid} == $$   and
+        $self->{_thread_generation} == $thread_generation) {
+
+        local $self->{_kill_ssh_on_timeout};
+        if ($self->_waitpid($pid, $timeout)) {
+            delete $self->{_pid};
+            $self->_set_error(OSSH_MASTER_FAILED, "master ssh connection stopped");
+            return 1;
+        }
+        else {
+            return $self->_kill_master;
+        }
+    }
+    undef;
+}
+
 sub _make_pipe {
     my $self = shift;
     my ($r, $w);
@@ -2135,7 +2158,7 @@ sub sshfs_import {
     _croak_bad_options %opts;
 
     $opts{ssh_opts} = ['-s', _array_or_scalar_to_list delete $opts{ssh_opts}];
-    $opts{stdinout_dpipe} = [$self->{_sshfs_cmd}, "$self->{_host_ssh}:$from", $to, @sshfs_opts];
+    $opts{stdinout_dpipe} = [$self->{_sshfs_cmd}, "$self->{_host_squared}:$from", $to, @sshfs_opts];
     $opts{stdinout_dpipe_make_parent} = 1;
     $self->spawn(\%opts, 'sftp');
 }
@@ -3383,35 +3406,34 @@ module would try to kill it at object destruction time.
 These methods use L<sshfs(1)> to import or export a file system
 through the SSH connection.
 
-They return the C<$pid> of the C<sshfs> process or of the slave ssh
+They return the C<$pid> of the C<sshfs> process or of the slave C<ssh>
 process used to proxy it. Killing that process unmounts the file
-system, though, using L<fusermount(1)> is probably better.
+system, though, it may be probably better to use L<fusermount(1)>.
 
 The options acepted are as follows:
 
 =over
 
-=item mount_opts => $mount_opts
+=item ssh_opts => \@ssh_opts
 
-Options passed to the mount command. For instance, to mount the file
+Options passed to the slave C<ssh> process.
+
+=item sshfs_opts => \@sshfs_opts
+
+Options passed to the C<sshfs> command. For instance, to mount the file
 system in read-only mode:
 
-  my $pid = $ssh->sshfs_export({mount_opts => 'ro'},
-                               "/", "/mnt/foo");
-
-=item I<sshfs and FUSE options>
-
-Any options accepted by C<sshfs> (or FUSE) can also be passed. For
-instance:
-
-  my $pid = $ssh->sshfs_export({sshfs_sync => 1,
-                                cache => 'yes'},
+  my $pid = $ssh->sshfs_export({sshfs_opts => [-o => 'ro']},
                                "/", "/mnt/foo");
 
 =back
 
-See also the sshfs and FUSE web sites at
-L<http://fuse.sourceforge.net/sshfs.html> and
+Note that this command requires a recent version of C<sshfs> to work (at
+the time of writting, it requires the yet unreleased version available
+from the FUSE git repository!).
+
+See also the L<sshfs(1)> man page and the C<sshfs> and FUSE web sites
+at L<http://fuse.sourceforge.net/sshfs.html> and
 L<http://fuse.sourceforge.net/> respectively.
 
 =back
