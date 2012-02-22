@@ -1227,10 +1227,10 @@ sub open_ex {
     $self->wait_for_master or return;
     my %opts = (ref $_[0] eq 'HASH' ? %{shift()} : ());
     my $tunnel = delete $opts{tunnel};
-    my ($stdinout_socket, $stdinout_dpipe_is_parent);
+    my ($stdinout_socket, $stdinout_dpipe_make_parent);
     my $stdinout_dpipe = delete $opts{stdinout_dpipe};
     if ($stdinout_dpipe) {
-        $stdinout_dpipe_is_parent = delete $opts{stdinout_dpipe_is_parent};
+        $stdinout_dpipe_make_parent = delete $opts{stdinout_dpipe_make_parent};
         $stdinout_socket = 1;
     }
     else {
@@ -1388,7 +1388,7 @@ sub open_ex {
             my $pid1 = fork;
             defined $pid1 or POSIX::_exit(255);
 
-            unless ($pid1 xor $stdinout_dpipe_is_parent) {
+            unless ($pid1 xor $stdinout_dpipe_make_parent) {
                 eval { $self->_exec_dpipe($stdinout_dpipe, $win, $werr) };
                 POSIX::_exit(255);
             }
@@ -1646,7 +1646,7 @@ sub _io3 {
 
 _sub_options spawn => qw(stderr_to_stdout stdin_discard stdin_fh stdin_file stdout_discard
                          stdout_fh stdout_file stderr_discard stderr_fh stderr_file
-                         stdinout_dpipe stdinout_dpipe_is_parent quote_args tty ssh_opts tunnel
+                         stdinout_dpipe stdinout_dpipe_make_parent quote_args tty ssh_opts tunnel
                          encoding argument_encoding forward_agent);
 sub spawn {
     ${^TAINT} and &_catch_tainted_args;
@@ -1738,7 +1738,7 @@ sub open3pty {
 
 _sub_options system => qw(stdout_discard stdout_fh stdin_discard stdout_file stdin_fh stdin_file
                           quote_args stderr_to_stdout stderr_discard stderr_fh stderr_file
-                          stdinout_dpipe stdinout_dpipe_is_parent tty ssh_opts tunnel encoding
+                          stdinout_dpipe stdinout_dpipe_make_parent tty ssh_opts tunnel encoding
                           argument_encoding forward_agent);
 sub system {
     ${^TAINT} and &_catch_tainted_args;
@@ -1767,7 +1767,7 @@ sub system {
 
 _sub_options test => qw(stdout_discard stdout_fh stdin_discard stdout_file stdin_fh stdin_file
                         quote_args stderr_to_stdout stderr_discard stderr_fh stderr_file
-                        stdinout_dpipe stdinout_dpipe_is_parent tty ssh_opts timeout stdin_data
+                        stdinout_dpipe stdinout_dpipe_make_parent tty ssh_opts timeout stdin_data
                         encoding stream_encoding argument_encoding forward_agent);
 sub test {
     ${^TAINT} and &_catch_tainted_args;
@@ -2122,57 +2122,34 @@ sub sftp {
     $sftp
 }
 
-my %sshfs_flags = map { $_ => 1 } qw(sshfs_sync no_readahead sshfs_debug transform_symlinks
-                                     follow_symlinks transform_symlinks no_check_root debug
-                                     allow_other allow_root nonempty default_permissions large_read
-                                     hard_remove use_ino readdir_ino direct_io kernel_cache
-                                     auto_cache noauto_cache intr async_read sync_read rellinksa
-                                     norellinksa);
-
-my %sshfs_opt_open_ex = map { $_ => 1 } qw(stderr_discard stderr_fh stderr_file);
-
-sub _parse_sshfs_args {
-    my $self = shift;
-    my %opts = (ref $_[0] eq 'HASH' ? %{shift()} : ());
-
-    my %opts_open_ex;
-    my @opts_sshfs = (-o => 'slave');
-    my $mount_opts = delete $opts{mount_opts};
-    push @opts_sshfs, -o => $mount_opts if defined $mount_opts;
-
-    while (my ($key, $value) = each %opts) {
-        next unless defined $value;
-
-        if ($sshfs_opt_open_ex{$key}) {
-            $opts_open_ex{$key} = $value;
-        }
-        elsif ($sshfs_flags{$key}) {
-            push @opts_sshfs, -o => $key if $value;
-        }
-        else {
-            push @opts_sshfs, -o => "$key=$value"
-        }
-    }
-    return ($self, \@opts_sshfs, \%opts_open_ex, @_);
-}
-
+_sub_options sshfs_import => qw(stderr_discard stderr_fh stderr_file
+                                ssh_opts argument_encoding sshfs_opts);
 sub sshfs_import {
     ${^TAINT} and &_catch_tainted_args;
-    my @args = &_parse_sshfs_args;
-    @args == 5 or croak 'Usage: $ssh->sshfs_import(\%opts, $remote, $local)';
-    my ($self, $opts_sshfs, $opts_open_ex, $from, $to) = @args;
+    my $self = shift;
+    my %opts = (ref $_[0] eq 'HASH' ? %{shift()} : ());
+    @args == 2 or croak 'Usage: $ssh->sshfs_import(\%opts, $remote, $local)';
+    my @sshfs_opts = ( -o => 'slave',
+                       _array_or_scalar_to_list delete $opts{sshfs_opts} );
+    _croak_bad_options %opts;
 
-    $opts_open_ex->{ssh_opts} = '-s';
-    $opts_open_ex->{stdinout_dpipe} = [$self->{_sshfs_cmd}, "$self->{_host_ssh}:$from", $to, @$opts_sshfs];
-    $opts_open_ex->{stdinout_dpipe_is_parent} = 1;
-    $self->spawn($opts_open_ex, 'sftp');
+    $opts{ssh_opts} = ['-s', _array_or_scalar_to_list delete %opts{ssh_opts}];
+    $opts{stdinout_dpipe} = [$self->{_sshfs_cmd}, "$self->{_host_ssh}:$from", $to, @sshfs_opts];
+    $opts{stdinout_dpipe_make_parent} = 1;
+    $self->spawn(\%opts, 'sftp');
 }
 
+_sub_options sshfs_export => qw(stderr_discard stderr_fh stderr_file
+                                ssh_opts argument_encoding sshfs_opts);
 sub sshfs_export {
     ${^TAINT} and &_catch_tainted_args;
-    my @args = &_parse_sshfs_args;
-    @args == 5 or croak 'Usage: $ssh->sshfs_export(\%opts, $local, $remote)';
-    my ($self, $opts_sshfs, $opts_open_ex, $from, $to) = @args;
+    my $self = shift;
+    my %opts = (ref $_[0] eq 'HASH' ? %{shift()} : ());
+    @args == 2 or croak 'Usage: $ssh->sshfs_export(\%opts, $local, $remote)';
+    my @sshfs_opts = ( -o => 'slave',
+                       _array_or_scalar_to_list delete $opts{sshfs_opts} );
+    _croak_bad_options %opts;
+    %opts{stdinout_dpipe} = $self->{_sftp_server_cmd};
 
     my $hostname = eval {
         require Sys::Hostname;
@@ -2181,9 +2158,7 @@ sub sshfs_export {
     $hostname = 'remote' if (not defined $hostname   or
                              not length $hostname    or
                              $hostname=~/^localhost\b/);
-
-    $opts_open_ex->{stdinout_dpipe} = $self->{_sftp_server_cmd};
-    $self->spawn($opts_open_ex, $self->{_sshfs_cmd}, "$hostname:$from", $to, @$opts_sshfs);
+    $self->spawn(\%opts, $self->{_sshfs_cmd}, "$hostname:$from", $to, @sshfs_opts);
 }
 
 sub DESTROY {
