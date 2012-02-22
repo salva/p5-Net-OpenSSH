@@ -1,6 +1,6 @@
 package Net::OpenSSH::Constants;
 
-our $VERSION = '0.39';
+our $VERSION = '0.51_07';
 
 use strict;
 use warnings;
@@ -15,7 +15,8 @@ my %error = ( OSSH_MASTER_FAILED => 1,
               OSSH_SLAVE_PIPE_FAILED => 3,
 	      OSSH_SLAVE_TIMEOUT => 4,
 	      OSSH_SLAVE_CMD_FAILED => 5,
-	      OSSH_SLAVE_SFTP_FAILED => 6
+	      OSSH_SLAVE_SFTP_FAILED => 6,
+              OSSH_ENCODING_ERROR => 7
             );
 
 for my $key (keys %error) {
@@ -54,6 +55,7 @@ This module exports the following constants:
   OSSH_SLAVE_TIMEOUT - slave process timeout
   OSSH_SLAVE_CMD_FAILED - child process exited with a non zero status
   OSSH_SLAVE_SFTP_FAILED - creation of SFTP client failed
+  OSS_ENCODING_ERROR - some error related to the encoding/decoding of strings happened
 
 =back
 
