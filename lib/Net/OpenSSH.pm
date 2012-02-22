@@ -1738,12 +1738,8 @@ sub open3pty {
 
 _sub_options system => qw(stdout_discard stdout_fh stdin_discard stdout_file stdin_fh stdin_file
                           quote_args stderr_to_stdout stderr_discard stderr_fh stderr_file
-<<<<<<< HEAD
-                          stdinout_dpipe stdinout_dpipe_is_parent tty ssh_opts tunnel);
-=======
                           stdinout_dpipe stdinout_dpipe_is_parent tty ssh_opts tunnel encoding
                           argument_encoding forward_agent);
->>>>>>> master
 sub system {
     ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
@@ -1769,16 +1765,10 @@ sub system {
     $self->_waitpid($pid, $timeout);
 }
 
-<<<<<<< HEAD
-_sub_options test => qw(stdout_discard stdout_fh stdin_discard stdout_file stdin_fh
-                        stdin_file quote_args stderr_to_stdout stderr_discard stderr_fh
-                        stderr_file stdinout_dpipe tty ssh_opts timeout stdin_data);
-=======
 _sub_options test => qw(stdout_discard stdout_fh stdin_discard stdout_file stdin_fh stdin_file
                         quote_args stderr_to_stdout stderr_discard stderr_fh stderr_file
-                        stdinout_dpipe stdinout_dpipe_is_parent stdtty ssh_opts timeout stdin_data
+                        stdinout_dpipe stdinout_dpipe_is_parent tty ssh_opts timeout stdin_data
                         encoding stream_encoding argument_encoding forward_agent);
->>>>>>> master
 sub test {
     ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
