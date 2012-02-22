@@ -2128,12 +2128,13 @@ sub sshfs_import {
     ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
     my %opts = (ref $_[0] eq 'HASH' ? %{shift()} : ());
-    @args == 2 or croak 'Usage: $ssh->sshfs_import(\%opts, $remote, $local)';
+    @_ == 2 or croak 'Usage: $ssh->sshfs_import(\%opts, $remote, $local)';
+    my ($from, $to) = @_;
     my @sshfs_opts = ( -o => 'slave',
                        _array_or_scalar_to_list delete $opts{sshfs_opts} );
     _croak_bad_options %opts;
 
-    $opts{ssh_opts} = ['-s', _array_or_scalar_to_list delete %opts{ssh_opts}];
+    $opts{ssh_opts} = ['-s', _array_or_scalar_to_list delete $opts{ssh_opts}];
     $opts{stdinout_dpipe} = [$self->{_sshfs_cmd}, "$self->{_host_ssh}:$from", $to, @sshfs_opts];
     $opts{stdinout_dpipe_make_parent} = 1;
     $self->spawn(\%opts, 'sftp');
@@ -2145,11 +2146,12 @@ sub sshfs_export {
     ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
     my %opts = (ref $_[0] eq 'HASH' ? %{shift()} : ());
-    @args == 2 or croak 'Usage: $ssh->sshfs_export(\%opts, $local, $remote)';
+    @_ == 2 or croak 'Usage: $ssh->sshfs_export(\%opts, $local, $remote)';
+    my ($from, $to) = @_;
     my @sshfs_opts = ( -o => 'slave',
                        _array_or_scalar_to_list delete $opts{sshfs_opts} );
     _croak_bad_options %opts;
-    %opts{stdinout_dpipe} = $self->{_sftp_server_cmd};
+    $opts{stdinout_dpipe} = $self->{_sftp_server_cmd};
 
     my $hostname = eval {
         require Sys::Hostname;
