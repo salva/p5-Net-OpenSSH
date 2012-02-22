@@ -1,13 +1,8 @@
 Revision history for Perl extension Net::OpenSSH.
 
-<<<<<<< HEAD
-sshfs
-        - implement sshfs import and export methods
-        - include sshfs patch
 
-0.51_02  Feb10, 2011
-=======
 0.58_02
+        - implement sshfs import and export methods
         - add forward_agent feature
         - do not disable ssh-agent when using password authentication
         - some documentation improvements
