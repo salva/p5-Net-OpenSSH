@@ -502,7 +502,7 @@ sub _is_secure_path {
         }
         my ($mode, $uid) = (stat $dir)[2, 4];
         $debug and $debug & 2 and _debug "_is_secure_path(dir: $dir, file mode: $mode, file uid: $uid, euid: $>";
-        return undef unless(($uid == $> or $uid == 0 ) and (($mode & 022) == 0));
+        return undef unless(($uid == $> or $uid == 0 ) and (($mode & 022) == 0 or ($mode & 01000)));
         return 1 if (defined $home and $home eq $dir);
     }
     return 1;

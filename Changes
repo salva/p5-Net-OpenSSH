@@ -1,7 +1,8 @@
 Revision history for Perl extension Net::OpenSSH.
 
-
-0.58_02
+0.58_02  Apr 16, 2012
+        - strict_mode lets pass world-writable directories if they
+          have the restricted deletion flag set
         - implement sshfs import and export methods
         - add forward_agent feature
         - do not disable ssh-agent when using password authentication
