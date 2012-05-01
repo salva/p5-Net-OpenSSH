@@ -513,7 +513,7 @@ sub _make_ssh_call {
     my @before = @{shift || []};
     my @args = ($self->{_ssh_cmd}, @before,
 		-S => $self->{_ctl_path},
-                @{$self->{_ssh_opts}}, $self->{_host_squared},
+                @{$self->{_ssh_opts}}, $self->{_host},
                 '--',
                 (@_ ? "@_" : ()));
     $debug and $debug & 8 and _debug_dump 'call args' => \@args;

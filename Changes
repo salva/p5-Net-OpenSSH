@@ -1,5 +1,9 @@
 Revision history for Perl extension Net::OpenSSH.
 
+0.58_03  May 1, 2012
+        - don't put square brackets around IPv6 addreses when passing
+          the hostname to ssh (bug report by Alexey ?)
+
 0.58_02  Apr 16, 2012
         - strict_mode lets pass world-writable directories if they
           have the restricted deletion flag set
