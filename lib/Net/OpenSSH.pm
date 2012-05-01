@@ -2717,7 +2717,7 @@ Uses /dev/null as the remote process stdin stream.
 
 =item stdout_pipe => 1
 
-Creates a new pipe and connects the writting side to the stdout stream
+Creates a new pipe and connects the writing side to the stdout stream
 of the remote process. The reading side is returned as the second
 value (C<$out>).
 
@@ -2764,7 +2764,7 @@ L<dpipe(1)> shell command.
 
 =item stderr_pipe => 1
 
-Creates a new pipe and connects the writting side to the stderr stream
+Creates a new pipe and connects the writing side to the stderr stream
 of the remote process. The reading side is returned as the third
 value (C<$err>).
 
@@ -3314,7 +3314,7 @@ address and port. For instance:
 =item $ssh->wait_for_master($async)
 
 When the connection has been established by calling the constructor
-with the C<async> option, this call allows to advance the process.
+with the C<async> option, this call allows one to advance the process.
 
 If C<$async> is true, it will perform any work that can be done
 inmediately without waiting (for instance, entering the password or
@@ -3322,7 +3322,7 @@ checking for the existence of the multiplexing socket) and then
 return. If a false value is given, it will finalize the connection
 process and wait until the multiplexing socket is available.
 
-It returns a true value after the connection has been succesfully
+It returns a true value after the connection has been successfully
 established. False is returned if the connection process fails or if
 it has not yet completed (then, the L</error> method can be used to
 distinguish between both cases).
@@ -3378,7 +3378,7 @@ Returns the PID of the master SSH process
 
 =item $ssh->master_exited
 
-This methods allows to tell the module that the master process has
+This methods allows one to tell the module that the master process has
 exited when we get its PID from some external wait or waitpid
 call. For instance:
 
@@ -3468,10 +3468,10 @@ shell.
 Under the hood, as the Secure Shell protocol does not provide for this
 mode of operation and always spawns a new shell where it runs the
 given command, Net::OpenSSH quotes any shell metacharacters in the
-comand list.
+command list.
 
 All the methods that invoke a remote command (system, open_ex, etc.)
-accept the option C<quote_args> that allows to force/disable shell
+accept the option C<quote_args> that allows one to force/disable shell
 quoting.
 
 For instance:
@@ -3551,7 +3551,7 @@ In order to stop remote processes when they timeout, the ideal aproach
 would be to send them signals through the SSH connection as specified
 by the protocol standard.
 
-Unfortunatelly OpenSSH does not implement that feature so Net::OpenSSH
+Unfortunately OpenSSH does not implement that feature so Net::OpenSSH
 has to use other imperfect approaches:
 
 =over 4
@@ -3579,7 +3579,7 @@ processes via the mux channel.
 
 =head2 Variable expansion
 
-The variable expansion feature allows to define variables that are
+The variable expansion feature allows one to define variables that are
 expanded automatically inside command arguments and file paths.
 
 This feature is disabled by default. It is intended to be used with
@@ -3901,7 +3901,7 @@ Wrong remote host public key in known_hosts file.
 
 This is another common problem that happens when some server is
 replaced or reinstalled from scratch and its public key changes
-becomming different to that installed on the C<known_hosts> file.
+becoming different to that installed on the C<known_hosts> file.
 
 The easiest way to solve that problem is to remove the old key from
 the C<known_hosts> file by hand using any editor and then to connect
@@ -4058,7 +4058,7 @@ configuring the device.
 
 Usually, the SSH server running on these devices does not support
 command mode. It unconditionally attachs the restricted shell to any
-incomming SSH connection and waits for the user to enter commands
+incoming SSH connection and waits for the user to enter commands
 through the redirected stdin stream.
 
 The only way to workaround this limitation is to make your script talk
@@ -4282,11 +4282,11 @@ L<Expect|Expect> can be used to interact with commands run through
 this module on the remote machine (see also the C<expect.pl> and
 <autosudo.pl> scripts in the sample directory).
 
-L<SSH::OpenSSH::Parallel> is an advanced scheduler that allows to run
+L<SSH::OpenSSH::Parallel> is an advanced scheduler that allows one to run
 commands in remote hosts in parallel. It is obviously based on
 Net::OpenSSH.
 
-L<SSH::Batch|SSH::Batch> allows to run remote commands in parallel in
+L<SSH::Batch|SSH::Batch> allows one to run remote commands in parallel in
 a cluster. It is build on top on C<Net::OpenSSH> also.
 
 Other Perl SSH clients: L<Net::SSH::Perl|Net::SSH::Perl>,
