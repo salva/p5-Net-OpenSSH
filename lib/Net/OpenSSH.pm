@@ -1,6 +1,6 @@
 package Net::OpenSSH;
 
-our $VERSION = '0.58_02';
+our $VERSION = '0.58_03';
 
 use strict;
 use warnings;
@@ -4291,7 +4291,8 @@ a cluster. It is build on top on C<Net::OpenSSH> also.
 
 Other Perl SSH clients: L<Net::SSH::Perl|Net::SSH::Perl>,
 L<Net::SSH2|Net::SSH2>, L<Net::SSH|Net::SSH>,
-L<Net::SSH::Expect|Net::SSH::Expect>, L<Net::SCP|Net::SCP>.
+L<Net::SSH::Expect|Net::SSH::Expect>, L<Net::SCP|Net::SCP>,
+L<Net::SSH::Mechanize|Net::SSH::Mechanize>.
 
 L<Net::OpenSSH::Compat> is a package offering a set of compatibility
 layers for other SSH modules on top of Net::OpenSSH.
