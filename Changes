@@ -1,5 +1,8 @@
 Revision history for Perl extension Net::OpenSSH.
 
+0.58_04  May 2, 2012
+        - solve some git merge mistakes
+
 0.58_03  May 1, 2012
         - several misspellings corrected on the docs (bug report by
           Florian Schlichting from Debian - I love these guys!)
