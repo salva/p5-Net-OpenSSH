@@ -3767,7 +3767,7 @@ This example is adapted from L<Net::Telnet> documentation:
 L<mod_perl> and L<mod_perl2> tie STDIN and STDOUT to objects that are
 not backed up by real file descriptors at the operative system
 level. Net::OpenSSH will fail if any of these handles is used
-explicetly or implicitly when calling some remote command.
+explicitly or implicitly when calling some remote command.
 
 The workaround is to redirect them to C</dev/null> or to some file:
 
@@ -4324,7 +4324,7 @@ To report bugs send an email to the address that appear below or use
 the CPAN bug tracking system at L<http://rt.cpan.org>.
 
 B<Post questions related to how to use the module in Perlmonks>
-L<http://perlmoks.org/>, you will probably get faster responses than
+L<http://perlmonks.org/>, you will probably get faster responses than
 if you address me directly and I visit Perlmonks quite often, so I
 will see your question anyway.
 
