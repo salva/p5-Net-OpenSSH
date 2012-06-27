@@ -855,9 +855,11 @@ sub _wait_for_master {
 
     my $fnopty;
     my $rv = '';
+    my @passwdlist;
     if ($state eq 'waiting_for_password_prompt') {
         $fnopty = fileno $mpty;
-        vec($rv, $fnopty, 1) = 1
+        vec($rv, $fnopty, 1) = 1;
+        @passwdlist = split(/\n/, $passwd);
     }
 
     local $self->{_error_prefix} = [@{$self->{_error_prefix}},
@@ -941,8 +943,8 @@ sub _wait_for_master {
                         }
                         if ($$bout =~ s/^(.*:)//s) {
                             $debug and $debug & 4 and _debug "passwd/passphrase requested ($1)";
-                            print $mpty "$passwd\n";
-                            $state = 'waiting_for_mux_socket';
+                            print shift(@passwdlist) . "\n";
+                            $state = 'waiting_for_mux_socket' if (!@passwdlist);
                         }
                     }
                     else { $$bout = '' }
