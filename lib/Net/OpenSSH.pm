@@ -3166,8 +3166,8 @@ Accepted options:
 =item quiet => 0
 
 By default, C<scp> is called with the quiet flag C<-q> enabled in
-order to suppress progress information. This option allows reenabling
-the progress indication bar.
+order to suppress progress information. This option allows one to
+reenable the progress indication bar.
 
 =item verbose => 1
 
@@ -3429,7 +3429,7 @@ system in read-only mode:
 =back
 
 Note that this command requires a recent version of C<sshfs> to work (at
-the time of writting, it requires the yet unreleased version available
+the time of writing, it requires the yet unreleased version available
 from the FUSE git repository!).
 
 See also the L<sshfs(1)> man page and the C<sshfs> and FUSE web sites
@@ -3608,8 +3608,8 @@ C</tmp/ls.out-server.foo.com-42> on the remote host.
 =head2 Tunnels
 
 Besides running commands on the remote host, Net::OpenSSH also allows
-to tunnel TCP connections to remote machines reachable from the SSH
-server.
+one to tunnel TCP connections to remote machines reachable from the
+SSH server.
 
 That feature is made available through the C<tunnel> option of the
 L</open_ex> method, and also through wrapper methods L</open_tunnel>
