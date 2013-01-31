@@ -1,6 +1,6 @@
 package Net::OpenSSH;
 
-our $VERSION = '0.58_04';
+our $VERSION = '0.59';
 
 use strict;
 use warnings;
@@ -4371,7 +4371,7 @@ Send your feature requests, ideas or any feedback, please!
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright (C) 2008-2012 by Salvador FandiE<ntilde>o
+Copyright (C) 2008-2013 by Salvador FandiE<ntilde>o
 (sfandino@yahoo.com)
 
 This library is free software; you can redistribute it and/or modify
