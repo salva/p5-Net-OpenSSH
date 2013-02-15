@@ -317,7 +317,7 @@ sub new {
     push @ssh_opts, -p => $port if defined $port;
 
     my $home = do {
-	local ($@, $SIG{__DIE__})
+	local ($@, $SIG{__DIE__});
 	eval { Cwd::realpath((getpwuid $>)[7]) }
     };
 
