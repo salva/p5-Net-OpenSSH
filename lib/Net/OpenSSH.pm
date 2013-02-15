@@ -1,6 +1,6 @@
 package Net::OpenSSH;
 
-our $VERSION = '0.59';
+our $VERSION = '0.60';
 
 use strict;
 use warnings;
@@ -1964,12 +1964,14 @@ sub _scp_put_args {
 sub scp_put {
     ${^TAINT} and &_catch_tainted_args;
     my ($self, $opts, $target, @src) = _scp_put_args @_;
+    return unless $self;
     $self->_scp($opts, @src, $target);
 }
 
 sub rsync_put {
     ${^TAINT} and &_catch_tainted_args;
     my ($self, $opts, $target, @src) = _scp_put_args @_;
+    return unless $self;
     $self->_rsync($opts, @src, $target);
 }
 
