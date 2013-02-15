@@ -1,6 +1,6 @@
 package Net::OpenSSH;
 
-our $VERSION = '0.58_04';
+our $VERSION = '0.59';
 
 use strict;
 use warnings;
@@ -3160,8 +3160,8 @@ Accepted options:
 =item quiet => 0
 
 By default, C<scp> is called with the quiet flag C<-q> enabled in
-order to suppress progress information. This option allows reenabling
-the progress indication bar.
+order to suppress progress information. This option allows one to
+reenable the progress indication bar.
 
 =item verbose => 1
 
@@ -3423,7 +3423,7 @@ system in read-only mode:
 =back
 
 Note that this command requires a recent version of C<sshfs> to work (at
-the time of writting, it requires the yet unreleased version available
+the time of writing, it requires the yet unreleased version available
 from the FUSE git repository!).
 
 See also the L<sshfs(1)> man page and the C<sshfs> and FUSE web sites
@@ -3602,8 +3602,8 @@ C</tmp/ls.out-server.foo.com-42> on the remote host.
 =head2 Tunnels
 
 Besides running commands on the remote host, Net::OpenSSH also allows
-to tunnel TCP connections to remote machines reachable from the SSH
-server.
+one to tunnel TCP connections to remote machines reachable from the
+SSH server.
 
 That feature is made available through the C<tunnel> option of the
 L</open_ex> method, and also through wrapper methods L</open_tunnel>
@@ -3761,7 +3761,7 @@ This example is adapted from L<Net::Telnet> documentation:
 L<mod_perl> and L<mod_perl2> tie STDIN and STDOUT to objects that are
 not backed up by real file descriptors at the operative system
 level. Net::OpenSSH will fail if any of these handles is used
-explicetly or implicitly when calling some remote command.
+explicitly or implicitly when calling some remote command.
 
 The workaround is to redirect them to C</dev/null> or to some file:
 
@@ -4318,7 +4318,7 @@ To report bugs send an email to the address that appear below or use
 the CPAN bug tracking system at L<http://rt.cpan.org>.
 
 B<Post questions related to how to use the module in Perlmonks>
-L<http://perlmoks.org/>, you will probably get faster responses than
+L<http://perlmonks.org/>, you will probably get faster responses than
 if you address me directly and I visit Perlmonks quite often, so I
 will see your question anyway.
 
@@ -4365,7 +4365,7 @@ Send your feature requests, ideas or any feedback, please!
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright (C) 2008-2012 by Salvador FandiE<ntilde>o
+Copyright (C) 2008-2013 by Salvador FandiE<ntilde>o
 (sfandino@yahoo.com)
 
 This library is free software; you can redistribute it and/or modify
