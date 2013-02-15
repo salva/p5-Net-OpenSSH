@@ -1,5 +1,11 @@
 Revision history for Perl extension Net::OpenSSH.
 
+0.60  Feb 15, 2013
+        - scp_put and rsync_put where not handling correctly the case
+          where glob was set but the given file patterns didn't match
+          any local file (bug report by Pavel Leity).
+        - $SIG{__DIE__} was not always localized before calling eval
+
 0.59  Jan 31, 2013
         - release as stable
         - fix some misspellings
