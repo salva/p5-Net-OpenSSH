@@ -89,7 +89,7 @@ sub shell_quote {
 
 my $muxs = $ssh->get_ctl_path;
 ok(-S $muxs, "mux socket exists");
-is((stat $muxs)[2] & 0777, 0600, "mux socket permissions");
+is((stat $muxs)[2] & 0677, 0600, "mux socket permissions");
 
 my $cwd = cwd;
 my $sq_cwd = shell_quote $cwd;
@@ -114,7 +114,7 @@ my @ps = `$PS_P $pid`;
 ok(grep(/ssh/i, @ps));
 ok(close $in);
 @ps = `$PS_P $pid`;
-ok(!grep(/ssh/i, @ps));
+ok(!grep(/ssh/i, @ps), "pipe_in SSH proccess is reaped on close");
 
 ok(-f "$cwd/test.dat");
 
