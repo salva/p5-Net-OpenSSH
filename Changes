@@ -1,5 +1,11 @@
 Revision history for Perl extension Net::OpenSSH.
 
+0.61_01  Mar 18, 2013
+        - remote shell detection code was broken in tests (bug report
+          by Neil Bowers)
+        - skip tests requiring a bourne shell when the remote shell is
+          csh or some derivative as tcsh
+
 0.60  Feb 15, 2013
         - scp_put and rsync_put where not handling correctly the case
           where glob was set but the given file patterns didn't match
