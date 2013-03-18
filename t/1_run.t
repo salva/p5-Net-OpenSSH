@@ -94,8 +94,8 @@ is((stat $muxs)[2] & 0677, 0600, "mux socket permissions");
 my $cwd = cwd;
 my $sq_cwd = shell_quote $cwd;
 
-my $rshell = $ssh->capture($ECHO => '$SHELL');
-my $rshell_is_csh = ($rshell =~ /\bcsh$/);
+my $rshell = $ssh->capture($ECHO => \\'$SHELL');
+my $rshell_is_csh = ($rshell =~ /\bt?csh$/);
 
 my @ls_good= sort `$LS $sq_cwd`;
 my @ls = sort $ssh->capture({stderr_to_stdout => 1}, "$LS $sq_cwd");
@@ -168,9 +168,12 @@ is ($output, $string, "quote_args");
 
 $string .= "\nline1\nline2";
 
-$output = $ssh->capture(echo => $string);
-chomp $output;
-is ($output, $string, "quote_args with new lines");
+SKIP: {
+    skip "remote shell is csh", 1 if $rshell_is_csh;
+    $output = $ssh->capture(echo => $string);
+    chomp $output;
+    is ($output, $string, "quote_args with new lines");
+}
 
 eval { $ssh->capture({foo => 1}, 'bar') };
 ok($@ =~ /option/ and $@ =~ /foo/);
