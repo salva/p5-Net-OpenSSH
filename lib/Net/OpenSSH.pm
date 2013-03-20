@@ -17,6 +17,8 @@ use Cwd ();
 use Scalar::Util ();
 use Errno ();
 use Net::OpenSSH::Constants qw(:error);
+use Net::OpenSSH::ModuleLoader;
+use Net::OpenSSH::ShellQuoter;
 
 my $thread_generation = 0;
 
@@ -247,7 +249,7 @@ sub new {
     my $kill_ssh_on_timeout = delete $opts{kill_ssh_on_timeout};
     my $strict_mode = _first_defined delete $opts{strict_mode}, 1;
     my $async = delete $opts{async};
-    my $target_os = _first_defined delete $opts{target_os}, 'unix';
+    my $remote_shell = _first_defined delete $opts{remote_shell}, 'POSIX';
     my $expand_vars = delete $opts{expand_vars};
     my $vars = _first_defined delete $opts{vars}, {};
     my $default_encoding = delete $opts{default_encoding};
@@ -361,7 +363,7 @@ sub new {
 		 _master_stderr_fh => $master_stderr_fh,
 		 _master_stdout_discard => $master_stdout_discard,
 		 _master_stderr_discard => $master_stderr_discard,
-		 _target_os => $target_os,
+		 _remote_shell => $remote_shell,
                  _default_stream_encoding => $default_stream_encoding,
                  _default_argument_encoding => $default_argument_encoding,
 		 _expand_vars => $expand_vars,
@@ -1008,26 +1010,6 @@ sub _make_pipe {
     return;
 }
 
-my %loaded_module;
-sub _load_module {
-    my ($module, $version) = @_;
-    $loaded_module{$module} ||= do {
-	do {
-	    local ($@, $SIG{__DIE__});
-	    eval "require $module; 1"
-	} or croak "unable to load Perl module $module";
-        1
-    };
-    if (defined $version) {
-	local ($@, $SIG{__DIE__});
-	my $mv = eval "\$${module}::VERSION" || 0;
-	(my $mv1 = $mv) =~ s/_\d*$//;
-	croak "$module version $version required, $mv is available"
-	    if $mv1 < $version;
-    }
-    1
-}
-
 my $noquote_class = '.\\w/\\-@,:';
 my $glob_class    = '*?\\[\\],{}:!^~';
 
@@ -1078,6 +1060,14 @@ sub _arg_quoter_glob {
     }
 }
 
+sub _remote_quoter {
+    my ($self, $style) = @_;
+    if (ref $self and not defined $style) {
+        return $self->{remote_quoter} ||= Net::OpenSSH::ShellQuoter->quoter($self->{remote_shell});
+    }
+    Net::OpenSSH::ShellQuoter->quoter($style);
+}
+
 sub _quote_args {
     my $self = shift;
     my $opts = shift;
@@ -1088,11 +1078,9 @@ sub _quote_args {
     $quote = (@_ > 1) unless defined $quote;
 
     if ($quote) {
-	my $quoter_glob = $self->_arg_quoter_glob;
-	my $quoter = ($glob_quoting
-		      ? $quoter_glob
-		      : $self->_arg_quoter);
-
+        my $style = delete $opts->{quote_style};
+        my $quoter = $self->_remote_quoter($style);
+        my $quote_method = ($glob_quoting ? 'quote_glob' : 'quote');
 	# foo   => $quoter
 	# \foo  => $quoter_glob
 	# \\foo => no quoting at all and disable extended quoting as it is not safe
@@ -1100,7 +1088,7 @@ sub _quote_args {
 	for (@_) {
 	    if (ref $_) {
 		if (ref $_ eq 'SCALAR') {
-		    push @quoted, $quoter_glob->($self->_expand_vars($$_));
+		    push @quoted, $quoter->quote_glob($self->_expand_vars($$_));
 		}
 		elsif (ref $_ eq 'REF' and ref $$_ eq 'SCALAR') {
 		    push @quoted, $self->_expand_vars($$$_);
@@ -1111,19 +1099,22 @@ sub _quote_args {
 		}
 	    }
 	    else {
-		push @quoted, $quoter->($self->_expand_vars($_));
+		push @quoted, $quoter->$quote_method($self->_expand_vars($_));
 	    }
 	}
 
 	if ($quote_extended) {
-	    push @quoted, '</dev/null' if $opts->{stdin_discard};
-	    if ($opts->{stdout_discard}) {
-		push @quoted, '>/dev/null';
-		push @quoted, '2>&1' if ($opts->{stderr_to_stdout} || $opts->{stderr_discard})
-	    }
-	    else {
-		push @quoted, '2>/dev/null' if $opts->{stderr_discard};
-	    }
+            my @fragments;
+            if ( $opts->{stdout_discard} and
+                 ( $opts->{stderr_discard} or $opts->{stderr_to_stdout} ) ) {
+                @fragments = ('stdout_and_stderr_discard');
+                push @fragments, 'stdin_discard' if $opts->{stdin_discard};
+            }
+            else {
+                @fragments = grep $opts->{$_}, qw(stdin_discard stdout_discard
+                                                  stderr_discard stderr_to_stdout);
+            }
+            push @quoted, $quoter->shell_fragments(@fragments);
 	}
 	wantarray ? @quoted : join(" ", @quoted);
     }
