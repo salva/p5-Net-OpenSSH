@@ -160,7 +160,7 @@ ok($fh, "pipe_out");
 $output = join('', <$fh>);
 is($output, $lines, "pipe_out lines");
 
-my $string = q(#@$#$%&(@#_)erkljgfd'' 345345' { { / // ///foo);
+my $string = q(#@$#$%&(@#_)erkljgfd'' 345345' { { / // ///foo bar////doz '''' heloo);
 
 $output = $ssh->capture(echo => $string);
 chomp $output;
