@@ -12,10 +12,11 @@ my $glob_class    = '*?\\[\\],{}:!^~';
 sub quote {
     shift;
     my $quoted = join '',
-        map { ( m|^'$|                  ? "\\'"    :
-                m|^('+)$|               ? "\"$1\"" :
-                m|^[$noquote_class]*$|o ? $_       :
-                "'$_'" ) } split /('+)/, $_[0];
+        map { ( m|\A'\z|                  ? "\\'"    :
+                m|\A'|                    ? "\"$_\"" :
+                m|\A[$noquote_class]+\z|o ? $_       :
+                                          "'$_'"   )
+          } split /('+)/, $_[0];
     length $quoted ? $quoted : "''";
 }
 
