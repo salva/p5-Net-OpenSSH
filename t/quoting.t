@@ -12,7 +12,7 @@ sub hexdump;
 sub perldump;
 sub try_shell;
 
-my $N = 300;
+my $N = 200;
 
 my @shells = grep try_shell($_), qw(sh csh bash tcsh ksh dash ash pdksh mksh zsh);
 my %quoter = map { $_ => Net::OpenSSH::ShellQuoter->quoter($_) } @shells;
