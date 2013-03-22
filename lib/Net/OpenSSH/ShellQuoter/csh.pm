@@ -44,11 +44,8 @@ sub quote_glob {
         elsif ($arg =~ m|\G(\\[$glob_class\\])|gco) {
             push @parts, $1;
         }
-        elsif ($arg =~ m|\G\\|gc) {
-            push @parts, '\\\\'
-        }
         elsif ($arg =~ m|\G([^$glob_class\\']+)|gco) {
-            push @parts, "'$1'";
+            push @parts, _single_quote($1);
         }
         else {
             require Data::Dumper;
@@ -60,15 +57,13 @@ sub quote_glob {
     length $quoted ? $quoted : "''";
 }
 
-my %fragments = ( discard_stding            => '</dev/null',
-                  discard_stdout            => '>/dev/null',
-                  discard_stderr            => '2>/dev/null',
-                  stderr_to_stdout          => '2>&1',
-                  stdout_and_stderr_discard => '>/dev/null 2>&1' );
+my %fragments = ( stdin_discard             => '</dev/null',
+                  stdout_discard            => '>/dev/null',
+                  stdout_and_stderr_discard => '>&/dev/null' );
 
 sub shell_fragments {
     shift;
-    my @f = join ' ', grep defined, @fragments{@_};
+    my @f = grep defined, @fragments{@_};
     wantarray ? @f : join(' ', @f);
 }
 
