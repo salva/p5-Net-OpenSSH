@@ -8,6 +8,7 @@ lib/Net/OpenSSH.pm
 lib/Net/OpenSSH/Constants.pm
 lib/Net/OpenSSH/ConnectionCache.pm
 lib/Net/OpenSSH/OSTracer.pm
+lib/Net/OpenSSH/ModuleLoader.pm
 lib/Net/OpenSSH/ShellQuoter.pm
 lib/Net/OpenSSH/ShellQuoter/POSIX.pm
 lib/Net/OpenSSH/ShellQuoter/csh.pm
