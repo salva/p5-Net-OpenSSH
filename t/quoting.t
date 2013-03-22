@@ -12,7 +12,9 @@ sub hexdump;
 sub perldump;
 sub try_shell;
 
-my @shells = grep try_shell($_), qw(sh csh bash tcsh ksh);
+my $N = 300;
+
+my @shells = grep try_shell($_), qw(sh csh bash tcsh ksh dash ash pdksh mksh zsh);
 my %quoter = map { $_ => Net::OpenSSH::ShellQuoter->quoter($_) } @shells;
 
 my @chars = ([grep /\W/, map chr, 1..130],
@@ -20,28 +22,29 @@ my @chars = ([grep /\W/, map chr, 1..130],
              [map chr, 1..130, 141..172, 141..172]);
 #my @chars = grep /\w/, map chr, 1..130;
 
-my @str = map { my $chars = $chars[rand @chars]; join('', map $chars->[rand(@$chars)], 0..rand(500)) } 0..300;
+my @str = map { my $chars = $chars[rand @chars]; join('', map $chars->[rand(@$chars)], 0..rand(500)) } 1..$N;
 push @str, ("\x0a","\x27");
 
 plan tests => @str * @shells;
-
-my $i = 0;
-for my $str (@str) {
-    for my $shell (@shells) {
+diag "running tests for shells @shells";
+for my $shell (@shells) {
+    my $i = 0;
+    for my $str (@str) {
         my $cmd = join ' ', map $quoter{$shell}->quote($_), "printf", "%s", $str;
         my $out = capture($shell, '-c', $cmd);
-        is ($out, $str, "$i - $shell") or do {
+        is ($out, $str, "$shell - $i") or do {
             diag "str: >$str< cmd: >$cmd<";
             hexdump "string", $str;
             hexdump "output (shell: $shell)", $out;
             hexdump "quoted", $cmd;
             perldump "string", $str;
-        }
+        };
+        $i++;
     }
-    $i++;
 }
 
 sub capture {
+    no warnings 'io';
     open my $fh, '-|', @_ or die "unable to exec @_";
     local $/;
     my $out = <$fh>;
@@ -49,6 +52,11 @@ sub capture {
     $out;
 }
 
+sub try_shell {
+    my $shell = shift;
+    my $out = eval { capture($shell, '-c', 'echo good') };
+    $out and $out =~ /^good$/;
+}
 
 my $badfh;
 sub badfh {
