@@ -8,12 +8,16 @@ lib/Net/OpenSSH.pm
 lib/Net/OpenSSH/Constants.pm
 lib/Net/OpenSSH/ConnectionCache.pm
 lib/Net/OpenSSH/OSTracer.pm
+lib/Net/OpenSSH/ShellQuoter.pm
+lib/Net/OpenSSH/ShellQuoter/POSIX.pm
+lib/Net/OpenSSH/ShellQuoter/csh.pm
 t/common.pm
 t/test_server_key
 t/test_server_key.pub
 t/test_user_key
 t/test_user_key.pub
 t/known_hosts
+t/quoting.t
 sample/expect.pl
 sample/change_passwd.pl
 sample/autosudo.pl
