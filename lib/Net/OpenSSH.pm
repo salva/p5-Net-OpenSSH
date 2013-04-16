@@ -1011,56 +1011,6 @@ sub _make_pipe {
     return;
 }
 
-my $noquote_class = '.\\w/\\-@,:';
-my $glob_class    = '*?\\[\\],{}:!^~';
-
-sub _arg_quoter {
-    sub {
-        my $quoted = join '',
-            map { ( m|^'$|                  ? "\\'"  :
-                    m|^[$noquote_class]*$|o ? $_     :
-                                              "'$_'" ) } split /(')/, $_[0];
-        length $quoted ? $quoted : "''";
-    }
-}
-
-sub _arg_quoter_glob {
-    sub {
-	my $arg = shift;
-        my @parts;
-        while ((pos $arg ||0) < length $arg) {
-            if ($arg =~ m|\G'|gc) {
-                push @parts, "\\'";
-            }
-            elsif ($arg =~ m|\G([$noquote_class$glob_class]+)|gco) {
-                push @parts, $1;
-            }
-            elsif ($arg =~ m|\G(\\[$glob_class\\])|gco) {
-                push @parts, $1;
-            }
-            elsif ($arg =~ m|\G\\|gc) {
-                push @parts, '\\\\'
-            }
-            elsif ($arg =~ m|\G([^$glob_class\\']+)|gco) {
-                push @parts, "'$1'";
-            }
-            else {
-                require Data::Dumper;
-                $arg =~ m|\G(.+)|gc;
-                die "Internal error: unquotable string:\n". Data::Dumper::Dumper($1) ."\n";
-            }
-        }
-        my $quoted = join('', @parts);
-        length $quoted ? $quoted : "''";
-
-	# my $arg = shift;
-        # return $arg if $arg =~ m|^[\w/\-+=?\[\],{}\@!.^~]+$|;
-	# return "''" if $arg eq '';
-        # $arg =~ s|(?<!\\)([^\w/\-+=*?\[\],{}:\@!.^\\~])|ord($1) > 127 ? $1 : $1 eq "\n" ? "'\n'" : "\\$1"|ge;
-	# $arg;
-    }
-}
-
 sub _remote_quoter {
     my ($self, $style) = @_;
     if (ref $self and not defined $style) {
@@ -2471,6 +2421,10 @@ By default it is inferred from the C<ssh> one.
 
 Name or full path to C<rsync> binary. Defaults to C<rsync>.
 
+=item remote_shell => $name
+
+Name of the remote shell. Used to select the argument quoter backend.
+
 =item timeout => $timeout
 
 Maximum acceptable time that can elapse without network traffic or any
@@ -2538,6 +2492,10 @@ Enables forwarding of the authentication agent.
 
 This option can not be used when passing a passphrase (via
 L</passphrase>) to unlock the login private key.
+
+=item forward_X11 => 1
+
+Enables forwarding of the X11 protocol
 
 =item default_stdin_fh => $fh
 
@@ -2816,6 +2774,13 @@ See L</"Shell quoting"> below.
 Enables/disables forwarding of the authentication agent.
 
 This option can only be used when agent forwarding has been previously
+requested on the constructor.
+
+=item forward_X11 => $bool
+
+Enables/disables forwarding of the X11 protocol.
+
+This option can only be used when X11 forwarding has been previously
 requested on the constructor.
 
 =item ssh_opts => \@opts
@@ -3527,24 +3492,29 @@ the following debug flag:
 
   $Net::OpenSSH::debug |= 16;
 
-Also, the current shell quoting implementation expects a shell
-compatible with Unix C<sh> in the remote side. It will not work as
-expected if for instance, the remote machine runs Windows, VMS or it
-is a router.
+By default, the module assumes the remote shell is some variant of a
+POSIX or Bourne shell (C<bash>, C<dash>, C<ksh>, etc.). If this is not
+the case, the construction option C<remote_shell> can be used to
+select an alternative quoting mechanism.
 
-As a workaround, do any required quoting yourself and pass the quoted
-command as a string so that no further quoting is performed. For
-instance:
+For instance:
+
+  $ssh = Net::OpenSSH->new($host, remote_shell => 'csh');
+  $ssh->system(echo => "hard\n to\n  quote\n   argument!");
+
+The only alternative quoter currently implemented is C<csh>. One for
+MS-DOS is planed.
+
+In any case, you can always do the quoting yourself and pass the
+quoted remote command as a single string:
 
   # for VMS
   $ssh->system('DIR/SIZE NFOO::USERS:[JSMITH.DOCS]*.TXT;0');
 
-I plan to add support for different quoting mechanisms in the
-future... if you need it now, just ask for it!!!
-
-The current quoting mechanism does not handle possible aliases defined
-by the remote shell. In that case, to force execution of the command
-instead of the alias, the full path to the command must be used.
+Note that the current quoting mechanism does not handle possible
+aliases defined by the remote shell. In that case, to force execution
+of the command instead of the alias, the full path to the command must
+be used.
 
 =head2 Timeouts
 
