@@ -260,6 +260,7 @@ sub new {
     my $forward_agent = delete $opts{forward_agent};
     $forward_agent and $passphrase and
         croak "agent forwarding can not be used when a passphrase has also been given";
+    my $forward_X11 = delete $opts{forward_X11};
 
     my ($master_opts, @master_opts,
         $master_stdout_fh, $master_stderr_fh,
@@ -354,6 +355,7 @@ sub new {
                  _batch_mode => $batch_mode,
                  _home => $home,
                  _forward_agent => $forward_agent,
+                 _forward_X11 => $forward_X11,
                  _external_master => $external_master,
                  _default_ssh_opts => $default_ssh_opts,
 		 _default_stdin_fh => $default_stdin_fh,
@@ -644,9 +646,12 @@ sub _connect {
     $self->_set_error;
 
     my $timeout = int((($self->{_timeout} || 90) + 2)/3);
+    my $ssh_flags= '-2MN';
+    $ssh_flags .= ($self->{_forward_agent} ? 'A' : 'a') if defined $self->{_forward_agent};
+    $ssh_flags .= ($self->{_forward_X11} ? 'X' : 'x');
     my @master_opts = (@{$self->{_master_opts}},
                        -o => "ServerAliveInterval=$timeout",
-                       '-x2MN');
+                      $ssh_flags);
 
     my ($mpty, $use_pty, $pref_auths);
     $use_pty = 1 if defined $self->{_login_handler};
@@ -664,10 +669,6 @@ sub _connect {
     if (defined $self->{_key_path}) {
         $pref_auths = 'publickey';
         push @master_opts, -i => $self->{_key_path};
-    }
-
-    if (defined $self->{_forward_agent}) {
-        push @master_opts, ($self->{_forward_agent} ? '-A' : '-a');
     }
 
     my $proxy_command = $self->{_proxy_command};
@@ -1143,10 +1144,15 @@ sub make_remote_command {
     my %opts = (ref $_[0] eq 'HASH' ? %{shift()} : ());
     my @ssh_opts = _array_or_scalar_to_list delete $opts{ssh_opts};
     my $tty = delete $opts{tty};
-    push @ssh_opts, ($tty ? '-qtt' : '-T') if defined $tty;
+    my $ssh_flags = '';
+    $ssh_flags .= ($tty ? 'qtt' : 'T') if defined $tty;
     if ($self->{_forward_agent}) {
         my $forward_agent = delete $opts{forward_agent};
-        push @ssh_opts, ($forward_agent ? '-A' : '-a') if defined $forward_agent;
+        $ssh_flags .= ($forward_agent ? 'A' : 'a') if defined $forward_agent;
+    }
+    if ($self->{_forward_X11}) {
+        my $forward_X11 = delete $opts{forward_X11};
+        $ssh_flags .= ($forward_X11 ? 'X' : 'x');
     }
     my $tunnel = delete $opts{tunnel};
     my (@args);
@@ -1159,6 +1165,7 @@ sub make_remote_command {
     }
     _croak_bad_options %opts;
 
+    push @ssh_opts, "-$ssh_flags" if length $ssh_flags;
     my @call = $self->_make_ssh_call(\@ssh_opts, @args);
     if (wantarray) {
 	$debug and $debug & 16 and _debug_dump make_remote_command => \@call;
@@ -1277,10 +1284,15 @@ sub open_ex {
     my $ssh_opts = delete $opts{ssh_opts};
     $ssh_opts = $self->{_default_ssh_opts} unless defined $ssh_opts;
     my @ssh_opts = $self->_expand_vars(_array_or_scalar_to_list $ssh_opts);
+    my $ssh_flags = '';
 
     if ($self->{_forward_agent}) {
         my $forward_agent = delete $opts{forward_agent};
-        push @ssh_opts, ($forward_agent ? '-A' : '-a') if defined $forward_agent;
+        $ssh_flags .= ($forward_agent ? 'A' : 'a') if defined $forward_agent;
+    }
+    if ($self->{_forward_X11}) {
+        my $forward_X11 = delete $opts{forward_X11};
+        $ssh_flags .= ($forward_X11 ? 'X' : 'x');
     }
 
     my ($cmd, $close_slave_pty, @args);
@@ -1295,7 +1307,7 @@ sub open_ex {
 	}
 
 	my $tty = delete $opts{tty};
-	push @ssh_opts, ($tty ? '-qtt' : '-T') if defined $tty;
+	$ssh_flags .= ($tty ? 'qtt' : 'T') if defined $tty;
 
 	$cmd = delete $opts{_cmd} || 'ssh';
 	$opts{quote_args_extended} = 1
@@ -1373,6 +1385,8 @@ sub open_ex {
 	}
 	_check_is_system_fh STDERR => $werr;
     }
+
+    push @ssh_opts, "-$ssh_flags" if length $ssh_flags;
 
     my @call = ( $tunnel         ? $self->_make_tunnel_call(\@ssh_opts, @args) :
                  $cmd eq 'ssh'   ? $self->_make_ssh_call(\@ssh_opts, @args)    :
@@ -1657,7 +1671,7 @@ sub _io3 {
 _sub_options spawn => qw(stderr_to_stdout stdin_discard stdin_fh stdin_file stdout_discard
                          stdout_fh stdout_file stderr_discard stderr_fh stderr_file
                          stdinout_dpipe stdinout_dpipe_make_parent quote_args tty ssh_opts tunnel
-                         encoding argument_encoding forward_agent);
+                         encoding argument_encoding forward_agent forward_X11);
 sub spawn {
     ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
@@ -1668,7 +1682,7 @@ sub spawn {
 }
 
 _sub_options open2 => qw(stderr_to_stdout stderr_discard stderr_fh stderr_file quote_args
-                         tty ssh_opts tunnel encoding argument_encoding forward_agent);
+                         tty ssh_opts tunnel encoding argument_encoding forward_agent forward_X11);
 sub open2 {
     ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
@@ -1683,7 +1697,7 @@ sub open2 {
 }
 
 _sub_options open2pty => qw(stderr_to_stdout stderr_discard stderr_fh stderr_file quote_args tty
-                            close_slave_pty ssh_opts encoding argument_encoding forward_agent);
+                            close_slave_pty ssh_opts encoding argument_encoding forward_agent forward_X11);
 sub open2pty {
     ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
@@ -1699,7 +1713,7 @@ sub open2pty {
 }
 
 _sub_options open2socket => qw(stderr_to_stdout stderr_discard stderr_fh stderr_file quote_args tty
-                               ssh_opts tunnel encoding argument_encoding forward_agent);
+                               ssh_opts tunnel encoding argument_encoding forward_agent forward_X11);
 sub open2socket {
     ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
@@ -1712,7 +1726,7 @@ sub open2socket {
     return ($socket, $pid);
 }
 
-_sub_options open3 => qw(quote_args tty ssh_opts encoding argument_encoding forward_agent);
+_sub_options open3 => qw(quote_args tty ssh_opts encoding argument_encoding forward_agent forward_X11);
 sub open3 {
     ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
@@ -1729,7 +1743,7 @@ sub open3 {
 }
 
 _sub_options open3pty => qw(quote_args tty close_slave_pty ssh_opts
-                            encoding argument_encoding forward_agent);
+                            encoding argument_encoding forward_agent forward_X11);
 sub open3pty {
     ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
@@ -1749,7 +1763,7 @@ sub open3pty {
 _sub_options system => qw(stdout_discard stdout_fh stdin_discard stdout_file stdin_fh stdin_file
                           quote_args stderr_to_stdout stderr_discard stderr_fh stderr_file
                           stdinout_dpipe stdinout_dpipe_make_parent tty ssh_opts tunnel encoding
-                          argument_encoding forward_agent);
+                          argument_encoding forward_agent forward_X11);
 sub system {
     ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
@@ -1778,7 +1792,7 @@ sub system {
 _sub_options test => qw(stdout_discard stdout_fh stdin_discard stdout_file stdin_fh stdin_file
                         quote_args stderr_to_stdout stderr_discard stderr_fh stderr_file
                         stdinout_dpipe stdinout_dpipe_make_parent tty ssh_opts timeout stdin_data
-                        encoding stream_encoding argument_encoding forward_agent);
+                        encoding stream_encoding argument_encoding forward_agent forward_X11);
 sub test {
     ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
@@ -1803,7 +1817,7 @@ sub test {
 
 _sub_options capture => qw(stderr_to_stdout stderr_discard stderr_fh stderr_file
                            stdin_discard stdin_fh stdin_file quote_args tty ssh_opts tunnel
-                           encoding argument_encoding forward_agent);
+                           encoding argument_encoding forward_agent forward_X11);
 sub capture {
     ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
@@ -1832,7 +1846,7 @@ sub capture {
 
 _sub_options capture2 => qw(stdin_discard stdin_fh stdin_file
                             quote_args tty ssh_opts encoding
-                            argument_encoding forward_agent);
+                            argument_encoding forward_agent forward_X11);
 sub capture2 {
     ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
