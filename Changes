@@ -1,7 +1,8 @@
 Revision history for Perl extension Net::OpenSSH.
 
-0.61_02
+0.61_02  Apr 16, 2013
         - add support for multiple shell quoting backends
+        - add support for X11 forwarding
 
 0.61_01  Mar 18, 2013
         - remote shell detection code was broken in tests (bug report
