@@ -6,10 +6,15 @@ use Carp;
 
 use Net::OpenSSH::ModuleLoader;
 
-my %alias = (bash => 'POSIX',
-             sh   => 'POSIX',
-             ksh  => 'POSIX',
-             tcsh => 'csh');
+my %alias = (bash  => 'POSIX',
+             sh    => 'POSIX',
+             ksh   => 'POSIX',
+             ash   => 'POSIX',
+             dash  => 'POSIX',
+             pdksh => 'POSIX',
+             mksh  => 'POSIX',
+             zsh   => 'POSIX',
+             tcsh  => 'csh');
 
 sub quoter {
     my ($class, $style) = @_;

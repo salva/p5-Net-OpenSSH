@@ -51,15 +51,15 @@ sub quote_glob {
     length $quoted ? $quoted : "''";
 }
 
-my %fragments = ( discard_stding            => '</dev/null',
-                  discard_stdout            => '>/dev/null',
-                  discard_stderr            => '2>/dev/null',
-                  stderr_to_stdout          => '2>&1',
-                  stdout_and_stderr_discard => '>/dev/null 2>&1' );
+my %fragments = ( stdin_discard             => '</dev/null',
+                  stdout_discard            => '>/dev/null',
+                  stderr_discard            => '2>/dev/null',
+                  stdout_and_stderr_discard => '>/dev/null 2>&1',
+                  stderr_to_stdout          => '2>&1' );
 
 sub shell_fragments {
     shift;
-    my @f = join ' ', grep defined, @fragments{@_};
+    my @f = grep defined, @fragments{@_};
     wantarray ? @f : join(' ', @f);
 }
 
