@@ -1,6 +1,6 @@
 package Net::OpenSSH;
 
-our $VERSION = '0.61_02';
+our $VERSION = '0.61_03';
 
 use strict;
 use warnings;
@@ -64,6 +64,14 @@ sub _hexdump {
                 croak "Invalid or bad combination of options ('" . CORE::join("', '", @keys) . "')";
             }
         }
+    }
+}
+
+sub _croak_scalar_context {
+    my ($sub, $wantarray) = (caller 1)[3, 5];
+    unless ($wantarray) {
+        $sub =~ s/^.*:://;
+        croak "method '$sub' called in scalar context";
     }
 }
 
@@ -1411,7 +1419,7 @@ sub pipe_in {
                           "unable to fork new ssh slave: $!");
         return;
     }
-    return wantarray ? ($rin, $pid) : $rin;
+    wantarray ? ($rin, $pid) : $rin;
 }
 
 sub pipe_out {
@@ -1432,7 +1440,7 @@ sub pipe_out {
                           "unable to fork new ssh slave: $!");
         return;
     }
-    return wantarray ? ($rout, $pid) : $rout;
+    wantarray ? ($rout, $pid) : $rout;
 }
 
 sub _find_encoding {
@@ -1638,6 +1646,7 @@ sub open2 {
     my $self = shift;
     my %opts = (ref $_[0] eq 'HASH' ? %{shift()} : ());
     _croak_bad_options %opts;
+    _croak_scalar_context;
 
     my ($in, $out, undef, $pid) =
         $self->open_ex({ stdout_pipe => 1,
@@ -1659,7 +1668,7 @@ sub open2pty {
                          stdin_pty => 1,
 			 tty => 1,
                        %opts }, @_) or return ();
-    return ($pty, $pid);
+    wantarray ? ($pty, $pid) : $pty;
 }
 
 _sub_options open2socket => qw(stderr_to_stdout stderr_discard stderr_fh stderr_file quote_args tty
@@ -1673,7 +1682,7 @@ sub open2socket {
     my ($socket, undef, undef, $pid) =
         $self->open_ex({ stdinout_socket => 1,
                          %opts }, @_) or return ();
-    return ($socket, $pid);
+    wantarray ? ($socket, $pid) : $socket;
 }
 
 _sub_options open3 => qw(quote_args tty ssh_opts encoding argument_encoding forward_agent forward_X11);
@@ -1682,6 +1691,7 @@ sub open3 {
     my $self = shift;
     my %opts = (ref $_[0] eq 'HASH' ? %{shift()} : ());
     _croak_bad_options %opts;
+    _croak_scalar_context;
 
     my ($in, $out, $err, $pid) =
         $self->open_ex({ stdout_pipe => 1,
@@ -1699,6 +1709,7 @@ sub open3pty {
     my $self = shift;
     my %opts = (ref $_[0] eq 'HASH' ? %{shift()} : ());
     _croak_bad_options %opts;
+    _croak_scalar_context;
 
     my ($pty, undef, $err, $pid) =
         $self->open_ex({ stdout_pty => 1,

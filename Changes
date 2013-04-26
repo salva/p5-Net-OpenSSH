@@ -1,5 +1,11 @@
 Revision history for Perl extension Net::OpenSSH.
 
+0.61_03
+        - open2socket and open2pty now return the socket and pty
+          respectively when called on scalar context
+        - method returning several file objects now croak when called
+          on scalar context
+
 0.61_02  Apr 16, 2013
         - add support for multiple shell quoting backends
         - add support for X11 forwarding
