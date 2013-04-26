@@ -1721,6 +1721,23 @@ sub open3pty {
     return ($pty, $err, $pid);
 }
 
+_sub_options open3socket => qw(quote_args tty ssh_opts encoding
+                               argument_encoding forward_agent
+                               forward_X11);
+sub open3socket {
+    ${^TAINT} and &_catch_tainted_args;
+    my $self = shift;
+    my %opts = (ref $_[0] eq 'HASH' ? %{shift()} : ());
+    _croak_bad_options %opts;
+    _croak_scalar_context;
+
+    my ($socket, undef, $err, $pid) =
+        $self->open_ex({ stdinout_socket => 1,
+                         stderr_pipe => 1,
+			 %opts }, @_) or return ();
+    return ($socket, $err, $pid);
+}
+
 _sub_options system => qw(stdout_discard stdout_fh stdin_discard stdout_file stdin_fh stdin_file
                           quote_args stderr_to_stdout stderr_discard stderr_fh stderr_file
                           stdinout_dpipe stdinout_dpipe_make_parent tty ssh_opts tunnel encoding

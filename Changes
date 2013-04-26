@@ -1,6 +1,7 @@
 Revision history for Perl extension Net::OpenSSH.
 
 0.61_03
+        - add open3socket method
         - open2socket and open2pty now return the socket and pty
           respectively when called on scalar context
         - method returning several file objects now croak when called
