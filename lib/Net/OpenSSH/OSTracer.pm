@@ -127,7 +127,7 @@ It is enabled setting the flag 512 on the C<$Net::OpenSSH::debug> variable:
 
   $Net::OpenSSH::debug |= 512;
 
-By default the ouput files of the tracer are saved as
+By default the output files of the tracer are saved as
 C</tmp/net_openssh_master.$pid.$tracer_type>.
 
 Also, the output send by the tracer to stdout/stderr is saved as
@@ -140,7 +140,7 @@ The module can be configured through the following global variables:
 =item $Net::OpenSSH::OSTracer::type
 
 By default, the module decides which tracer to use in base to the
-operative system name. This variable allows to select a different
+operating system name. This variable allows one to select a different
 tracer.
 
 Currently accepted types are: strace (linux), ktrace (*bsd), tusc
