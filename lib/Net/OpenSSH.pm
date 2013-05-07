@@ -3133,7 +3133,7 @@ Accepted options:
 
 By default, C<scp> is called with the quiet flag C<-q> enabled in
 order to suppress progress information. This option allows one to
-reenable the progress indication bar.
+re-enable the progress indication bar.
 
 =item verbose => 1
 
@@ -3160,7 +3160,7 @@ files.
 
 =item bwlimit => $Kbits
 
-Limits the used bandwith, specified in Kbit/s.
+Limits the used bandwidth, specified in Kbit/s.
 
 =item timeout => $secs
 
@@ -3208,6 +3208,13 @@ capture of the output of the C<scp> program.
 
 Note that C<scp> will not generate progress reports unless its stdout
 stream is attached to a tty.
+
+=item ssh_opts => \@opts
+
+List of extra options for the C<ssh> command.
+
+This feature should be used with care, as the given options are not
+checked in any way by the module, and they could interfere with it.
 
 =back
 
