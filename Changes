@@ -1,7 +1,7 @@
 Revision history for Perl extension Net::OpenSSH.
 
 0.61_04
-        - remove useless old fix for an nonexistent bug on
+        - remove useless old fix for a nonexistent bug on
           _fileno_dup_over (un-bug report by Tammy Rockvam)
 
 0.61_03  May 10, 2013
