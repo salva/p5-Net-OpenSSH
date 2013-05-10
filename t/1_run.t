@@ -24,7 +24,7 @@ defined $CAT or plan skip_all => "cat command not found";
 my $ECHO = find_cmd('echo');
 defined $ECHO or plan skip_all => "echo command not found";
 
-my $PS_P = ($^O =~ /sunos|solaris/i ? "$PS -p" : "$PS p");
+my $PS_P = ($^O =~ /^(?:sunos|solaris|aix)/i ? "$PS -p" : "$PS p");
 
 # $Net::OpenSSH::debug = -1;
 
@@ -89,7 +89,11 @@ sub shell_quote {
 
 my $muxs = $ssh->get_ctl_path;
 ok(-S $muxs, "mux socket exists");
-is((stat $muxs)[2] & 0677, 0600, "mux socket permissions");
+
+SKIP: {
+    skip "AIX ignores the socket permissions", 1 if $^O =~ /^aix/;
+    is((stat $muxs)[2] & 0677, 0600, "mux socket permissions");
+}
 
 my $cwd = cwd;
 my $sq_cwd = shell_quote $cwd;
