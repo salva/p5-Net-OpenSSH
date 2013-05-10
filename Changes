@@ -1,5 +1,9 @@
 Revision history for Perl extension Net::OpenSSH.
 
+0.61_04
+        - remove useless old fix for an nonexistent bug on
+          _fileno_dup_over (un-bug report by Tammy Rockvam)
+
 0.61_03  May 10, 2013
         - when testing on AIX don't check mux socket permissions and
           use correct ps arguments (bug report by mwatson)

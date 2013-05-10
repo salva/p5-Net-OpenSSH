@@ -1,6 +1,6 @@
 package Net::OpenSSH;
 
-our $VERSION = '0.61_03';
+our $VERSION = '0.61_04';
 
 use strict;
 use warnings;
@@ -1155,12 +1155,10 @@ sub _open_file {
 sub _fileno_dup_over {
     my ($good_fn, $fh) = @_;
     if (defined $fh) {
-        my @keep_open;
         my $fn = fileno $fh;
         for (1..5) {
             $fn >= $good_fn and return $fn;
             $fn = POSIX::dup($fn);
-            push @keep_open, $fn;
         }
         POSIX::_exit(255);
     }
