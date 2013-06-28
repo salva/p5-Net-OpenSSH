@@ -1,6 +1,8 @@
 Revision history for Perl extension Net::OpenSSH.
 
-0.61_04
+0.61_04  Jun 28, 2013
+        - print more informative error messages when loading an
+          optional module fail
         - remove useless old fix for a nonexistent bug on
           _fileno_dup_over (un-bug report by Tammy Rockvam)
 
