@@ -1,5 +1,9 @@
 Revision history for Perl extension Net::OpenSSH.
 
+0.61_05  Jul 11, 2013
+        - add shell sanity check to test scripts to avoid false
+          negatives while testing (bug report by Karen Etheridge)
+
 0.61_04  Jun 28, 2013
         - print more informative error messages when loading an
           optional module fail
