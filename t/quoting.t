@@ -12,6 +12,10 @@ sub hexdump;
 sub perldump;
 sub try_shell;
 
+my $out = `sh -c 'echo hello 2>&1'`;
+plan skip_all => 'Your shell does unexpected things!'
+    unless $out eq "hello\n" and $? == 0;
+
 my $N = 200;
 
 my @shells = grep try_shell($_), qw(sh csh bash tcsh ksh dash ash pdksh mksh zsh);
@@ -26,6 +30,7 @@ my @str = map { my $chars = $chars[rand @chars]; join('', map $chars->[rand(@$ch
 push @str, ("\x0a","\x27");
 
 plan tests => @str * @shells;
+
 diag "running tests for shells @shells";
 for my $shell (@shells) {
     my $i = 0;

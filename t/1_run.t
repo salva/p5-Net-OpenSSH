@@ -28,6 +28,10 @@ my $PS_P = ($^O =~ /^(?:sunos|solaris|aix)/i ? "$PS -p" : "$PS p");
 
 # $Net::OpenSSH::debug = -1;
 
+my $out = `sh -c 'echo hello 2>&1'`;
+plan skip_all => 'Your shell does unexpected things!'
+    unless $out eq "hello\n" and $? == 0;
+
 my $V = `ssh -V 2>&1`;
 my ($ver, $num) = $V =~ /^(OpenSSH_(\d+\.\d+).*)$/msi;
 
@@ -38,9 +42,9 @@ chomp $ver;
 diag "\nSSH client found: $ver.\nTrying to connect to localhost, timeout is ${timeout}s.\n";
 
 my %ctor_opts = (host => 'localhost',
-            timeout => $timeout,
-            strict_mode => 0,
-            master_opts => [-o => "StrictHostKeyChecking no"]);
+                 timeout => $timeout,
+                 strict_mode => 0,
+                 master_opts => [-o => "StrictHostKeyChecking no"]);
 
 my $ssh = Net::OpenSSH->new(%ctor_opts);
 
