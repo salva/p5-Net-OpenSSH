@@ -3,8 +3,6 @@
 use strict;
 use warnings;
 use Cwd;
-use File::Spec;
-use Test::More;
 
 use lib "./t";
 use common;
