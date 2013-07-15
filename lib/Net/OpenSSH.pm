@@ -1,6 +1,6 @@
 package Net::OpenSSH;
 
-our $VERSION = '0.61_05';
+our $VERSION = '0.61_06';
 
 use strict;
 use warnings;
@@ -24,9 +24,13 @@ my $thread_generation = 0;
 
 sub CLONE { $thread_generation++ };
 
-sub _debug { print STDERR '# ', (map { defined($_) ? $_ : '<undef>' } @_), "\n" }
+sub _debug {
+    local ($!, $@);
+    print STDERR '# ', (map { defined($_) ? $_ : '<undef>' } @_), "\n"
+}
 
 sub _debug_dump {
+    local ($!, $@);
     require Data::Dumper;
     local $Data::Dumper::Terse = 1;
     local $Data::Dumper::Indent = 0;
@@ -1499,6 +1503,9 @@ sub _decode {
     $self->_check_eval_ok(OSSH_ENCODING_ERROR);
 }
 
+my @retriable = (Errno::EINTR, Errno::EAGAIN);
+push @retriable, Errno::EWOULDBLOCK if Errno::EWOULDBLOCK != Errno::EAGAIN;
+
 sub _io3 {
     my ($self, $out, $err, $in, $stdin_data, $timeout, $encoding) = @_;
     $self->wait_for_master or return;
@@ -1565,7 +1572,7 @@ sub _io3 {
                         _debug "stdout, bytes read: ", $read, " at offset $offset";
                         $read and $debug & 128 and _hexdump substr $bout, $offset;
                     }
-                    unless ($read) {
+                    unless ($read or grep $! == $_, @retriable) {
                         close $out;
                         undef $cout;
                         $recalc_vecs = 1;
@@ -1575,7 +1582,7 @@ sub _io3 {
                 if ($cerr and vec($rv1, $fnoerr, 1)) {
                     my $read = sysread($err, $berr, 20480, length($berr));
                     $debug and $debug & 64 and _debug "stderr, bytes read: ", $read;
-                    unless ($read) {
+                    unless ($read or grep $! == $_, @retriable) {
                         close $err;
                         undef $cerr;
                         $recalc_vecs = 1;
@@ -1595,13 +1602,16 @@ sub _io3 {
                             shift @data;
                         }
                     }
+                    elsif (grep $! == $_, @retriable) {
+                        next FAST;
+                    }
                     close $in;
                     undef $cin;
                     $recalc_vecs = 1;
                 }
             }
             else {
-                next if ($n < 0 and $! == Errno::EINTR());
+                next if $n < 0 and grep $! == $_, @retriable;
                 $self->_set_error(OSSH_SLAVE_TIMEOUT, 'ssh slave failed', 'timed out');
                 last MLOOP;
             }
@@ -2155,9 +2165,12 @@ sub sshfs_export {
     _croak_bad_options %opts;
     $opts{stdinout_dpipe} = $self->{_sftp_server_cmd};
 
-    my $hostname = eval {
-        require Sys::Hostname;
-        Sys::Hostname::hostname();
+    my $hostname = do {
+        local ($@, $SIG{__DIE__});
+        eval {
+            require Sys::Hostname;
+            Sys::Hostname::hostname();
+        };
     };
     $hostname = 'remote' if (not defined $hostname   or
                              not length $hostname    or
