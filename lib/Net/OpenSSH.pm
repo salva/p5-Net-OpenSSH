@@ -1576,7 +1576,6 @@ sub _io3 {
                         close $out;
                         undef $cout;
                         $recalc_vecs = 1;
-                        last unless $rv =~ /[^\x00]/;
                     }
                 }
                 if ($cerr and vec($rv1, $fnoerr, 1)) {
@@ -1601,6 +1600,7 @@ sub _io3 {
                                 if (defined $data[0] and length $data[0]);
                             shift @data;
                         }
+                        # fallback when stdin queue is exhausted
                     }
                     elsif (grep $! == $_, @retriable) {
                         next FAST;
