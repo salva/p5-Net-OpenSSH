@@ -6,15 +6,17 @@ use warnings;
 use Test::More;
 
 use Net::OpenSSH::ShellQuoter;
-use Data::Dumper;
+use lib './t';
+use common;
+
+# use Data::Dumper;
 sub capture;
 sub hexdump;
 sub perldump;
 sub try_shell;
 
-my $out = `sh -c 'echo hello 2>&1'`;
 plan skip_all => 'Your shell does unexpected things!'
-    unless $out eq "hello\n" and $? == 0;
+    unless shell_is_clean;
 
 my $N = 200;
 

@@ -3,8 +3,6 @@
 use strict;
 use warnings;
 use Cwd;
-use File::Spec;
-use Test::More;
 
 use lib "./t";
 use common;
@@ -28,9 +26,10 @@ my $PS_P = ($^O =~ /^(?:sunos|solaris|aix)/i ? "$PS -p" : "$PS p");
 
 # $Net::OpenSSH::debug = -1;
 
-my $out = `sh -c 'echo hello 2>&1'`;
 plan skip_all => 'Your shell does unexpected things!'
-    unless $out eq "hello\n" and $? == 0;
+    unless shell_is_clean;
+
+
 
 my $V = `ssh -V 2>&1`;
 my ($ver, $num) = $V =~ /^(OpenSSH_(\d+\.\d+).*)$/msi;
