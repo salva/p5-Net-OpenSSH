@@ -26,10 +26,9 @@ my $PS_P = ($^O =~ /^(?:sunos|solaris|aix)/i ? "$PS -p" : "$PS p");
 
 # $Net::OpenSSH::debug = -1;
 
-plan skip_all => 'Your shell does unexpected things!'
+plan skip_all => 'Your shell introduces garbage on the output when running commands, ' .
+                 'check your shell configuration files (i.e. ~/.bashrc)'
     unless shell_is_clean;
-
-
 
 my $V = `ssh -V 2>&1`;
 my ($ver, $num) = $V =~ /^(OpenSSH_(\d+\.\d+).*)$/msi;
