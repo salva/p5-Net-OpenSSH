@@ -1,5 +1,9 @@
 Revision history for Perl extension Net::OpenSSH.
 
+0.61_09  Jul 19, 2013
+        - forcibly disable ControlPersist that may have been set from
+          ssh configuration files (bug report by Philippe Bruhat)
+
 0.61_08  Jul 19, 2013
         - fix test errors on perl 5.8
 
