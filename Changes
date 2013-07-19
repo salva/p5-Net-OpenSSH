@@ -1,5 +1,8 @@
 Revision history for Perl extension Net::OpenSSH.
 
+0.61_08  Jul 19, 2013
+        - fix test errors on perl 5.8
+
 0.61_07  Jul 15, 2013
         - capture methods were not hanling retriable errors correctly
           (bug report by Victor Efimov)
