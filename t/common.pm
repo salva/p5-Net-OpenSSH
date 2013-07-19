@@ -3,7 +3,7 @@ use warnings;
 
 use Test::More;
 use File::Spec;
-use Socket ();
+use Socket qw(AF_UNIX SOCK_STREAM PF_UNSPEC);
 
 sub sshd_cmd {
     my $sc_name = 'sshd';
@@ -39,7 +39,7 @@ sub find_cmd {
 sub shell_is_clean {
     my $shell = (getpwuid($>))[8];
 
-    socketpair my $up, my $down, Socket::AF_UNIX, Socket::SOCK_STREAM, Socket::PF_UNSPEC or return;
+    socketpair my $up, my $down, AF_UNIX, SOCK_STREAM, PF_UNSPEC or return;
     my $pid = fork;
     unless ($pid) {
         unless (defined $pid) {
