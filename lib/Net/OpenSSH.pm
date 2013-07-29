@@ -1,6 +1,6 @@
 package Net::OpenSSH;
 
-our $VERSION = '0.61_09';
+our $VERSION = '0.61_10';
 
 use strict;
 use warnings;
@@ -693,7 +693,7 @@ sub _connect {
     $ssh_flags .= ($self->{_forward_X11} ? 'X' : 'x');
     my @master_opts = (@{$self->{_master_opts}},
                        -o => "ServerAliveInterval=$timeout",
-                       ($self->{_ssh_version} >= 5.3 ? (-o => "ControlPersist=no") : ()),
+                       ($self->{_ssh_version} >= 5.6 ? (-o => "ControlPersist=no") : ()),
                       $ssh_flags);
 
     my ($mpty, $use_pty, $pref_auths);

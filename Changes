@@ -1,5 +1,10 @@
 Revision history for Perl extension Net::OpenSSH.
 
+0.61_10  Jul 29, 2013
+        - disable ControlPersist only when OpenSSH version >= 5.6 (bug
+          report by Philippe Bruhat)
+        - autodetect OpenSSH version during object creation
+
 0.61_09  Jul 19, 2013
         - forcibly disable ControlPersist that may have been set from
           ssh configuration files (bug report by Philippe Bruhat)
