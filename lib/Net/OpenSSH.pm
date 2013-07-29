@@ -535,17 +535,19 @@ sub _detect_ssh_version {
     else {
         my (undef, $out, undef, $pid) = $self->open_ex({_cmd => 'raw',
                                                         _no_master_required => 1,
+                                                        stdout_pipe => 1,
                                                         stdin_discard => 1,
                                                         stderr_to_stdout => 1 },
                                                        $self->{_ssh_cmd}, '-V');
         my ($txt) = $self->_io3($out, undef, undef, undef, 10, 'bytes');
         local $self->{_kill_ssh_on_timeout} = 1;
         $self->_waitpid($pid, 10);
-        if (my ($num, $full) = $txt =~ /^OpenSSH_((\d+\.\d+)\S*)/mi) {
+        if (my ($full, $num) = $txt =~ /^OpenSSH_((\d+\.\d+)\S*)/mi) {
             $debug and $debug & 4 and _debug "OpenSSH verion is $full";
             $self->{_ssh_version} = $num;
         }
         else {
+            $self->{_ssh_version} = 0;
             $debug and $debug & 4 and _debug "unable to determine version, '$self->{_ssh_cmd} -V', output:\n$txt"
         }
     }
@@ -691,7 +693,7 @@ sub _connect {
     $ssh_flags .= ($self->{_forward_X11} ? 'X' : 'x');
     my @master_opts = (@{$self->{_master_opts}},
                        -o => "ServerAliveInterval=$timeout",
-                       -o => "ControlPersist=no",
+                       ($self->{_ssh_version} >= 5.3 ? (-o => "ControlPersist=no") : ()),
                       $ssh_flags);
 
     my ($mpty, $use_pty, $pref_auths);
@@ -4416,6 +4418,8 @@ upon: L<http://www.openssh.org/donations.html>.
 
 - add proper shell quoting for Windows (see
   L<http://blogs.msdn.com/b/twistylittlepassagesallalike/archive/2011/04/23/everyone-quotes-arguments-the-wrong-way.aspx>).
+
+- refactor open_ex support for multiple commands, maybe just keeping tunnel, ssh and raw
 
 Send your feature requests, ideas or any feedback, please!
 
