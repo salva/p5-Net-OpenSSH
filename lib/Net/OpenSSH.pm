@@ -246,6 +246,7 @@ sub new {
         }
     }
 
+    my $ssh_version = delete $opts{ssh_version};
     my $batch_mode = delete $opts{batch_mode};
     my $ctl_path = delete $opts{ctl_path};
     my $ctl_dir = delete $opts{ctl_dir};
@@ -346,6 +347,7 @@ sub new {
 		 _error_prefix => [],
 		 _perl_pid => $$,
                  _thread_generation => $thread_generation,
+                 _ssh_version => $ssh_version,
                  _ssh_cmd => $ssh_cmd,
 		 _scp_cmd => $scp_cmd,
 		 _rsync_cmd => $rsync_cmd,
@@ -384,6 +386,8 @@ sub new {
 		 _vars => $vars,
                };
     bless $self, $class;
+
+    $self->_detect_ssh_version;
 
     # default file handles are opened so late in order to have the
     # $self object to report errors
@@ -521,6 +525,30 @@ sub _is_secure_path {
         return 1 if (defined $home and $home eq $dir);
     }
     return 1;
+}
+
+sub _detect_ssh_version {
+    my $self = shift;
+    if (defined $self->{_ssh_version}) {
+        $debug and $debug & 4 and _debug "ssh version given as $self->{_ssh_version}";
+    }
+    else {
+        my (undef, $out, undef, $pid) = $self->open_ex({_cmd => 'raw',
+                                                        _no_master_required => 1,
+                                                        stdin_discard => 1,
+                                                        stderr_to_stdout => 1 },
+                                                       $self->{_ssh_cmd}, '-V');
+        my ($txt) = $self->_io3($out, undef, undef, undef, 10, 'bytes');
+        local $self->{_kill_ssh_on_timeout} = 1;
+        $self->_waitpid($pid, 10);
+        if (my ($num, $full) = $txt =~ /^OpenSSH_((\d+\.\d+)\S*)/mi) {
+            $debug and $debug & 4 and _debug "OpenSSH verion is $full";
+            $self->{_ssh_version} = $num;
+        }
+        else {
+            $debug and $debug & 4 and _debug "unable to determine version, '$self->{_ssh_cmd} -V', output:\n$txt"
+        }
+    }
 }
 
 sub _make_ssh_call {
@@ -1202,8 +1230,11 @@ sub _delete_argument_encoding {
 sub open_ex {
     ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
-    $self->wait_for_master or return;
     my %opts = (ref $_[0] eq 'HASH' ? %{shift()} : ());
+    unless (delete $opts{_no_master_required}) {
+        $self->wait_for_master or return;
+    }
+
     my $tunnel = delete $opts{tunnel};
     my ($stdinout_socket, $stdinout_dpipe_make_parent);
     my $stdinout_dpipe = delete $opts{stdinout_dpipe};
@@ -1353,6 +1384,7 @@ sub open_ex {
                  $cmd eq 'ssh'   ? $self->_make_ssh_call(\@ssh_opts, @args)    :
 		 $cmd eq 'scp'   ? $self->_make_scp_call(\@ssh_opts, @args)    :
 		 $cmd eq 'rsync' ? $self->_make_rsync_call(\@ssh_opts, @args)  :
+                 $cmd eq 'raw'   ? @args                                       :
 		 die "internal error: bad _cmd protocol" );
 
     $debug and $debug & 16 and _debug_dump open_ex => \@call;
@@ -1509,7 +1541,7 @@ push @retriable, Errno::EWOULDBLOCK if Errno::EWOULDBLOCK != Errno::EAGAIN;
 
 sub _io3 {
     my ($self, $out, $err, $in, $stdin_data, $timeout, $encoding) = @_;
-    $self->wait_for_master or return;
+    # $self->wait_for_master or return;
     my @data = _array_or_scalar_to_list $stdin_data;
     my ($cout, $cerr, $cin) = (defined($out), defined($err), defined($in));
     $timeout = $self->{_timeout} unless defined $timeout;
