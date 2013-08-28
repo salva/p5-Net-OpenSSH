@@ -2568,6 +2568,10 @@ Enables forwarding of the authentication agent.
 This option can not be used when passing a passphrase (via
 L</passphrase>) to unlock the login private key.
 
+Note that Net::OpenSSH will not run C<ssh-agent> for you. This has to
+be done ahead of time and the environment variable C<SSH_AUTH_SOCK>
+set pointing to the proper place.
+
 =item forward_X11 => 1
 
 Enables forwarding of the X11 protocol
