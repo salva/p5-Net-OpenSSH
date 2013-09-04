@@ -27,3 +27,5 @@ sample/login_handler.pl
 sample/mod_perl_openssh.pm
 sample/keep_in_sync.pl
 sample/password_from_data.pl
+sample/git_ssh_through_mux.pl
+sample/git_with_password.pl
