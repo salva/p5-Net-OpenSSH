@@ -936,7 +936,7 @@ sub _wait_for_master {
 	    $self->_kill_master;
             return undef;
         }
-        $debug and $debug & 4 and _debug "file object not yet found at $ctl_path";
+        $debug and $debug & 4 and _debug "file object not yet found at $ctl_path, state: $state";
 
         if ($self->{_perl_pid} != $$ or $self->{_thread_generation} != $thread_generation) {
             $self->_set_error(OSSH_MASTER_FAILED,
