@@ -1,5 +1,12 @@
 Revision history for Perl extension Net::OpenSSH.
 
+0.61_12
+        - add chain quoter
+        - add quoters for MS Windows (MSWin, MSCmd)
+        - stream_encoding option was not accepted by capture2 method
+        - glob_quoting option was not accepted by most methods
+        - rename quote_style option as remote_shell
+
 0.61_11  Aug 29, 2013
         - rsync_get method relied on a feature not available in old
           but still widely used versions of rsync (bug report by

@@ -17,14 +17,20 @@ my %alias = (bash  => 'POSIX',
              tcsh  => 'csh');
 
 sub quoter {
-    my ($class, $style) = @_;
-    $style = 'POSIX' unless defined $style;
-    $style = $alias{$style} if defined $alias{$style};
-    $style =~ /^\w+$/ or croak "bad quoting style $style";
-
-    my $impl = "Net::OpenSSH::ShellQuoter::$style";
-    _load_module($impl);
-    $impl->new
+    my ($class, $shell) = @_;
+    $shell = 'POSIX' unless defined $shell;
+    return $shell if ref $shell;
+    if ($shell =~ /,/) {
+        require Net::OpenSSH::ShellQuoter::Chain;
+        return Net::OpenSSH::ShellQuoter::Chain->chain(split /\s*,\s*/, $shell);
+    }
+    else {
+        $shell = $alias{$shell} if defined $alias{$shell};
+        $shell =~ /^\w+$/ or croak "bad quoting style $shell";
+        my $impl = "Net::OpenSSH::ShellQuoter::$shell";
+        _load_module($impl);
+        return $impl->new;
+    }
 }
 
 1;

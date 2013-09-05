@@ -1055,25 +1055,27 @@ sub _make_pipe {
 }
 
 sub _remote_quoter {
-    my ($self, $style) = @_;
-    if (ref $self and not defined $style) {
-        return $self->{remote_quoter} ||= Net::OpenSSH::ShellQuoter->quoter($self->{remote_shell});
+    my ($self, $remote_shell) = @_;
+    if (ref $self and not defined $remote_shell) {
+        return $self->{remote_quoter} ||= Net::OpenSSH::ShellQuoter->quoter($self->{_remote_shell});
     }
-    Net::OpenSSH::ShellQuoter->quoter($style);
+    Net::OpenSSH::ShellQuoter->quoter($remote_shell);
 }
 
 sub _quote_args {
     my $self = shift;
     my $opts = shift;
     ref $opts eq 'HASH' or die "internal error";
+    use Data::Dumper;
+    print STDERR Dumper($opts);
     my $quote = delete $opts->{quote_args};
     my $quote_extended = delete $opts->{quote_args_extended};
     my $glob_quoting = delete $opts->{glob_quoting};
     $quote = (@_ > 1) unless defined $quote;
 
     if ($quote) {
-        my $style = delete $opts->{quote_style};
-        my $quoter = $self->_remote_quoter($style);
+        my $remote_shell = delete $opts->{remote_shell};
+        my $quoter = $self->_remote_quoter($remote_shell);
         my $quote_method = ($glob_quoting ? 'quote_glob' : 'quote');
 	# foo   => $quoter
 	# \foo  => $quoter_glob
@@ -1671,8 +1673,8 @@ sub _io3 {
 
 _sub_options spawn => qw(stderr_to_stdout stdin_discard stdin_fh stdin_file stdout_discard
                          stdout_fh stdout_file stderr_discard stderr_fh stderr_file
-                         stdinout_dpipe stdinout_dpipe_make_parent quote_args tty ssh_opts tunnel
-                         encoding argument_encoding forward_agent forward_X11);
+                         stdinout_dpipe stdinout_dpipe_make_parent quote_args quote_args_extended remote_shell glob_quoting
+                         tty ssh_opts tunnel encoding argument_encoding forward_agent forward_X11);
 sub spawn {
     ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
@@ -1682,7 +1684,7 @@ sub spawn {
     return scalar $self->open_ex(\%opts, @_);
 }
 
-_sub_options open2 => qw(stderr_to_stdout stderr_discard stderr_fh stderr_file quote_args
+_sub_options open2 => qw(stderr_to_stdout stderr_discard stderr_fh stderr_file quote_args quote_args_extended remote_shell glob_quoting
                          tty ssh_opts tunnel encoding argument_encoding forward_agent forward_X11);
 sub open2 {
     ${^TAINT} and &_catch_tainted_args;
@@ -1698,7 +1700,7 @@ sub open2 {
     return ($in, $out, $pid);
 }
 
-_sub_options open2pty => qw(stderr_to_stdout stderr_discard stderr_fh stderr_file quote_args tty
+_sub_options open2pty => qw(stderr_to_stdout stderr_discard stderr_fh stderr_file quote_args quote_args_extended remote_shell glob_quoting tty
                             close_slave_pty ssh_opts encoding argument_encoding forward_agent forward_X11);
 sub open2pty {
     ${^TAINT} and &_catch_tainted_args;
@@ -1714,7 +1716,7 @@ sub open2pty {
     wantarray ? ($pty, $pid) : $pty;
 }
 
-_sub_options open2socket => qw(stderr_to_stdout stderr_discard stderr_fh stderr_file quote_args tty
+_sub_options open2socket => qw(stderr_to_stdout stderr_discard stderr_fh stderr_file quote_args quote_args_extended remote_shell glob_quoting tty
                                ssh_opts tunnel encoding argument_encoding forward_agent forward_X11);
 sub open2socket {
     ${^TAINT} and &_catch_tainted_args;
@@ -1728,7 +1730,7 @@ sub open2socket {
     wantarray ? ($socket, $pid) : $socket;
 }
 
-_sub_options open3 => qw(quote_args tty ssh_opts encoding argument_encoding forward_agent forward_X11);
+_sub_options open3 => qw(quote_args quote_args_extended remote_shell glob_quoting tty ssh_opts encoding argument_encoding forward_agent forward_X11);
 sub open3 {
     ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
@@ -1745,7 +1747,7 @@ sub open3 {
     return ($in, $out, $err, $pid);
 }
 
-_sub_options open3pty => qw(quote_args tty close_slave_pty ssh_opts
+_sub_options open3pty => qw(quote_args quote_args_extended remote_shell glob_quoting tty close_slave_pty ssh_opts
                             encoding argument_encoding forward_agent forward_X11);
 sub open3pty {
     ${^TAINT} and &_catch_tainted_args;
@@ -1764,7 +1766,7 @@ sub open3pty {
     return ($pty, $err, $pid);
 }
 
-_sub_options open3socket => qw(quote_args tty ssh_opts encoding
+_sub_options open3socket => qw(quote_args quote_args_extended remote_shell glob_quoting tty ssh_opts encoding
                                argument_encoding forward_agent
                                forward_X11);
 sub open3socket {
@@ -1782,7 +1784,7 @@ sub open3socket {
 }
 
 _sub_options system => qw(stdout_discard stdout_fh stdin_discard stdout_file stdin_fh stdin_file
-                          quote_args stderr_to_stdout stderr_discard stderr_fh stderr_file
+                          quote_args quote_args_extended remote_shell glob_quoting stderr_to_stdout stderr_discard stderr_fh stderr_file
                           stdinout_dpipe stdinout_dpipe_make_parent tty ssh_opts tunnel encoding
                           argument_encoding forward_agent forward_X11);
 sub system {
@@ -1811,7 +1813,7 @@ sub system {
 }
 
 _sub_options test => qw(stdout_discard stdout_fh stdin_discard stdout_file stdin_fh stdin_file
-                        quote_args stderr_to_stdout stderr_discard stderr_fh stderr_file
+                        quote_args quote_args_extended remote_shell glob_quoting stderr_to_stdout stderr_discard stderr_fh stderr_file
                         stdinout_dpipe stdinout_dpipe_make_parent tty ssh_opts timeout stdin_data
                         encoding stream_encoding argument_encoding forward_agent forward_X11);
 sub test {
@@ -1837,7 +1839,7 @@ sub test {
 }
 
 _sub_options capture => qw(stderr_to_stdout stderr_discard stderr_fh stderr_file
-                           stdin_discard stdin_fh stdin_file quote_args tty ssh_opts tunnel
+                           stdin_discard stdin_fh stdin_file quote_args quote_args_extended remote_shell glob_quoting tty ssh_opts tunnel
                            encoding argument_encoding forward_agent forward_X11);
 sub capture {
     ${^TAINT} and &_catch_tainted_args;
@@ -1866,7 +1868,7 @@ sub capture {
 }
 
 _sub_options capture2 => qw(stdin_discard stdin_fh stdin_file
-                            quote_args tty ssh_opts encoding stream_encoding
+                            quote_args quote_args_extended remote_shell glob_quoting tty ssh_opts encoding stream_encoding
                             argument_encoding forward_agent forward_X11);
 sub capture2 {
     ${^TAINT} and &_catch_tainted_args;
@@ -1969,8 +1971,9 @@ sub _scp_put_args {
     my $prefix = $self->{_host_squared};
     $prefix = "$self->{_user}\@$prefix" if defined $self->{_user};
 
+    my $remote_shell = delete $opts{remote_shell};
     my $target = $prefix . ':' . ( @_ > 1
-                                   ? $self->_quote_args({quote_args => 1}, pop(@_))
+                                   ? $self->_quote_args({quote_args => 1, remote_shell => $remote_shell}, pop(@_))
                                    : '');
 
     my @src = @_;
@@ -2433,7 +2436,6 @@ Note that using password authentication in automated scripts is a very
 bad idea. When possible, you should use public key authentication
 instead.
 
-
 =item passphrase => $passphrase
 
 X<passphrase>Uses given passphrase to open private key.
@@ -2847,6 +2849,19 @@ be explicitly closed (see L<IO::Pty|IO::Pty>)
 =item quote_args => $bool
 
 See L</"Shell quoting"> below.
+
+=item remote_shell => $shell
+
+Sets the remote shell. Allows to change the argument quoting mechanism
+in a per-command fashion.
+
+This may be useful when interacting with a Windows machine where
+argument parsing is done at the command level in custom ways.
+
+Example:
+
+  $ssh->system({remote_shell => 'MSCmd'}, echo => $line);
+  $ssh->system({remote_shell => 'MSCmd,MSWin'}, type => $file);
 
 =item forward_agent => $bool
 
