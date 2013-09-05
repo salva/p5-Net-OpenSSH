@@ -1866,7 +1866,7 @@ sub capture {
 }
 
 _sub_options capture2 => qw(stdin_discard stdin_fh stdin_file
-                            quote_args tty ssh_opts encoding
+                            quote_args tty ssh_opts encoding stream_encoding
                             argument_encoding forward_agent forward_X11);
 sub capture2 {
     ${^TAINT} and &_catch_tainted_args;
