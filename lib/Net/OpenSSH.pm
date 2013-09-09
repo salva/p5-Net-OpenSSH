@@ -1066,8 +1066,6 @@ sub _quote_args {
     my $self = shift;
     my $opts = shift;
     ref $opts eq 'HASH' or die "internal error";
-    use Data::Dumper;
-    print STDERR Dumper($opts);
     my $quote = delete $opts->{quote_args};
     my $quote_extended = delete $opts->{quote_args_extended};
     my $glob_quoting = delete $opts->{glob_quoting};
@@ -1239,7 +1237,25 @@ sub open_ex {
         $self->wait_for_master or return;
     }
 
+    my $ssh_flags = '';
     my $tunnel = delete $opts{tunnel};
+    my ($cmd, $close_slave_pty, @args);
+    if ($tunnel) {
+	@_ == 2 or croak 'bad number of arguments for tunnel, use $ssh->method(\\%opts, $host, $port)';
+	@args = @_;
+    }
+    else {
+        my $argument_encoding = $self->_delete_argument_encoding(\%opts);
+	my $tty = delete $opts{tty};
+	$ssh_flags .= ($tty ? 'qtt' : 'T') if defined $tty;
+
+	$cmd = delete $opts{_cmd} || 'ssh';
+	$opts{quote_args_extended} = 1
+	    if (not defined $opts{quote_args_extended} and $cmd eq 'ssh');
+        @args = $self->_quote_args(\%opts, @_);
+        $self->_encode_args($argument_encoding, @args) or return;
+    }
+
     my ($stdinout_socket, $stdinout_dpipe_make_parent);
     my $stdinout_dpipe = delete $opts{stdinout_dpipe};
     if ($stdinout_dpipe) {
@@ -1254,11 +1270,16 @@ sub open_ex {
         $stdout_discard, $stdout_pipe, $stdout_fh, $stdout_file, $stdout_pty,
         $stderr_discard, $stderr_pipe, $stderr_fh, $stderr_file, $stderr_to_stdout);
     unless ($stdinout_socket) {
-        ( $stdin_discard = delete $opts{stdin_discard} or
-          $stdin_pipe = delete $opts{stdin_pipe} or
-          $stdin_fh = delete $opts{stdin_fh} or
-          $stdin_file = delete $opts{stdin_file} or
-          (not $tunnel and $stdin_pty = delete $opts{stdin_pty}) );
+        unless ($stdin_discard = delete $opts{stdin_discard} or
+                $stdin_pipe = delete $opts{stdin_pipe} or
+                $stdin_fh = delete $opts{stdin_fh} or
+                $stdin_file = delete $opts{stdin_file}) {
+            unless ($tunnel) {
+                if ($stdin_pty = delete $opts{stdin_pty}) {
+                    $close_slave_pty = _first_defined delete $opts{close_slave_pty}, 1;
+                }
+            }
+        }
 
         ( $stdout_discard = delete $opts{stdout_discard} or
           $stdout_pipe = delete $opts{stdout_pipe} or
@@ -1276,11 +1297,9 @@ sub open_ex {
       $stderr_to_stdout = delete $opts{stderr_to_stdout} or
       $stderr_file = delete $opts{stderr_file} );
 
-    my $argument_encoding = $self->_delete_argument_encoding(\%opts);
     my $ssh_opts = delete $opts{ssh_opts};
     $ssh_opts = $self->{_default_ssh_opts} unless defined $ssh_opts;
     my @ssh_opts = $self->_expand_vars(_array_or_scalar_to_list $ssh_opts);
-    my $ssh_flags = '';
 
     if ($self->{_forward_agent}) {
         my $forward_agent = delete $opts{forward_agent};
@@ -1289,27 +1308,6 @@ sub open_ex {
     if ($self->{_forward_X11}) {
         my $forward_X11 = delete $opts{forward_X11};
         $ssh_flags .= ($forward_X11 ? 'X' : 'x');
-    }
-
-    my ($cmd, $close_slave_pty, @args);
-    if ($tunnel) {
-	@_ == 2 or croak 'bad number of arguments for tunnel, use $ssh->method(\\%opts, $host, $port)';
-	@args = @_;
-    }
-    else {
-	if ($stdin_pty) {
-	    $close_slave_pty = delete $opts{close_slave_pty};
-	    $close_slave_pty = 1 unless defined $close_slave_pty;
-	}
-
-	my $tty = delete $opts{tty};
-	$ssh_flags .= ($tty ? 'qtt' : 'T') if defined $tty;
-
-	$cmd = delete $opts{_cmd} || 'ssh';
-	$opts{quote_args_extended} = 1
-	    if (not defined $opts{quote_args_extended} and $cmd eq 'ssh');
-        @args = $self->_quote_args(\%opts, @_);
-        $self->_encode_args($argument_encoding, @args) or return;
     }
 
     _croak_bad_options %opts;

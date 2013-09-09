@@ -7,7 +7,8 @@ use Carp;
 sub new { shift() }
 
 sub quote {
-    my ($self, $arg) = @_;
+    shift;
+    my $arg = shift;
     if ($arg =~ /[\r\n\0]/) {
         croak "can't quote newlines to pass through MS cmd.exe";
     }
