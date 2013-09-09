@@ -234,7 +234,6 @@ sub new {
     my ($host, $port, $user, $passwd, $host_squared) = $class->parse_connection_opts(\%opts);
 
     my ($passphrase, $key_path, $login_handler);
-
     unless (defined $passwd) {
         $key_path = delete $opts{key_path};
         $passwd = delete $opts{passphrase};
