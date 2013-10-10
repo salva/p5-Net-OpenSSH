@@ -1,6 +1,6 @@
 package Net::OpenSSH;
 
-our $VERSION = '0.61_11';
+our $VERSION = '0.61_12';
 
 use strict;
 use warnings;
@@ -2090,7 +2090,7 @@ sub _rsync {
 
     my @opts = qw(--blocking-io) ;
     push @opts, '-q' if $quiet;
-    push @opts, '-p' if $copy_attrs;
+    push @opts, '-pt' if $copy_attrs;
     push @opts, '-' . ($verbose =~ /^\d+$/ ? 'v' x $verbose : 'v') if $verbose;
 
     my %opts_open_ex = ( _cmd => 'rsync',

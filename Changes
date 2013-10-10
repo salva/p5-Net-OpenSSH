@@ -1,6 +1,8 @@
 Revision history for Perl extension Net::OpenSSH.
 
-0.61_12
+0.61_12  Oct 10, 2013
+        - rsync_* was not replicating time attributes when copy_attrs
+          was set (bug report and fix by SUN Guonian)
         - add chain quoter
         - add quoters for MS Windows (MSWin, MSCmd)
         - extended argument quoting was never triggered
