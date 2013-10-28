@@ -44,7 +44,6 @@ my $bg = eval {
     no warnings;
     require POSIX;
     my $tcg = POSIX::tcgetpgrp(0);
-    print $tcg;
     $tcg >= 0 and $tcg != POSIX::getpgrp()
 };
 diag $@ if $@;

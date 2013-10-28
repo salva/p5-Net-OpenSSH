@@ -2,7 +2,7 @@ Revision history for Perl extension Net::OpenSSH.
 
 0.61_13  Oct 28, 2013
         - set bath_mode when test are being run on the background
-          (test report by Victor Efimov)
+          (bug report by Victor Efimov)
         - disable testing against custom ssh server as it is currently
           broken
 
