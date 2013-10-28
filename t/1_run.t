@@ -24,7 +24,7 @@ defined $ECHO or plan skip_all => "echo command not found";
 
 my $PS_P = ($^O =~ /^(?:sunos|solaris|aix)/i ? "$PS -p" : "$PS p");
 
-# $Net::OpenSSH::debug = -1;
+# $Net::OpenSSH::debug = ~0;
 
 plan skip_all => 'Your shell introduces garbage on the output when running commands, ' .
                  'check your shell configuration files (i.e. ~/.bashrc)'
@@ -39,15 +39,26 @@ plan skip_all => 'OpenSSH 4.1 or later required'
 chomp $ver;
 diag "\nSSH client found: $ver.\nTrying to connect to localhost, timeout is ${timeout}s.\n";
 
+# are we running on the background?
+my $bg = eval {
+    no warnings;
+    require POSIX;
+    my $tcg = POSIX::tcgetpgrp(0);
+    print $tcg;
+    $tcg >= 0 and $tcg != POSIX::getpgrp()
+};
+diag $@ if $@;
+
 my %ctor_opts = (host => 'localhost',
                  timeout => $timeout,
                  strict_mode => 0,
+                 batch_mode => ($bg ? 1 : 0),
                  master_opts => [-o => "StrictHostKeyChecking no"]);
 
 my $ssh = Net::OpenSSH->new(%ctor_opts);
 
-# fallback
-if ($ssh->error and $num > 4.7) {
+# fallback, disabled because it is currently broken!
+if (0 and $ssh->error and $num > 4.7) {
     diag "Connection failed... trying fallback aproach";
     my $sshd_cmd = sshd_cmd;
     if (defined $sshd_cmd) {
@@ -61,11 +72,13 @@ if ($ssh->error and $num > 4.7) {
 			-o => "AuthorizedKeysFile $here/test_user_key.pub",
 			-o => "StrictModes no",
 			-o => "PasswordAuthentication no",
-			-o => "PermitRootLogin yes");
+			-o => "PermitRootLogin yes",
+                        -o => "PrintMotd no" );
 	s/(\W)/\\$1/g for @sshd_cmd;
 
 	$ssh = Net::OpenSSH->new(%ctor_opts,
-                                 master_opts => [-o => "ProxyCommand @sshd_cmd",
+                                 master_opts => [ #'-vvv',
+                                                 -o => "ProxyCommand @sshd_cmd",
                                                  -o => "StrictHostKeyChecking no",
                                                  -o => "NoHostAuthenticationForLocalhost yes",
                                                  -o => "UserKnownHostsFile $here/known_hosts",
