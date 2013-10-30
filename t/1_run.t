@@ -40,13 +40,27 @@ chomp $ver;
 diag "\nSSH client found: $ver.\nTrying to connect to localhost, timeout is ${timeout}s.\n";
 
 # are we running on the background?
-my $bg = eval {
+my $bg;
+eval {
     no warnings;
     require POSIX;
-    my $tcg = POSIX::tcgetpgrp(0);
-    $tcg >= 0 and $tcg != POSIX::getpgrp()
+    my $pgrp = POSIX::getpgrp();
+    if (open my $tty, "</dev/tty") {
+        my $p = POSIX::tcgetpgrp(fileno $tty);
+        if ($p >= 0 and $p != $pgrp) {
+            $bg = 1;
+        }
+    }
+    else {
+        my $p = POSIX::tcgetpgrp(0);
+        if ($p >= 0 and $p != $pgrp) {
+            $bg = 1;
+        }
+    }
 };
 diag $@ if $@;
+
+$bg and diag "Testing script is running on the background, enabling OpenSSH batch mode.";
 
 my %ctor_opts = (host => 'localhost',
                  timeout => $timeout,

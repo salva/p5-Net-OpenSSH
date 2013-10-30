@@ -1,5 +1,9 @@
 Revision history for Perl extension Net::OpenSSH.
 
+0.61_14  Oct 30, 2013
+        - the way used to detect the tests are running in the
+          background was broken (bug report by Victor Efimov)
+
 0.61_13  Oct 28, 2013
         - set bath_mode when test are being run on the background
           (bug report by Victor Efimov)
