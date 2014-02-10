@@ -1,7 +1,10 @@
 Revision history for Perl extension Net::OpenSSH.
 
+0.61_15
+        - scp does not accept setting bandwidth limit to 0
+
 0.61_14  Oct 30, 2013
-        - the way used to detect the tests are running in the
+        - the way used in tests to detect when they are running in the
           background was broken (bug report by Victor Efimov)
 
 0.61_13  Oct 28, 2013

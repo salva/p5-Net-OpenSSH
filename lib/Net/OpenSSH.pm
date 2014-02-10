@@ -1,6 +1,6 @@
 package Net::OpenSSH;
 
-our $VERSION = '0.61_14';
+our $VERSION = '0.61_15';
 
 use strict;
 use warnings;
@@ -2026,7 +2026,7 @@ sub _scp {
     push @opts, '-v' if $verbose;
     push @opts, '-r' if $recursive;
     push @opts, '-p' if $copy_attrs;
-    push @opts, '-l', $bwlimit if defined $bwlimit;
+    push @opts, '-l', $bwlimit if $bwlimit;
 
     local $self->{_error_prefix} = [@{$self->{_error_prefix}}, 'scp failed'];
 
