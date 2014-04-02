@@ -228,7 +228,7 @@ sub new {
     $external_master = delete $opts{reuse_master} unless defined $external_master;
 
     if (not defined $opts{host} and defined $external_master) {
-        $opts{host} = 'UNKNOWN';
+        $opts{host} = '0.0.0.0';
     }
 
     my ($host, $port, $user, $passwd, $host_squared) = $class->parse_connection_opts(\%opts);
@@ -2687,6 +2687,9 @@ Example:
 
   $ssh = Net::OpenSSH->new('foo', external_master => 1, ctl_path = $path);
 
+When C<external_master> is set, the hostname argument becomes optional
+(C<0.0.0.0> is passed to OpenSSH which doesn't use it at all).
+
 =item default_encoding => $encoding
 
 =item default_stream_encoding => $encoding
@@ -4521,7 +4524,7 @@ Send your feature requests, ideas or any feedback, please!
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright (C) 2008-2013 by Salvador FandiE<ntilde>o
+Copyright (C) 2008-2014 by Salvador FandiE<ntilde>o
 (sfandino@yahoo.com)
 
 This library is free software; you can redistribute it and/or modify
