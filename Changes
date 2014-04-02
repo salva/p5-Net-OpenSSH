@@ -1,6 +1,7 @@
 Revision history for Perl extension Net::OpenSSH.
 
-0.61_15
+0.61_15  Apr 2, 2014
+        - add support for master_setpgrp and setpgrp features
         - scp does not accept setting bandwidth limit to 0
 
 0.61_14  Oct 30, 2013

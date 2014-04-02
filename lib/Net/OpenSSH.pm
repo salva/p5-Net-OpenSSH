@@ -276,7 +276,8 @@ sub new {
 
     my ($master_opts, @master_opts,
         $master_stdout_fh, $master_stderr_fh,
-	$master_stdout_discard, $master_stderr_discard);
+	$master_stdout_discard, $master_stderr_discard,
+        $master_setpgrp);
     unless ($external_master) {
         ($master_stdout_fh = delete $opts{master_stdout_fh} or
          $master_stdout_discard = delete $opts{master_stdout_discard});
@@ -295,6 +296,11 @@ sub new {
                 @master_opts = $master_opts;
             }
         }
+        $master_setpgrp = delete $opts{master_setpgrp};
+
+        # when a password/passphrase is given, calling setpgrp is
+        # useless because the process runs attached to a different tty
+        undef $master_setpgrp if $login_handler or defined $passwd;
     }
 
     my $default_ssh_opts = delete $opts{default_ssh_opts};
@@ -378,6 +384,7 @@ sub new {
 		 _master_stderr_fh => $master_stderr_fh,
 		 _master_stdout_discard => $master_stdout_discard,
 		 _master_stderr_discard => $master_stderr_discard,
+                 _master_setpgrp => $master_setpgrp,
 		 _remote_shell => $remote_shell,
                  _default_stream_encoding => $default_stream_encoding,
                  _default_argument_encoding => $default_argument_encoding,
@@ -754,11 +761,12 @@ sub _connect {
 
     local $SIG{CHLD};
     my $pid = fork;
-    unless (defined $pid) {
-        $self->_set_error(OSSH_MASTER_FAILED, "unable to fork ssh master: $!");
-        return undef;
-    }
     unless ($pid) {
+        unless (defined $pid) {
+            $self->_set_error(OSSH_MASTER_FAILED, "unable to fork ssh master: $!");
+            return undef;
+        }
+
         if ($debug and $debug & 512) {
             require Net::OpenSSH::OSTracer;
             Net::OpenSSH::OSTracer->trace;
@@ -771,6 +779,8 @@ sub _connect {
 
         delete $ENV{SSH_ASKPASS} if defined $self->{_passwd};
         delete $ENV{SSH_AUTH_SOCK} if defined $self->{_passphrase};
+
+        setpgrp if $self->{_master_setpgrp};
 
 	local $SIG{__DIE__};
         eval { exec @call };
@@ -904,6 +914,18 @@ sub _wait_for_master {
         vec($rv, $fnopty, 1) = 1
     }
 
+    my $old_tcpgrp;
+    if ($self->{_master_setpgrp} and not $async and not $self->{_batch_mode}) {
+        $old_tcpgrp = POSIX::tcgetpgrp(0);
+        if ($old_tcpgrp > 0) {
+            # let the master process ask for passwords at the TTY
+            POSIX::tcsetpgrp(0, $pid);
+        }
+        else {
+            undef $old_tcpgrp;
+        }
+    }
+
     local $self->{_error_prefix} = [@{$self->{_error_prefix}},
 				    "unable to establish master SSH connection"];
     while (1) {
@@ -921,7 +943,18 @@ sub _wait_for_master {
             if (defined $check) {
                 my $error;
 		if ($check =~ /pid=(\d+)/) {
-		    return 1 if (!$pid or $1 == $pid);
+		    if (!$pid or $1 == $pid) {
+                        if ($self->{_master_setpgrp} and $old_tcpgrp) {
+                            if ($debug and $debug & 4) {
+                                my $pgrp = getpgrp($pid);
+                                my $tcpgrp = POSIX::tcgetpgrp(0);
+                                $debug and _debug "ssh pid: $pid, pgrp: $pgrp \$\$: $$, tcpgrp: $tcpgrp old_tcppgrp: $old_tcpgrp";
+                            }
+                            local $SIG{TTOU} = 'IGNORE';
+                            POSIX::tcsetpgrp(0, $old_tcpgrp);
+                        }
+                        return 1;
+                    }
 		    $error = "bad ssh master at $ctl_path, socket owned by pid $1 (pid $pid expected)";
 		}
 		elsif ($check =~ /illegal option/i) {
@@ -1309,6 +1342,9 @@ sub open_ex {
         $ssh_flags .= ($forward_X11 ? 'X' : 'x');
     }
 
+    my $setpgrp = delete $opts{setpgrp};
+    undef $setpgrp if defined $stdin_pty;
+
     _croak_bad_options %opts;
 
     if (defined $stdin_file) {
@@ -1397,6 +1433,8 @@ sub open_ex {
                               "unable to fork new ssh slave: $!");
             return;
         }
+
+        setpgrp if $setpgrp;
 
         $stdin_discard  and (open $rin,  '<', '/dev/null' or POSIX::_exit(255));
         $stdout_discard and (open $wout, '>', '/dev/null' or POSIX::_exit(255));
@@ -1671,7 +1709,7 @@ sub _io3 {
 _sub_options spawn => qw(stderr_to_stdout stdin_discard stdin_fh stdin_file stdout_discard
                          stdout_fh stdout_file stderr_discard stderr_fh stderr_file
                          stdinout_dpipe stdinout_dpipe_make_parent quote_args quote_args_extended remote_shell glob_quoting
-                         tty ssh_opts tunnel encoding argument_encoding forward_agent forward_X11);
+                         tty ssh_opts tunnel encoding argument_encoding forward_agent forward_X11 setpgrp);
 sub spawn {
     ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
@@ -1681,8 +1719,9 @@ sub spawn {
     return scalar $self->open_ex(\%opts, @_);
 }
 
-_sub_options open2 => qw(stderr_to_stdout stderr_discard stderr_fh stderr_file quote_args quote_args_extended remote_shell glob_quoting
-                         tty ssh_opts tunnel encoding argument_encoding forward_agent forward_X11);
+_sub_options open2 => qw(stderr_to_stdout stderr_discard stderr_fh stderr_file quote_args quote_args_extended
+                         remote_shell glob_quoting tty ssh_opts tunnel encoding argument_encoding forward_agent
+                         forward_X11 setpgrp);
 sub open2 {
     ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
@@ -1697,8 +1736,10 @@ sub open2 {
     return ($in, $out, $pid);
 }
 
-_sub_options open2pty => qw(stderr_to_stdout stderr_discard stderr_fh stderr_file quote_args quote_args_extended remote_shell glob_quoting tty
-                            close_slave_pty ssh_opts encoding argument_encoding forward_agent forward_X11);
+_sub_options open2pty => qw(stderr_to_stdout stderr_discard stderr_fh stderr_file
+                            quote_args quote_args_extended remote_shell glob_quoting tty
+                            close_slave_pty ssh_opts encoding argument_encoding forward_agent
+                            forward_X11 setpgrp);
 sub open2pty {
     ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
@@ -1713,8 +1754,10 @@ sub open2pty {
     wantarray ? ($pty, $pid) : $pty;
 }
 
-_sub_options open2socket => qw(stderr_to_stdout stderr_discard stderr_fh stderr_file quote_args quote_args_extended remote_shell glob_quoting tty
-                               ssh_opts tunnel encoding argument_encoding forward_agent forward_X11);
+_sub_options open2socket => qw(stderr_to_stdout stderr_discard stderr_fh stderr_file
+                               quote_args quote_args_extended remote_shell glob_quoting tty
+                               ssh_opts tunnel encoding argument_encoding forward_agent
+                               forward_X11 setpgrp);
 sub open2socket {
     ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
@@ -1727,7 +1770,8 @@ sub open2socket {
     wantarray ? ($socket, $pid) : $socket;
 }
 
-_sub_options open3 => qw(quote_args quote_args_extended remote_shell glob_quoting tty ssh_opts encoding argument_encoding forward_agent forward_X11);
+_sub_options open3 => qw(quote_args quote_args_extended remote_shell glob_quoting tty ssh_opts
+                         encoding argument_encoding forward_agent forward_X11 setpgrp);
 sub open3 {
     ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
@@ -1745,7 +1789,7 @@ sub open3 {
 }
 
 _sub_options open3pty => qw(quote_args quote_args_extended remote_shell glob_quoting tty close_slave_pty ssh_opts
-                            encoding argument_encoding forward_agent forward_X11);
+                            encoding argument_encoding forward_agent forward_X11 setpgrp);
 sub open3pty {
     ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
@@ -1765,7 +1809,7 @@ sub open3pty {
 
 _sub_options open3socket => qw(quote_args quote_args_extended remote_shell glob_quoting tty ssh_opts encoding
                                argument_encoding forward_agent
-                               forward_X11);
+                               forward_X11 setpgrp);
 sub open3socket {
     ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
@@ -1781,9 +1825,10 @@ sub open3socket {
 }
 
 _sub_options system => qw(stdout_discard stdout_fh stdin_discard stdout_file stdin_fh stdin_file
-                          quote_args quote_args_extended remote_shell glob_quoting stderr_to_stdout stderr_discard stderr_fh stderr_file
+                          quote_args quote_args_extended remote_shell glob_quoting
+                          stderr_to_stdout stderr_discard stderr_fh stderr_file
                           stdinout_dpipe stdinout_dpipe_make_parent tty ssh_opts tunnel encoding
-                          argument_encoding forward_agent forward_X11);
+                          argument_encoding forward_agent forward_X11 setpgrp);
 sub system {
     ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
@@ -1810,9 +1855,10 @@ sub system {
 }
 
 _sub_options test => qw(stdout_discard stdout_fh stdin_discard stdout_file stdin_fh stdin_file
-                        quote_args quote_args_extended remote_shell glob_quoting stderr_to_stdout stderr_discard stderr_fh stderr_file
+                        quote_args quote_args_extended remote_shell glob_quoting
+                        stderr_to_stdout stderr_discard stderr_fh stderr_file
                         stdinout_dpipe stdinout_dpipe_make_parent tty ssh_opts timeout stdin_data
-                        encoding stream_encoding argument_encoding forward_agent forward_X11);
+                        encoding stream_encoding argument_encoding forward_agent forward_X11 setpgrp);
 sub test {
     ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
@@ -1836,8 +1882,9 @@ sub test {
 }
 
 _sub_options capture => qw(stderr_to_stdout stderr_discard stderr_fh stderr_file
-                           stdin_discard stdin_fh stdin_file quote_args quote_args_extended remote_shell glob_quoting tty ssh_opts tunnel
-                           encoding argument_encoding forward_agent forward_X11);
+                           stdin_discard stdin_fh stdin_file quote_args quote_args_extended
+                           remote_shell glob_quoting tty ssh_opts tunnel
+                           encoding argument_encoding forward_agent forward_X11 setpgrp);
 sub capture {
     ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
@@ -1865,8 +1912,9 @@ sub capture {
 }
 
 _sub_options capture2 => qw(stdin_discard stdin_fh stdin_file
-                            quote_args quote_args_extended remote_shell glob_quoting tty ssh_opts encoding stream_encoding
-                            argument_encoding forward_agent forward_X11);
+                            quote_args quote_args_extended remote_shell glob_quoting
+                            tty ssh_opts encoding stream_encoding
+                            argument_encoding forward_agent forward_X11 setpgrp);
 sub capture2 {
     ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
@@ -1890,7 +1938,8 @@ sub capture2 {
     wantarray ? @capture : $capture[0];
 }
 
-_sub_options open_tunnel => qw(ssh_opts stderr_discard stderr_fh stderr_file encoding argument_encoding forward_agent);
+_sub_options open_tunnel => qw(ssh_opts stderr_discard stderr_fh stderr_file
+                               encoding argument_encoding forward_agent setpgrp);
 sub open_tunnel {
     ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
@@ -1904,7 +1953,7 @@ sub open_tunnel {
 
 _sub_options capture_tunnel => qw(ssh_opts stderr_discard stderr_fh stderr_file stdin_discard
 				  stdin_fh stdin_file stdin_data timeout encoding stream_encoding
-				  argument_encoding forward_agent);
+				  argument_encoding forward_agent setpgrp);
 sub capture_tunnel {
     ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
@@ -2005,7 +2054,7 @@ sub rsync_put {
 _sub_options _scp => qw(stderr_to_stdout stderr_discard stderr_fh
 			stderr_file stdout_discard stdout_fh
 			stdout_file encoding argument_encoding
-                        forward_agent);
+                        forward_agent setpgrp);
 sub _scp {
     my $self = shift;
     my %opts = (ref $_[0] eq 'HASH' ? %{shift()} : ());
@@ -2136,7 +2185,7 @@ sub _rsync {
 }
 
 _sub_options sftp => qw(autoflush timeout argument_encoding encoding block_size
-			queue_size late_set_perm forward_agent);
+			queue_size late_set_perm forward_agent setpgrp);
 
 sub sftp {
     ${^TAINT} and &_catch_tainted_args;
@@ -2171,7 +2220,7 @@ sub sftp {
 }
 
 _sub_options sshfs_import => qw(stderr_discard stderr_fh stderr_file
-                                ssh_opts argument_encoding sshfs_opts);
+                                ssh_opts argument_encoding sshfs_opts setpgrp);
 sub sshfs_import {
     ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
@@ -2189,7 +2238,7 @@ sub sshfs_import {
 }
 
 _sub_options sshfs_export => qw(stderr_discard stderr_fh stderr_file
-                                ssh_opts argument_encoding sshfs_opts);
+                                ssh_opts argument_encoding sshfs_opts setpgrp);
 sub sshfs_export {
     ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
@@ -2672,6 +2721,21 @@ Usage of this option is incompatible with the C<password> and
 C<passphrase> options, you will have to handle password or passphrases
 from the custom handler yourself.
 
+=item master_setpgrp => 1
+
+When this option is set, the master process is run as a different
+process group. As a consecuence it will not die when the user presses
+Ctrl-C at the terminal.
+
+In order to allow the master SSH process to request any information
+from the user, the module may set it as the terminal controlling
+process while the connection is established (using
+L<POSIX/tcsetpgrp>). Afterwards, the terminal controlling process is
+reset.
+
+This feature is higly experimental. Report any problems you may find,
+please.
+
 =back
 
 =item $ssh->error
@@ -2912,6 +2976,18 @@ Usage example:
   # do some IO through $in/$out
   # ...
   waitpid($pid);
+
+=item setpgrp => 1
+
+Calls C<setpgrp> after forking the child process. As a result it will
+not die when the user presses Ctrl+C at the console. See also
+L<perlfunc/setpgrp>.
+
+Using this option without also setting C<master_setpgrp> on the
+constructor call is mostly useles as the signal will be delivered to
+the master process and all the remote commands aborted.
+
+This feature is experimental.
 
 =item $ssh->system(\%opts, @cmd)
 
@@ -4374,13 +4450,16 @@ Net::OpenSSH to handle the connections.
 
 =head1 BUGS AND SUPPORT
 
-Support for the gateway feature is highly experimental.
+Support for the setpgrp feature is highly experimental.
+
+Support for the gateway feature is highly experimental and mostly stalled.
 
 Support for data encoding is experimental.
 
 Support for taint mode is experimental.
 
-Tested on Linux, OpenBSD, NetBSD and Solaris with OpenSSH 5.1 to 5.9.
+Tested on different combinations of Linux, OpenBSD, NetBSD and Solaris
+with OpenSSH from 5.1 to 6.5.
 
 Net::OpenSSH does not work on Windows. OpenSSH multiplexing feature
 requires passing file handles through sockets, something that is not
