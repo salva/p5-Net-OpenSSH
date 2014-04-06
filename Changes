@@ -1,5 +1,9 @@
 Revision history for Perl extension Net::OpenSSH.
 
+0.61_16  Apr 6, 2014
+        - add work around in quoting.t for Solaris csh 'fixing'
+          invalid UTF8 sequences
+
 0.61_15  Apr 2, 2014
         - from OpenSSH version 6.5 UNKNOWN is not a valid
           you-are-not-going-to-use-it-anyway hostname as it tries to
