@@ -9,6 +9,12 @@ use Net::OpenSSH::ShellQuoter;
 use lib './t';
 use common;
 
+my $alt_lang;
+if ($^O =~ /^solaris/ and $ENV{LANG} =~ /\.UTF-8$/) {
+    $alt_lang = $ENV{LANG};
+    $alt_lang =~ s/\.UTF-8$//;
+}
+
 # use Data::Dumper;
 sub capture;
 sub hexdump;
@@ -35,6 +41,10 @@ plan tests => @str * @shells;
 
 diag "running tests for shells @shells";
 for my $shell (@shells) {
+
+    # workaround for solaris csh fixing invalid UTF8 sequences. 
+    local $ENV{LANG} = $alt_lang if $shell eq 'csh' and defined $alt_lang;
+
     my $i = 0;
     for my $str (@str) {
         my $cmd = join ' ', map $quoter{$shell}->quote($_), "printf", "%s", $str;
