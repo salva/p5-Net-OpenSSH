@@ -9,9 +9,13 @@ lib/Net/OpenSSH/Constants.pm
 lib/Net/OpenSSH/ConnectionCache.pm
 lib/Net/OpenSSH/OSTracer.pm
 lib/Net/OpenSSH/ModuleLoader.pm
+lib/Net/OpenSSH/SSH.pm
 lib/Net/OpenSSH/ShellQuoter.pm
 lib/Net/OpenSSH/ShellQuoter/POSIX.pm
 lib/Net/OpenSSH/ShellQuoter/csh.pm
+lib/Net/OpenSSH/ShellQuoter/MSWin.pm
+lib/Net/OpenSSH/ShellQuoter/MSCmd.pm
+lib/Net/OpenSSH/ShellQuoter/Chain.pm
 t/common.pm
 t/test_server_key
 t/test_server_key.pub
