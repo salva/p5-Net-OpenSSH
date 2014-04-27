@@ -2920,11 +2920,11 @@ Sets the remote shell. Allows to change the argument quoting mechanism
 in a per-command fashion.
 
 This may be useful when interacting with a Windows machine where
-argument parsing is done at the command level in custom ways.
+argument parsing may be done at the command level in custom ways.
 
 Example:
 
-  $ssh->system({remote_shell => 'MSCmd'}, echo => $line);
+  $ssh->system({remote_shell => 'MSWin'}, echo => $line);
   $ssh->system({remote_shell => 'MSCmd,MSWin'}, type => $file);
 
 =item forward_agent => $bool
@@ -3679,8 +3679,11 @@ For instance:
   $ssh = Net::OpenSSH->new($host, remote_shell => 'csh');
   $ssh->system(echo => "hard\n to\n  quote\n   argument!");
 
-The only alternative quoter currently implemented is C<csh>. One for
-MS-DOS is planed.
+Currently there are quoters available for POSIX (Bourne) compatible
+shells, C<csh> and the two Windows variants C<MSWin> (for servers
+using L<Win32::CreateProcess>, see
+L<Net::OpenSSH::ShellQuoter::MSWin>) and C<MSCmd> (for servers using
+C<cmd.exe>, see L<Net::OpenSSH::ShellQuoter::MSCmd>).
 
 In any case, you can always do the quoting yourself and pass the
 quoted remote command as a single string:

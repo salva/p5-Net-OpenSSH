@@ -1,5 +1,11 @@
 Revision history for Perl extension Net::OpenSSH.
 
+0.61_17
+        - MSWin, MSCmd and Chain quoters where missing from the
+          MANIFEST and so not being distributed
+        - document MSWin and MSCmd quoters
+        - add dummy package Net::OpenSSH::SSH
+
 0.61_16  Apr 6, 2014
         - add work around in quoting.t for Solaris csh 'fixing'
           invalid UTF8 sequences
