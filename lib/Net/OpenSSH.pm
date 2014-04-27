@@ -915,7 +915,7 @@ sub _wait_for_master {
     }
 
     my $old_tcpgrp;
-    if ($self->{_master_setpgrp} and not $async and not $self->{_batch_mode}) {
+    if ($pid and $self->{_master_setpgrp} and not $async and not $self->{_batch_mode}) {
         $old_tcpgrp = POSIX::tcgetpgrp(0);
         if ($old_tcpgrp > 0) {
             # let the master process ask for passwords at the TTY
@@ -926,6 +926,7 @@ sub _wait_for_master {
         }
     }
 
+    # Loop until the mux socket appears or something goes wrong:
     local $self->{_error_prefix} = [@{$self->{_error_prefix}},
 				    "unable to establish master SSH connection"];
     while (1) {
@@ -936,8 +937,7 @@ sub _wait_for_master {
             unless (-S $ctl_path) {
                 $self->_set_error(OSSH_MASTER_FAILED,
                                   "bad ssh master at $ctl_path, object is not a socket");
-                $self->_kill_master;
-                return undef;
+                goto kill_master_and_fail;
             }
             my $check = $self->_master_ctl('check');
             if (defined $check) {
@@ -965,28 +965,32 @@ sub _wait_for_master {
 		}
                 $self->_or_set_error(OSSH_MASTER_FAILED, $error);
             }
-	    $self->_kill_master;
-            return undef;
+            goto kill_master_and_fail;
         }
         $debug and $debug & 4 and _debug "file object not yet found at $ctl_path, state: $state";
 
         if ($self->{_perl_pid} != $$ or $self->{_thread_generation} != $thread_generation) {
             $self->_set_error(OSSH_MASTER_FAILED,
                               "process was forked or threaded before SSH connection had been established");
+            # just return, the thread creating the mess should clean it all up!
             return undef;
         }
+
         if (!$pid) {
+            # when using an external master the mux socket must be
+            # there from the first time
             $self->_set_error(OSSH_MASTER_FAILED,
                               "socket does not exist");
-            return undef;
+            goto fail;
         }
         elsif (waitpid($pid, WNOHANG) == $pid or $! == Errno::ECHILD) {
             my $error = "master process exited unexpectedly";
             $error =  "bad pass" . ($self->{_passphrase} ? 'phrase' : 'word') . " or $error"
                 if defined $self->{_passwd};
             $self->_set_error(OSSH_MASTER_FAILED, $error);
-            return undef;
+            goto fail; # master has already died
         }
+
         if ($state eq 'waiting_for_login_handler') {
             local ($@, $SIG{__DIE__});
             if (eval { $login_handler->($self, $mpty, $bout) }) {
@@ -996,7 +1000,7 @@ sub _wait_for_master {
             if ($@) {
                 $self->_set_error(OSSH_MASTER_FAILED,
                                   "custom login handler failed: $@");
-                return undef;
+                goto kill_master_and_fail;
             }
         }
         else {
@@ -1012,8 +1016,7 @@ sub _wait_for_master {
                             $self->_set_error(OSSH_MASTER_FAILED,
                                               "the authenticity of the target host can't be established, the remote host "
                                               . "public key is probably not present on the '~/.ssh/known_hosts' file");
-                            $self->_kill_master;
-                            return undef;
+                            goto kill_master_and_fail;
                         }
                         if ($$bout =~ s/^(.*:)//s) {
                             $debug and $debug & 4 and _debug "passwd/passphrase requested ($1)";
@@ -1035,8 +1038,21 @@ sub _wait_for_master {
         }
     }
     $self->_set_error(OSSH_MASTER_FAILED, "login timeout");
+
+ kill_master_and_fail:
     $self->_kill_master;
-    undef;
+
+ fail:
+    if ($pid and $self->{_master_setpgrp} and $old_tcpgrp) {
+        if ($debug and $debug & 4) {
+            my $pgrp = getpgrp($pid);
+            my $tcpgrp = POSIX::tcgetpgrp(0);
+            $debug and _debug "ssh pid: $pid, pgrp: $pgrp \$\$: $$, tcpgrp: $tcpgrp old_tcppgrp: $old_tcpgrp";
+        }
+        local $SIG{TTOU} = 'IGNORE';
+        POSIX::tcsetpgrp(0, $old_tcpgrp);
+    }
+    return undef;
 }
 
 sub _master_ctl {

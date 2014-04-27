@@ -1,6 +1,9 @@
 Revision history for Perl extension Net::OpenSSH.
 
-0.61_16
+0.61_16  Apr 27, 2014
+        - support code for master_setpgrp feature was not reseting the
+          terminal process group owner on failure (bug report by
+          Matthias Hofer)
         - MSWin, MSCmd and Chain quoters where missing from the
           MANIFEST and so not being distributed
         - document MSWin and MSCmd quoters

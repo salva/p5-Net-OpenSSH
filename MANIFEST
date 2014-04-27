@@ -3,7 +3,6 @@ Makefile.PL
 MANIFEST
 README
 t/1_run.t
-t/2_pods.t
 lib/Net/OpenSSH.pm
 lib/Net/OpenSSH/Constants.pm
 lib/Net/OpenSSH/ConnectionCache.pm
