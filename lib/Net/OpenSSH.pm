@@ -898,8 +898,8 @@ sub _wait_for_master {
     if ($reset) {
         $$bout = '';
         $state = ( (defined $passwd and $pid) ? 'waiting_for_password_prompt' :
-                    (defined $login_handler)   ? 'waiting_for_login_handler'  :
-                                                 'waiting_for_mux_socket' );
+                   (defined $login_handler)   ? 'waiting_for_login_handler'  :
+                                                'waiting_for_mux_socket' );
     }
 
     my $ctl_path = $self->{_ctl_path};
