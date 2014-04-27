@@ -34,11 +34,11 @@ Net::OpenSSH::ShellQuoter::MSWin - Quoter for Win32::CreateProcess
 
 =head1 DESCRIPTION
 
-This quoter is intended for interaction with SSH servers runnning on
+This quoter is intended for interaction with SSH servers running on
 Windows which use the C<Win32::CreateProcess> system call to launch the
 requested command.
 
-Because of C<Win32::CreateProcess> not doing willcard expansion, glob
+Because of C<Win32::CreateProcess> not doing wildcard expansion, glob
 quoting just quotes everything.
 
 =head1 COPYRIGHT AND LICENSE

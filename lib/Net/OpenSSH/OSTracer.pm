@@ -143,14 +143,14 @@ By default, the module decides which tracer to use in base to the
 operating system name. This variable allows one to select a different
 tracer.
 
-Currently accepted types are: strace (linux), ktrace (*bsd), tusc
-(hp-ux) and truss (solaris and aix).
+Currently accepted types are: C<strace> (Linux), C<ktrace> (*BSD),
+C<tusc> (HP-UX) and C<truss> (Solaris and AIX).
 
 =item $Net::OpenSSH::OSTracer::cmd
 
 Command to execute for tracing the ssh process.
 
-By default, it inferres it from the tracer type selected.
+By default, it infers it from the tracer type selected.
 
 =item $Net::OpenSSH::OSTracer::output
 

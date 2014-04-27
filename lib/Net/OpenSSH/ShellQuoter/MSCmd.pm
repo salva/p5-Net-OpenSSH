@@ -40,15 +40,15 @@ Net::OpenSSH::ShellQuoter::MSCmd - Quoter for Windows cmd.exe
 
 =head1 DESCRIPTION
 
-This quoter is intended for interaction with SSH servers runnning on
+This quoter is intended for interaction with SSH servers running on
 Windows which invoke the requested commands through the C<cmd.exe> shell.
 
-Because of C<cmd.exe> not doing willcard expansion (on Windows this
+Because of C<cmd.exe> not doing wildcard expansion (on Windows this
 task is left to the final command), glob quoting just quotes
 everything.
 
 Some Windows servers use C<Win32::CreateProcess> to run the C<cmd.exe>
-shell which runs the requested comand. In that case, both the C<MSCmd>
+shell which runs the requested command. In that case, both the C<MSCmd>
 and C<MSWin> quoters have to be chained (and BTW, order matters):
 
    $ssh = Net::OpenSSH->new(...,

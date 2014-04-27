@@ -110,7 +110,7 @@ allows remote expansion of wildcards in the given source filenames
 
 =item recursive => 1
 
-recursively searchs for files inside any given directory
+recursively searches for files inside any given directory
 
 =item quiet => 0
 
