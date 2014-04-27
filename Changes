@@ -1,6 +1,6 @@
 Revision history for Perl extension Net::OpenSSH.
 
-0.61_16  Apr 27, 2014
+0.61_17
         - support code for master_setpgrp feature was not reseting the
           terminal process group owner on failure (bug report by
           Matthias Hofer)
@@ -8,6 +8,10 @@ Revision history for Perl extension Net::OpenSSH.
           MANIFEST and so not being distributed
         - document MSWin and MSCmd quoters
         - add dummy package Net::OpenSSH::SSH
+
+0.61_16  Apr 6, 2014
+        - add work around in quoting.t for Solaris csh 'fixing'
+          invalid UTF8 sequences
 
 0.61_15  Apr 2, 2014
         - from OpenSSH version 6.5 UNKNOWN is not a valid
