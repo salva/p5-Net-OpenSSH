@@ -1,5 +1,8 @@
 Revision history for Perl extension Net::OpenSSH.
 
+0.61_18
+	- more spelling errors corrected
+
 0.61_17  Apr 24, 2014
         - lots of spelling errors corrected
         - support code for master_setpgrp feature was not reseting the
