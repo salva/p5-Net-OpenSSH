@@ -116,9 +116,9 @@ Net::OpenSSH::OSTracer - trace ssh master process at the OS level
 =head1 DESCRIPTION
 
 This is a Net::OpenSSH helper module that allows you to trace the
-master ssh process at the operating system level using the proper
-utility available in your system (i.e, strace, truss, ktruss, tusc,
-etc.).
+master C<ssh> process at the operating system level using the proper
+utility available in your system (e.g., C<strace>, C<truss>,
+C<ktruss>, C<tusc>, etc.).
 
 This feature can be used when debugging your programs or to report
 bugs on the module.
@@ -148,14 +148,14 @@ C<tusc> (HP-UX) and C<truss> (Solaris and AIX).
 
 =item $Net::OpenSSH::OSTracer::cmd
 
-Command to execute for tracing the ssh process.
+Command to execute for tracing the C<ssh> process.
 
 By default, it infers it from the tracer type selected.
 
 =item $Net::OpenSSH::OSTracer::output
 
-Basename for the destination file. The PID of the ssh process and the
-tracer type will be appended.
+Basename for the destination file. The PID of the C<ssh> process and
+the tracer type will be appended.
 
 =item $Net::OpenSSH::OSTracer::sudo
 
@@ -175,7 +175,7 @@ variable C<SUDO_ASKPASS>. For instance:
 
 =item $Net::OpenSSH::OSTracer::delay
 
-This variable can be used to delay the ssh execution so that the
+This variable can be used to delay the C<ssh> execution so that the
 tracer can attach the process first. This is specially handy when
 using C<sudo> with a password.
 

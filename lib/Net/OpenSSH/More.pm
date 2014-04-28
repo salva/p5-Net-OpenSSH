@@ -106,7 +106,7 @@ The accepted options are:
 
 =item glob => 1
 
-allows remote expansion of wildcards in the given source filenames
+allows remote expansion of wildcards in the given source file names
 
 =item recursive => 1
 

@@ -2364,7 +2364,7 @@ Then, every time a new operation is requested a new C<ssh> process is
 started in slave mode, effectively reusing the master SSH connection
 to send the request to the remote side.
 
-=head2 Net::OpenSSH Vs Net::SSH::.* modules
+=head2 Net::OpenSSH Vs. Net::SSH::.* modules
 
 Why should you use Net::OpenSSH instead of any of the other Perl SSH
 clients available?
@@ -2390,13 +2390,13 @@ Net::SSH is just a wrapper around any SSH binary commands available on
 the machine. It can be very slow as they establish a new SSH
 connection for every operation performed.
 
-In comparison, Net::OpenSSH is a pure perl module that doesn't have
+In comparison, Net::OpenSSH is a pure perl module that does not have
 any mandatory dependencies (obviously, besides requiring OpenSSH
 binaries).
 
 Net::OpenSSH has a very perlish interface. Most operations are
 performed in a fashion very similar to that of the Perl builtins and
-common modules (i.e. L<IPC::Open2|IPC::Open2>).
+common modules (e.g. L<IPC::Open2|IPC::Open2>).
 
 It is also very fast. The overhead introduced by launching a new ssh
 process for every operation is not appreciable (at least on my Linux
@@ -2668,7 +2668,7 @@ For instance:
 
 =item default_stderr_file = $fn
 
-Opens the given filenames and use it as the defaults.
+Opens the given file names and use them as the defaults.
 
 =item master_stdout_fh => $fh
 
@@ -2704,7 +2704,7 @@ Example:
   $ssh = Net::OpenSSH->new('foo', external_master => 1, ctl_path = $path);
 
 When C<external_master> is set, the hostname argument becomes optional
-(C<0.0.0.0> is passed to OpenSSH which doesn't use it at all).
+(C<0.0.0.0> is passed to OpenSSH which does not use it at all).
 
 =item default_encoding => $encoding
 
@@ -2781,7 +2781,8 @@ process listens for new multiplexed connections.
 
 =item ($in, $out, $err, $pid) = $ssh->open_ex(\%opts, @cmd)
 
-X<open_ex>I<Note: this is a low level method that, probably, you don't need to use!>
+X<open_ex>I<Note: this is a low level method which, probably, you do
+not need to use!>
 
 That method starts the command C<@cmd> on the remote machine creating
 new pipes for the IO channels as specified on the C<%opts> hash.
@@ -2811,7 +2812,7 @@ value (C<$in>).
 Similar to C<stdin_pipe>, but instead of a regular pipe it uses a
 pseudo-tty (pty).
 
-Note that on some operating systems (i.e. HP-UX, AIX), ttys are not
+Note that on some operating systems (e.g. HP-UX, AIX), ttys are not
 reliable. They can overflow when large chunks are written or when data
 is written faster than it is read.
 
@@ -2907,9 +2908,9 @@ Makes stderr point to stdout.
 
 =item tty => $bool
 
-Tells ssh to allocate a pseudo-tty for the remote process. By default,
-a tty is allocated if remote command stdin stream is attached to a
-tty.
+Tells C<ssh> to allocate a pseudo-tty for the remote process. By
+default, a tty is allocated if remote command stdin stream is attached
+to a tty.
 
 When this flag is set and stdin is not attached to a tty, the ssh
 master and slave processes may generate spurious warnings about failed
@@ -3116,7 +3117,7 @@ C<async> and C<tunnel>.
 =item @output = $ssh->capture(\%opts, @cmd);
 
 This method is conceptually equivalent to the perl backquote operator
-(i.e. C<`ls`>): it runs the command on the remote machine and captures
+(e.g. C<`ls`>): it runs the command on the remote machine and captures
 its output.
 
 In scalar context returns the output as a scalar. In list context
@@ -3265,7 +3266,7 @@ with the following code:
 
   waitpid($_, 0) for @pid;
 
-Note that C<spawn> shouldn't be used to start detached remote
+Note that C<spawn> should not be used to start detached remote
 processes that may survive the local program (see also the L</FAQ>
 about running remote processes detached).
 
@@ -3336,8 +3337,8 @@ wildcards can be used to select files.
 
 =item glob_flags => $flags
 
-Second argument passed to L<File::Glob::bsd_glob|File::Glob/bsd_glob> function. Only
-available for L</scp_put> method.
+Second argument passed to L<File::Glob::bsd_glob|File::Glob/bsd_glob>
+function. Only available for L</scp_put> method.
 
 =item copy_attrs => 1
 
@@ -3355,7 +3356,7 @@ given timeout elapses. See also L</Timeouts>.
 
 =item async => 1
 
-Doesn't wait for the C<scp> command to finish. When this option is
+Does not wait for the C<scp> command to finish. When this option is
 used, the method returns the PID of the child C<scp> process.
 
 For instance, it is possible to transfer files to several hosts in
@@ -3411,7 +3412,7 @@ checked in any way by the module, and they could interfere with it.
 These methods use C<rsync> over SSH to transfer files from/to the remote
 machine.
 
-They accept the same set of options as the SCP ones.
+They accept the same set of options as the C<scp> ones.
 
 Any unrecognized option will be passed as an argument to the C<rsync>
 command (see L<rsync(1)>). Underscores can be used instead of dashes
@@ -3660,10 +3661,10 @@ arguments and leave others untouched:
                $ssh->shell_quote('ls', '-l'),
                "/tmp/files_*.dat");
 
-When the glob option is set in scp and rsync file transfer methods, an
-alternative quoting method that knows about file wildcards and passes
-them unquoted is used. The set of wildcards recognized currently is
-the one supported by L<bash(1)>.
+When the glob option is set in C<scp> and C<rsync> file transfer
+methods, an alternative quoting method which knows about file
+wildcards and passes them unquoted is used. The set of wildcards
+recognized currently is the one supported by L<bash(1)>.
 
 Another way to selectively use quote globing or fully disable quoting
 for some specific arguments is to pass them as scalar references or
@@ -3830,7 +3831,7 @@ or received from the remote server to Perl internal unicode
 representation.
 
 The methods supporting that feature are those that move data from/to
-Perl data structures (i.e. C<capture>, C<capture2>, C<capture_tunnel>
+Perl data structures (e.g. C<capture>, C<capture2>, C<capture_tunnel>
 and methods supporting the C<stdin_data> option). Data accessed through
 pipes, sockets or redirections is not affected by the encoding options.
 
@@ -3839,7 +3840,7 @@ passed to the remote server on the command line.
 
 By default, if no encoding option is given on the constructor or on the
 method calls, Net::OpenSSH will not perform any encoding transformation,
-effectively processing the data as latin1.
+effectively processing the data as C<latin1>.
 
 When data can not be converted between the Perl internal
 representation and the selected encoding inside some Net::OpenSSH
@@ -3936,7 +3937,7 @@ not backed up by real file descriptors at the operative system
 level. Net::OpenSSH will fail if any of these handles is used
 explicitly or implicitly when calling some remote command.
 
-The workaround is to redirect them to C</dev/null> or to some file:
+The work-around is to redirect them to C</dev/null> or to some file:
 
   open my $def_in, '<', '/dev/null' or die "unable to open /dev/null";
   my $ssh = Net::OpenSSH->new($host,
@@ -3946,10 +3947,10 @@ The workaround is to redirect them to C</dev/null> or to some file:
   $ssh->system({stdout_discard => 1}, $cmd2);
   $ssh->system({stdout_to_file => '/tmp/output'}, $cmd3);
 
-Also, note that from a security stand point, running ssh from inside
-the webserver process is not a great idea. An attacker exploiting some
-Apache bug would be able to access the ssh keys and passwords and gain
-unlimited access to the remote systems.
+Also, note that from a security stand point, running C<ssh> from
+inside the web server process is not a great idea. An attacker
+exploiting some Apache bug would be able to access the SSH keys and
+passwords and gain unlimited access to the remote systems.
 
 If you can, use a queue (as L<TheSchwartz|TheSchwartz>) or any other
 mechanism to execute the ssh commands from another process running
@@ -4024,11 +4025,11 @@ use. For instance:
   $ssh = Net::OpenSSH->new($host,
                            ssh_cmd => "/opt/OpenSSH/5.8/bin/ssh")
 
-Some hardware vendors (i.e. Sun) include custom versions of OpenSSH
-bundled with the operative system. In principle, Net::OpenSSH should
-work with these SSH clients as long as they are derived from some
-version of OpenSSH recent enough. Anyway, my advise is to use the real
-OpenSSH software if you can!
+Some hardware vendors (e.g. Sun, err... Oracle) include custom
+versions of OpenSSH bundled with the operative system. In principle,
+Net::OpenSSH should work with these SSH clients as long as they are
+derived from some version of OpenSSH recent enough. Anyway, my advise
+is to use the real OpenSSH software if you can!
 
 =item 3 - run ssh from the command line
 
@@ -4036,7 +4037,7 @@ Check you can connect to the remote host using the same parameters you
 are passing to Net::OpenSSH. In particular, ensure that you are
 running C<ssh> as the same local user.
 
-If you are running your script from a webserver, the user
+If you are running your script from a web server, the user
 would probably be C<www>, C<apache> or something alike.
 
 Common problems are:
@@ -4198,8 +4199,8 @@ Frequent questions about the module:
 
 =item Connecting to switches, routers, etc.
 
-B<Q>: I can't get the method C<system>, C<capture>, etc., to work when
-connecting to some router, switch, etc. What I am doing wrong?
+B<Q>: I can not get the method C<system>, C<capture>, etc., to work
+when connecting to some router, switch, etc. What I am doing wrong?
 
 B<A>: Roughly, the SSH protocol allows for two modes of operation:
 command mode and interactive mode.
@@ -4219,7 +4220,7 @@ streams redirected to the local ones so that the user can
 transparently interact with it.
 
 Some devices (as probably the one you are using) do not run an
-standard, general purpose shell (i.e. C<bash>, C<csh> or C<ksh>) but
+standard, general purpose shell (e.g. C<bash>, C<csh> or C<ksh>) but
 some custom program specially targeted and limited to the task of
 configuring the device.
 
@@ -4228,7 +4229,7 @@ command mode. It unconditionally attaches the restricted shell to any
 incoming SSH connection and waits for the user to enter commands
 through the redirected stdin stream.
 
-The only way to workaround this limitation is to make your script talk
+The only way to work-around this limitation is to make your script talk
 to the restricted shell (1-open a new SSH session, 2-wait for the
 shell prompt, 3-send a command, 4-read the output until you get to the
 shell prompt again, repeat from 3). The best tool for this task is
@@ -4248,7 +4249,7 @@ L</TROUBLESHOOTING>).
 
 =item Disable StrictHostKeyChecking
 
-B<Q>: Why don't you run C<ssh> with C<StrictHostKeyChecking=no>?
+B<Q>: Why is C<ssh> not run with C<StrictHostKeyChecking=no>?
 
 B<A>: Using C<StrictHostKeyChecking=no> relaxes the default security
 level of SSH and it will be relatively easy to end with a
@@ -4285,7 +4286,7 @@ B<Q>: Calls to C<system>, C<capture>, etc. fail with the previous
 error, what's happening?
 
 B<A>: The reported stdio stream is closed or is not attached to a real
-file handle (i.e. it is a tied handle). Redirect it to C</dev/null> or
+file handle (e.g. it is a tied handle). Redirect it to C</dev/null> or
 to a real file:
 
   my $out = $ssh->capture({stdin_discard => 1, stderr_to_stdout => 1},
@@ -4319,7 +4320,7 @@ AIX and probably some other unixen, also bundle SSH clients lacking
 the multiplexing functionality and require installation of the real
 OpenSSH.
 
-=item Can't change working directory
+=item Can not change working directory
 
 B<Q>: I want to run some command inside a given remote directory but I
 am unable to change the working directory. For instance:
@@ -4334,7 +4335,7 @@ What am I doing wrong?
 B<A>: Net::OpenSSH (and, for that matter, all the SSH modules
 available from CPAN but L<Net::SSH::Expect>) runs every command in a
 new session so most shell builtins that are run for its side effects
-become useless (i.e. C<cd>, C<export>, C<ulimit>, C<umask>, etc.,
+become useless (e.g. C<cd>, C<export>, C<ulimit>, C<umask>, etc.,
 usually, you can list them running help from the shell).
 
 A work around is to combine several commands in one, for instance:
@@ -4366,7 +4367,7 @@ Also, it may be possible to demonize the remote program. If it is
 written in Perl you can use L<App::Daemon> for that (actually, there
 are several CPAN modules that provided that kind of functionality).
 
-In any case, note that you shouldn't use L</spawn> for that.
+In any case, note that you should not use L</spawn> for that.
 
 =item MaxSessions server limit reached
 
@@ -4487,15 +4488,15 @@ Net::OpenSSH does not work on Windows. OpenSSH multiplexing feature
 requires passing file handles through sockets, something that is not
 supported by any version of Windows.
 
-It doesn't work on VMS either... well, probably, it doesn't work on
+It does not work on VMS either... well, probably, it does not work on
 anything not resembling a modern Linux/Unix OS.
 
 To report bugs send an email to the address that appear below or use
 the CPAN bug tracking system at L<http://rt.cpan.org>.
 
-B<Post questions related to how to use the module in Perlmonks>
+B<Post questions related to how to use the module in PerlMonks>
 L<http://perlmonks.org/>, you will probably get faster responses than
-if you address me directly and I visit Perlmonks quite often, so I
+if you address me directly and I visit PerlMonks quite often, so I
 will see your question anyway.
 
 The source code of this module is hosted at GitHub:
@@ -4510,15 +4511,15 @@ requirements and we will get back to you ASAP.
 
 =head2 My wishlist
 
-If you like this module and you're feeling generous, take a look at my
-Amazon Wish List: L<http://amzn.com/w/1WU1P6IR5QZ42>.
+If you like this module and you are feeling generous, take a look at
+my Amazon Wish List: L<http://amzn.com/w/1WU1P6IR5QZ42>.
 
 Also consider contributing to the OpenSSH project this module builds
 upon: L<http://www.openssh.org/donations.html>.
 
 =head1 TODO
 
-- *** add tests for scp, rsync and sftp methods
+- *** add tests for C<scp_*>, C<rsync_*> and C<sftp> methods
 
 - *** add support for more target operating systems (quoting, OpenVMS,
   Windows & others)
