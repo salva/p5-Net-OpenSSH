@@ -273,6 +273,8 @@ sub new {
     $forward_agent and $passphrase and
         croak "agent forwarding can not be used when a passphrase has also been given";
     my $forward_X11 = delete $opts{forward_X11};
+    my $passwd_prompt = delete $opts{password_prompt};
+    $passwd_prompt = delete $opts{passwd_prompt} unless defined $passwd_prompt;
 
     my ($master_opts, @master_opts,
         $master_stdout_fh, $master_stderr_fh,
@@ -364,6 +366,7 @@ sub new {
                  _user => $user,
                  _port => $port,
                  _passwd => $obfuscate->($passwd),
+                 _passwd_prompt => $passwd_prompt,
                  _passphrase => $passphrase,
                  _key_path => $key_path,
                  _login_handler => $login_handler,
@@ -897,7 +900,7 @@ sub _wait_for_master {
 
     if ($reset) {
         $$bout = '';
-        $state = ( (defined $passwd and $pid) ? 'waiting_for_password_prompt' :
+        $state = ( (defined $passwd and $pid) ? 'waiting_for_passwd_prompt' :
                    (defined $login_handler)   ? 'waiting_for_login_handler'  :
                                                 'waiting_for_mux_socket' );
     }
@@ -909,7 +912,7 @@ sub _wait_for_master {
 
     my $fnopty;
     my $rv = '';
-    if ($state eq 'waiting_for_password_prompt') {
+    if ($state eq 'waiting_for_passwd_prompt') {
         $fnopty = fileno $mpty;
         vec($rv, $fnopty, 1) = 1
     }
@@ -1011,20 +1014,29 @@ sub _wait_for_master {
                     or die "internal error";
                 my $read = sysread($mpty, $$bout, 4096, length $$bout);
                 if ($read) {
-                    if ($state eq 'waiting_for_password_prompt') {
+                    my $passwd_prompt = _first_defined $self->{_passwd_prompt}, qr/[:?]/;
+                    $passwd_prompt = quotemeta $passwd_prompt unless ref $passwd_prompt;
+
+                    if ($state eq 'waiting_for_passwd_prompt') {
                         if ($$bout =~ /The authenticity of host.*can't be established/si) {
                             $self->_set_error(OSSH_MASTER_FAILED,
                                               "the authenticity of the target host can't be established, the remote host "
                                               . "public key is probably not present on the '~/.ssh/known_hosts' file");
                             goto kill_master_and_fail;
                         }
-                        if ($$bout =~ s/^(.*:)//s) {
+
+                        if ($$bout =~ /^(.*$passwd_prompt)/s) {
                             $debug and $debug & 4 and _debug "passwd/passphrase requested ($1)";
                             print $mpty "$passwd\n";
+                            $$bout = ''; # reset
                             $state = 'waiting_for_mux_socket';
                         }
                     }
-                    else { $$bout = '' }
+                    elsif (length($passwd_prompt) and $$bout =~ /^(.*$passwd_prompt)\s*$/s) {
+                        $debug and $debug & 4 and _debug "passwd/passphrase requested again ($1)";
+                        $self->_set_error(OSSH_MASTER_FAILED, "password authentication failed");
+                        goto kill_master_and_fail;
+                    }
                     next;
                 }
             }
@@ -2352,13 +2364,13 @@ OpenSSH binary client (C<ssh>).
 =head2 Under the hood
 
 This package is implemented around the multiplexing feature found in
-later versions of OpenSSH. That feature allows reuse of a previous SSH
-connection for running new commands (I believe that OpenSSH 4.1 is the
-first one to provide all the required functionality).
+later versions of OpenSSH. That feature allows one to run several
+commands over a single SSH connection (IIRC, OpenSSH 4.1 is the first
+one to provide all the required functionality).
 
 When a new Net::OpenSSH object is created, the OpenSSH C<ssh> client
-is run in master mode, establishing a permanent (actually, for the
-lifetime of the object) connection to the server.
+is run in master mode, establishing a persistent (for the lifetime of
+the object) connection to the server.
 
 Then, every time a new operation is requested a new C<ssh> process is
 started in slave mode, effectively reusing the master SSH connection
@@ -2488,9 +2500,7 @@ Login name
 
 TCP port number where the server is running
 
-=item passwd => $passwd
-
-=item password => $passwd
+=item password => $password
 
 User given password for authentication.
 
@@ -2713,6 +2723,21 @@ When C<external_master> is set, the hostname argument becomes optional
 =item default_argument_encoding => $encoding
 
 Set default encodings. See L</Data encoding>.
+
+=item password_prompt => $string
+
+=item password_prompt => $re
+
+By default, when using password authentication, the module expects the
+remote side to send a password prompt matching C</[?:]/>.
+
+This option can be used to override that default for the rare cases
+when a different prompt is used.
+
+Examples:
+
+   password_prompt => ']'; # no need to escape ']'
+   password_prompt => qr/[:?>]/;
 
 =item login_handler => \&custom_login_handler
 

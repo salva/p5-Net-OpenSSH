@@ -1,6 +1,9 @@
 Revision history for Perl extension Net::OpenSSH.
 
-0.61_18
+0.61_18  May 6, 2014
+        - add passwd_prompt feature
+        - check for the password not being requested a second time
+          (bug report by leschm)
 	- more spelling errors corrected
 
 0.61_17  Apr 24, 2014
