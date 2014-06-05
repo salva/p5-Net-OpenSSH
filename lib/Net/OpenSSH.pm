@@ -4498,6 +4498,8 @@ Net::OpenSSH to handle the connections.
 
 =head1 BUGS AND SUPPORT
 
+=head2 Experimental features
+
 Support for the setpgrp feature is highly experimental.
 
 Support for the gateway feature is highly experimental and mostly stalled.
@@ -4506,8 +4508,7 @@ Support for data encoding is experimental.
 
 Support for taint mode is experimental.
 
-Tested on different combinations of Linux, OpenBSD, NetBSD and Solaris
-with OpenSSH from 5.1 to 6.5.
+=head2 Known issues
 
 Net::OpenSSH does not work on Windows. OpenSSH multiplexing feature
 requires passing file handles through sockets, something that is not
@@ -4516,6 +4517,22 @@ supported by any version of Windows.
 It does not work on VMS either... well, probably, it does not work on
 anything not resembling a modern Linux/Unix OS.
 
+Old versions of OpenSSH C<ssh> may leave stdio streams in non-blocking
+mode. That can result on failures when writing to C<STDOUT> or
+C<STDERR> after using the module. In order to work-around this issue,
+Perl L<perlfunc/fcntl> can be used to unset the non-blocking flag:
+
+  use Fcntl qw(F_GETFL F_SETFL O_NONBLOCK);
+  my $flags = fcntl(STDOUT, F_GETFL, 0);
+  fcntl(STDOUT, F_SETFL, $flags & ~O_NONBLOCK);
+
+=head2 Git repository
+
+The source code of this module is hosted at GitHub:
+L<http://github.com/salva/p5-Net-OpenSSH>.
+
+=head2 Reporting bugs and asking for help
+
 To report bugs send an email to the address that appear below or use
 the CPAN bug tracking system at L<http://rt.cpan.org>.
 
@@ -4523,9 +4540,6 @@ B<Post questions related to how to use the module in PerlMonks>
 L<http://perlmonks.org/>, you will probably get faster responses than
 if you address me directly and I visit PerlMonks quite often, so I
 will see your question anyway.
-
-The source code of this module is hosted at GitHub:
-L<http://github.com/salva/p5-Net-OpenSSH>.
 
 =head2 Commercial support
 
