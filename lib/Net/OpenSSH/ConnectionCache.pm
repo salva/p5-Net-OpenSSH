@@ -7,7 +7,7 @@ use Data::Dumper;
 use Scalar::Util qw(weaken);
 
 our $MAX_SIZE = 20;
-my %cache;
+our %cache;
 
 sub _factory {
     my $class = shift;
@@ -45,6 +45,8 @@ sub _factory {
 
 $Net::OpenSSH::FACTORY = \&_factory;
 
+sub clean_cache { %cache = () }
+
 END { %cache = () }
 
 1;
@@ -74,9 +76,14 @@ C<$Net::OpenSSH::ConnectionCache::MAX_SIZE> controls the cache
 size. Once as many connections are allocated, the module will try to
 free any of them before allocating a new one.
 
+The function C<clean_cache> makes the module forget (and close) all
+the cached connections:
+
+  Net::OpenSSH::ConnectionCache::clean_cache();
+
 =head1 COPYRIGHT AND LICENSE
 
-Copyright (C) 2011 by Salvador FandiE<ntilde>o
+Copyright (C) 2011, 2014 by Salvador FandiE<ntilde>o
 (sfandino@yahoo.com)
 
 This library is free software; you can redistribute it and/or modify

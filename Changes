@@ -1,5 +1,12 @@
 Revision history for Perl extension Net::OpenSSH.
 
+0.63_01  Jun 14, 2014
+        - add clean_cache method to Net::OpenSSH::ConnectionCache (bug
+          report by Mithun Ayachit)
+
+0.62  Jun 14, 2014
+        - rerelease as stable
+
 0.61_18  May 6, 2014
         - add passwd_prompt feature
         - check for the password not being requested a second time

@@ -1,6 +1,6 @@
 package Net::OpenSSH;
 
-our $VERSION = '0.61_18';
+our $VERSION = '0.63_01';
 
 use strict;
 use warnings;
