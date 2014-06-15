@@ -2958,8 +2958,8 @@ See L</"Shell quoting"> below.
 
 =item remote_shell => $shell
 
-Sets the remote shell. Allows to change the argument quoting mechanism
-in a per-command fashion.
+Sets the remote shell. Allows one to change the argument quoting
+mechanism in a per-command fashion.
 
 This may be useful when interacting with a Windows machine where
 argument parsing may be done at the command level in custom ways.
@@ -3353,11 +3353,11 @@ Calls C<scp> with the C<-v> flag.
 
 =item recursive => 1
 
-Copy files and directories recursively.
+Copies files and directories recursively.
 
 =item glob => 1
 
-Allow expansion of shell metacharacters in the sources list so that
+Enables expansion of shell metacharacters in the sources list so that
 wildcards can be used to select files.
 
 =item glob_flags => $flags
