@@ -8,12 +8,8 @@ use File::Temp qw(tempfile);
 my $host = shift // 'foo';
 
 my ($merr_fh, $merr_fn) = tempfile();
-
-open my $master_stderr_fh,  '>', "/tmp/$$.stderr"
-    or die "Couldn't open master  stderr file.\n";
-
 my $ssh = Net::OpenSSH->new($host,
-                            'master_stderr_fh' => $merr_fh);
+                            master_stderr_fh => $merr_fh);
 
 if ($ssh->error) {
     my $detail = do {
@@ -25,5 +21,4 @@ if ($ssh->error) {
 }
 
 unlink $merr_fn;
-
 
