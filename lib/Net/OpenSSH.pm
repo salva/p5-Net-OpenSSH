@@ -4241,6 +4241,11 @@ Note that the meaning of the flags and the information generated is
 only intended for debugging of the module and may change without
 notice between releases.
 
+If you are using password authentication, enabling debugging for
+L<IO::Tty> may also show interesting information:
+
+    IO::Tty::DEBUG = 1;
+
 =head1 FAQ
 
 Frequent questions about the module:
