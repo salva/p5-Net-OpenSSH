@@ -1,6 +1,7 @@
 Revision history for Perl extension Net::OpenSSH.
 
 0.63_02
+        - documentation section about security added
         - doc corrections (reported by Gregor Herrmann from Debian)
 
 0.63_01  Jun 14, 2014

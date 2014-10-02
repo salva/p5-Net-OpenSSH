@@ -4246,6 +4246,113 @@ L<IO::Tty> may also show interesting information:
 
     IO::Tty::DEBUG = 1;
 
+=head1 SECURITY
+
+B<Q>: Is this module secure?
+
+B<A>: Well, it tries to be!
+
+From a security standpoint the aim of this module is to be as secure
+as OpenSSH, your operating system, your shell and in general your
+environment allow it to be.
+
+It does not take any shortcut just to make your life easier if that
+means lowering the security level (for instance, disabling
+C<StrictHostKeyChecking> by default).
+
+In the code supporting features that are not just proxied to OpenSSH,
+the module tries to keep the same standards of security as OpenSSH
+(for instance, checking directory and file permissions when placing
+the multiplexing socket).
+
+On the other hand, and keeping with OpenSSH philosophy, the module
+lets you disable most (all?) of those security measures. But just
+because it lets you do it it doesn't mean in any way the module
+advocates actually doing it!
+
+If you are a novice programmer or SSH user, and googling you have just
+found some flag that you don't understand but that seems to magically
+solve your connection problems... well, believe me, it is probably a
+bad idea to use it. Ask somebody how really knows first!
+
+Just to make thinks clear, if your code contains any of the keywords
+from the (non-exclusive) list below and you don't know why, you are
+probably wrecking the security of the SSH protocol:
+
+  strict_mode
+  StrictHostKeyChecking
+  UserKnownHostsFile
+
+Other considerations related to security you may like to know are as
+follows:
+
+=over 4
+
+=item Taint mode
+
+The module supports working in taint mode.
+
+If you are in an exposed environment, you should probably enable it
+for your script in order to catch any unchecked command for being
+executed in the remote side.
+
+=item Web environments
+
+It is a bad idea to establish SSH connections from your webserver
+because if it becomes compromised in any way, the attacker would be
+able to use the credentials from your script to connect to the remote
+host and do anything he wishes there.
+
+=item Command quoting
+
+The module can quote commands and arguments for you in a flexible
+and powerful way.
+
+This is a feature you should use as it reduces the possibility of some
+attacker being able to inject and run arbitrary commands on the remote
+machine (and even for scripts that are not exposed it is always
+advisable to enable argument quoting).
+
+Having said that, take into consideration that argument-quoting is
+just a hack to emulate the invoke-without-a-shell feature of Perl
+builtins such as C<system> and alike. There may be bugs(*) on the
+quoting code, your particular shell may have different quoting rules
+with unhandled corner cases or whatever. If your script is exposed to
+the outside, you should check your inputs and restrict what you accept
+as valid.
+
+[* even if this is one of the parts of the module more intensively
+tested!]
+
+=item Shellshock
+
+(see L<Shellshock|http://en.wikipedia.org/wiki/Shellshock_%28software_bug%29>)
+
+When executing local commands, the module always avoids calling the
+shell so in this way it is not affected by Shellshock.
+
+Unfortunately, some commands (C<scp>, C<rsync> and C<ssh> when the
+C<ProxyCommand> option is used) invoke other commands under the hood
+using the user shell. That opens the door to local Shellshock
+exploitation.
+
+On the remote side invocation of the shell is unavoidable due to the
+protocol design.
+
+By default, SSH does not forward environment variables but some Linux
+distributions explicitly change the default OpenSSH configuration to
+enable forwarding and acceptance of some specific ones (for instance
+C<LANG> and C<LC_*> on Debian and derivatives, Fedora does alike) and
+this also opens the door to Shellshock exploitation.
+
+Note that the shell used to invoke commands is not C</bin/sh> but the
+user shell as configured in C</etc/passwd>, PAM or whatever
+authentication subsystem is used by the local or remote operating
+system. Debian users, don't think you are not affected because
+your C</bin/sh> points to C<dash>!
+
+=back
+
 =head1 FAQ
 
 Frequent questions about the module:
