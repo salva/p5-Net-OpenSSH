@@ -17,7 +17,6 @@ my %alias = (bash  => 'POSIX',
              zsh   => 'POSIX',
              fizsh => 'POSIX',
              posh  => 'POSIX',
-             yash  => 'POSIX',
              tcsh  => 'csh');
 
 sub quoter {
