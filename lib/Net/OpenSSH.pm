@@ -4260,15 +4260,15 @@ It does not take any shortcut just to make your life easier if that
 means lowering the security level (for instance, disabling
 C<StrictHostKeyChecking> by default).
 
-In the code supporting features that are not just proxied to OpenSSH,
+In code supporting features that are not just proxied to OpenSSH,
 the module tries to keep the same standards of security as OpenSSH
 (for instance, checking directory and file permissions when placing
 the multiplexing socket).
 
 On the other hand, and keeping with OpenSSH philosophy, the module
 lets you disable most (all?) of those security measures. But just
-because it lets you do it it doesn't mean in any way the module
-advocates actually doing it!
+because it lets you do it it doesn't mean it is a good idea to do
+so!!!
 
 If you are a novice programmer or SSH user, and googling you have just
 found some flag that you don't understand but that seems to magically
