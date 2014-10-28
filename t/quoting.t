@@ -78,7 +78,7 @@ sub try_shell {
 my $badfh;
 sub badfh {
     unless ($badfh) {
-        open $badfh, '>', "missquoted.txt" or return;
+        open $badfh, '>', "misquoted.txt" or return;
         print $badfh "This file contains the strings that were not quoted properly\n\n";
     }
     $badfh;
