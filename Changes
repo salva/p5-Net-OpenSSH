@@ -3,6 +3,8 @@ Revision history for Perl extension Net::OpenSSH.
 0.63_02
         - documentation section about security added
         - doc corrections (reported by Gregor Herrmann from Debian)
+        - AT&T ksh is broken, don't use it when testing quoting
+          functions (bug report by Greg Oldendick)
 
 0.63_01  Jun 14, 2014
         - add clean_cache method to Net::OpenSSH::ConnectionCache (bug
