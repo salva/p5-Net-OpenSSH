@@ -37,6 +37,10 @@ my @chars = ([grep /\W/, map chr, 1..130],
 my @str = map { my $chars = $chars[rand @chars]; join('', map $chars->[rand(@$chars)], 0..rand(500)) } 1..$N;
 push @str, ("\x0a","\x27");
 
+
+my $broken_ksh = "\x82\x27\x3c\x7e\x7b";
+push @str, $broken_ksh;
+
 plan tests => @str * @shells;
 
 diag "running tests for shells @shells";
@@ -72,7 +76,18 @@ sub capture {
 sub try_shell {
     my $shell = shift;
     my $out = eval { capture($shell, '-c', 'echo good') };
-    $out and $out =~ /^good$/;
+    if ($out and $out =~ /^good$/) {
+        if ($shell =~ /ksh/) {
+            if (defined (my $version = eval { `$shell --version 2>&1` })) {
+                if ($version =~ /version\s+sh\s+\(AT\&T\s+Research\)/) {
+                    diag "skipping tests for broken AT&T ksh shell!";
+                    return undef;
+                }
+            }
+        }
+        return 1;
+    }
+    return undef;
 }
 
 my $badfh;
