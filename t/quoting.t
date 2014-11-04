@@ -37,7 +37,6 @@ my @chars = ([grep /\W/, map chr, 1..130],
 my @str = map { my $chars = $chars[rand @chars]; join('', map $chars->[rand(@$chars)], 0..rand(500)) } 1..$N;
 push @str, ("\x0a","\x27");
 
-
 my $broken_ksh = "\x82\x27\x3c\x7e\x7b";
 push @str, $broken_ksh;
 
