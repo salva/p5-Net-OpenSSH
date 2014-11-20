@@ -55,7 +55,7 @@ This module exports the following constants:
   OSSH_SLAVE_TIMEOUT - slave process timeout
   OSSH_SLAVE_CMD_FAILED - child process exited with a non zero status
   OSSH_SLAVE_SFTP_FAILED - creation of SFTP client failed
-  OSS_ENCODING_ERROR - some error related to the encoding/decoding of strings happened
+  OSSH_ENCODING_ERROR - some error related to the encoding/decoding of strings happened
 
 =back
 
