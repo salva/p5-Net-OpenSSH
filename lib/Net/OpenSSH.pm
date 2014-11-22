@@ -4391,16 +4391,19 @@ command mode. It unconditionally attaches the restricted shell to any
 incoming SSH connection and waits for the user to enter commands
 through the redirected stdin stream.
 
-The only way to work-around this limitation is to make your script talk
-to the restricted shell (1-open a new SSH session, 2-wait for the
+The only way to work-around this limitation is to make your script
+talk to the restricted shell (1-open a new SSH session, 2-wait for the
 shell prompt, 3-send a command, 4-read the output until you get to the
 shell prompt again, repeat from 3). The best tool for this task is
-probably L<Expect>, used alone, as wrapped by L<Net::SSH::Expect> or
-combined with Net::OpenSSH (see L</Expect>).
+probably L<Expect>, used alone or combined with Net::OpenSSH (see
+L</Expect>).
 
 There are some devices that support command mode but that only accept
 one command per connection. In that cases, using L<Expect> is also
 probably the best option.
+
+Nowadays, there is a new player, L<Net::CLI::Interaction> that may be
+more suitable than Expect.
 
 =item Connection fails
 
@@ -4495,10 +4498,10 @@ does not list the contents of C</home/foo/bin>.
 What am I doing wrong?
 
 B<A>: Net::OpenSSH (and, for that matter, all the SSH modules
-available from CPAN but L<Net::SSH::Expect>) runs every command in a
+available from CPAN but L<Net::SSH::Expect>) run every command in a
 new session so most shell builtins that are run for its side effects
 become useless (e.g. C<cd>, C<export>, C<ulimit>, C<umask>, etc.,
-usually, you can list them running help from the shell).
+usually, you can list them running C<help> from the shell).
 
 A work around is to combine several commands in one, for instance:
 
@@ -4632,6 +4635,13 @@ execution of Perl code in remote machines through SSH.
 
 L<SSH::RPC|SSH::RPC> implements an RPC mechanism on top of SSH using
 Net::OpenSSH to handle the connections.
+
+L<Net::CLI::Interact> allows one to interactuate with remote shells
+and other services. It is specially suited for interaction with
+network equipment. The passphrase approach it uses is very clever. You
+may also like to check the L<other
+modules|https://metacpan.org/author/OLIVER> from its author, Oliver
+Gorwits.
 
 =head1 BUGS AND SUPPORT
 
