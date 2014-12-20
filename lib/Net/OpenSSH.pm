@@ -841,7 +841,7 @@ sub _waitpid {
             if (defined $time_limit) {
                 while (1) {
                     # TODO: we assume that all OSs return 0 when the
-                    # process is still running, that may not be true!
+                    # process is still running, that may be wrong!
                     $r = waitpid($pid, WNOHANG) and last;
                     my $remaining = $time_limit - time;
                     if ($remaining <= 0) {
