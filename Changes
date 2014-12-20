@@ -1,6 +1,8 @@
 Revision history for Perl extension Net::OpenSSH.
 
 0.63_02
+        - fix error on regular expression inside quoting.t (bug report
+          by Slaven Rezic)
         - documentation section about security added
         - doc corrections (reported by Gregor Herrmann from Debian)
         - AT&T ksh is broken, don't use it when testing quoting
