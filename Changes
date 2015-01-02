@@ -1,6 +1,7 @@
 Revision history for Perl extension Net::OpenSSH.
 
-0.63_02
+0.63_02  Jan 2, 2015
+	- make module instalable on Windows and Cygwin
         - fix error on regular expression inside quoting.t (bug report
           by Slaven Rezic)
         - documentation section about security added
