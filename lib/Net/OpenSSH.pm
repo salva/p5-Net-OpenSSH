@@ -1141,7 +1141,7 @@ sub _make_pipe {
 
 sub _remote_quoter {
     my ($self, $remote_shell) = @_;
-    if (ref $self and not defined $remote_shell) {
+    if (ref $self and (!defined $remote_shell or $remote_shell eq $self->{_remote_shell})) {
         return $self->{remote_quoter} ||= Net::OpenSSH::ShellQuoter->quoter($self->{_remote_shell});
     }
     Net::OpenSSH::ShellQuoter->quoter($remote_shell);
