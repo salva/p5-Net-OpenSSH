@@ -38,7 +38,7 @@ my @ignore = ("Salvador", "Fandi\xf1o", "API", "CPAN", "GitHub",
               "omitted", "passphrases", "shortcut", "software",
               "stdin", "stdout", "stderr", "timeout", "vars", "SSH",
               "Unix", "Ubuntu", "ssh", "cmd.exe", "BTW", "namespace",
-              "IIRC", "Shellshock", "googling");
+              "IIRC", "Shellshock", "googling", "Gorwits");
 
 local $ENV{LC_ALL} = 'C';
 add_stopwords(@ignore);

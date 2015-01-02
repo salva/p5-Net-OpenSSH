@@ -4636,7 +4636,7 @@ execution of Perl code in remote machines through SSH.
 L<SSH::RPC|SSH::RPC> implements an RPC mechanism on top of SSH using
 Net::OpenSSH to handle the connections.
 
-L<Net::CLI::Interact> allows one to interactuate with remote shells
+L<Net::CLI::Interact> allows one to interact with remote shells
 and other services. It is specially suited for interaction with
 network equipment. The passphrase approach it uses is very clever. You
 may also like to check the L<other
