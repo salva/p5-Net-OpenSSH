@@ -10,6 +10,10 @@ use common;
 use Net::OpenSSH;
 use Net::OpenSSH::Constants qw(OSSH_ENCODING_ERROR OSSH_MASTER_FAILED);
 
+if ($^O =~ /MSWin|cygwin/i) {
+    plan skip_all => 'Core functionality does not work on Windows';
+}
+
 my $timeout = 15;
 my $fallback;
 
@@ -31,7 +35,7 @@ plan skip_all => 'Your shell introduces garbage on the output when running comma
     unless shell_is_clean;
 
 my $V = `ssh -V 2>&1`;
-my ($ver, $num) = $V =~ /^(OpenSSH_(\d+\.\d+).*)$/msi;
+my ($ver, $num) = (defined $V ? $V =~ /^(OpenSSH_(\d+\.\d+).*)$/msi : ());
 
 plan skip_all => 'OpenSSH 4.1 or later required'
     unless (defined $num and $num >= 4.1);
