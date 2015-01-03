@@ -1,6 +1,6 @@
 package Net::OpenSSH;
 
-our $VERSION = '0.63_02';
+our $VERSION = '0.63_03';
 
 use strict;
 use warnings;
@@ -652,9 +652,9 @@ sub _kill_master {
             local $SIG{CHLD} = sub {} unless $async;
 
             my $now = time;
-            my $start = $self->{_kill_master_start} //= $now;
-            $self->{_kill_master_last} //= $now;
-            $self->{_kill_master_count} //= 0;
+            my $start = $self->{_kill_master_start} ||= $now;
+            $self->{_kill_master_last} ||= $now;
+            $self->{_kill_master_count} ||= 0;
 
             while(1) {
                 if ($self->{_kill_master_last} < $now) {
