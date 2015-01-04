@@ -659,7 +659,8 @@ sub _kill_master {
             while(1) {
                 if ($self->{_kill_master_last} < $now) {
                     $self->{_kill_master_last} = $now;
-                    my $sig = $kill_signal[$self->{_kill_master_count}++] // 'KILL';
+                    my $sig = $kill_signal[$self->{_kill_master_count}++];
+                    $sig = 'KILL' unless defined $sig;
                     $debug and $debug & 32 and _debug "killing master $$ with signal $sig";
                     kill $sig, $pid;
                 }
@@ -686,10 +687,18 @@ sub _kill_master {
     1;
 }
 
+sub _or_set_wfm_error { # wfm => wait_for_master
+    my $self = shift;
+    unless (defined $self->{_wfm_error}) {
+        $self->{_wfm_error} = join(": ", @_);
+    }
+    1;
+}
+
 sub disconnect {
     my ($self, $async) = @_;
     $self->{_wfm_state} = 'killing_master';
-    $self->{_wfm_error} = 'aborted';
+    $self->_or_set_wfm_error('aborted');
     $self->_wait_for_master($async);
 }
 
@@ -972,7 +981,7 @@ sub _wait_for_master {
         if (-e $ctl_path) {
             $debug and $debug & 4 and _debug "file object found at $ctl_path";
             unless (-S $ctl_path) {
-                $self->{_wfm_error} //= "bad ssh master at $ctl_path, object is not a socket";
+                $self->_or_set_wfm_error("bad ssh master at $ctl_path, object is not a socket");
                 goto kill_master_and_fail;
             }
             my $check = $self->_master_ctl('check');
@@ -991,13 +1000,13 @@ sub _wait_for_master {
                         }
                         return 1;
                     }
-                    $self->{_wfm_error} //= "bad ssh master at $ctl_path, socket owned by pid $1 (pid $pid expected)";
+                    $self->_or_set_wfm_error("bad ssh master at $ctl_path, socket owned by pid $1 (pid $pid expected)");
 		}
 		elsif ($check =~ /illegal option/i) {
-                    $self->{_wfm_error} //= "OpenSSH 4.1 or later required";
+                    $self->_or_set_wfm_error("OpenSSH 4.1 or later required");
 		}
 		else {
-		    $self->{_wfm_error} //= "Unknown error";
+		    $self->_or_set_wfm_error("unknown error");
 		}
             }
             goto kill_master_and_fail;
@@ -1014,13 +1023,14 @@ sub _wait_for_master {
         if (!$pid) {
             # when using an external master the mux socket must be
             # there from the first time
-            $self->{_wfm_error} = "socket does not exist";
+            $self->_or_set_wfm_error("socket does not exist");
             goto fail;
         }
         elsif (waitpid($pid, WNOHANG) == $pid or $! == Errno::ECHILD) {
-            $self->{_wfm_error} = "master process exited unexpectedly";
-            $self->{_wfm_error} =  "bad pass" . ($self->{_passphrase} ? 'phrase' : 'word') . " or $self->{_wfm_error}"
+            my $wfm_error = "master process exited unexpectedly";
+            $wfm_error =  "bad pass" . ($self->{_passphrase} ? 'phrase' : 'word') . " or $wfm_error"
                 if defined $self->{_passwd};
+            $self->_or_set_wfm_error($wfm_error);
             goto fail; # master has already died
         }
 
@@ -1031,7 +1041,7 @@ sub _wait_for_master {
                 next;
             }
             if ($@) {
-                $self->{_wfm_error} //= "custom login handler failed: $@";
+                $self->_or_set_wfm_error("custom login handler failed", $@);
                 goto kill_master_and_fail;
             }
         }
@@ -1048,8 +1058,8 @@ sub _wait_for_master {
 
                     if ($state eq 'waiting_for_passwd_prompt') {
                         if ($$bout =~ /The authenticity of host.*can't be established/si) {
-                            $self->{_wfm_error} //= "the authenticity of the target host can't be established, the remote host "
-                                . "public key is probably not present on the '~/.ssh/known_hosts' file";
+                            $self->_or_set_wfm_error("the authenticity of the target host can't be established, the remote host "
+                                                     . "public key is probably not present on the '~/.ssh/known_hosts' file");
                             goto kill_master_and_fail;
                         }
 
@@ -1062,7 +1072,7 @@ sub _wait_for_master {
                     }
                     elsif (length($passwd_prompt) and $$bout =~ /^(.*$passwd_prompt)\s*$/s) {
                         $debug and $debug & 4 and _debug "passwd/passphrase requested again ($1)";
-                        $self->{_wfm_error} //= "password authentication failed";
+                        $self->_or_set_wfm_error("password authentication failed");
                         goto kill_master_and_fail;
                     }
                     next;
@@ -1077,7 +1087,7 @@ sub _wait_for_master {
             select(undef, undef, undef, $dt);
         }
     }
-    $self->{_wfm_error} //= "login timeout";
+    $self->_or_set_wfm_error("login timeout");
     $self->_set_error(OSSH_MASTER_FAILED, "login timeout");
 
  kill_master_and_fail:
@@ -1098,7 +1108,7 @@ sub _wait_for_master {
         local $SIG{TTOU} = 'IGNORE';
         POSIX::tcsetpgrp(0, $old_tcpgrp);
     }
-    $self->_set_error(OSSH_MASTER_FAILED, delete($self->{_wfm_error}) // 'unknown error');
+    $self->_set_error(OSSH_MASTER_FAILED, _first_defined(delete($self->{_wfm_error}), 'unknown error'));
     return undef;
 }
 
