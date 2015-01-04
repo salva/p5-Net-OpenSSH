@@ -1,5 +1,9 @@
 Revision history for Perl extension Net::OpenSSH.
 
+0.63_04  Jan 4, 2015
+	 - remove usage of defined-or operator in order to restore
+           support for perl 5.8
+
 0.63_03  Jan 3, 2015
 	 - remove usage of defined-or operator in order to restore
            support for perl 5.8
