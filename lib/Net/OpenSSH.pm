@@ -2326,6 +2326,14 @@ sub sshfs_export {
     $self->spawn(\%opts, $self->{_sshfs_cmd}, "$hostname:$from", $to, @sshfs_opts);
 }
 
+sub any {
+    my $self = shift;
+    _load_module('Net::SSH::Any');
+    Net::SSH::Any->new($self->{_host}, user => $self->{_user}, port => $self->{_port},
+                       backend => 'Net_OpenSSH',
+                       backend_opts => { Net_OpenSSH => { instance => $self } });
+}
+
 sub DESTROY {
     my $self = shift;
     my $pid = $self->{_pid};
@@ -3655,6 +3663,15 @@ from the FUSE git repository!).
 See also the L<sshfs(1)> man page and the C<sshfs> and FUSE web sites
 at L<http://fuse.sourceforge.net/sshfs.html> and
 L<http://fuse.sourceforge.net/> respectively.
+
+=item $any = $ssh->any(%opts)
+
+Wraps the current object inside a Net::SSH::Any one.
+
+Example:
+
+  my $any = $ssh->any;
+  my $content = $any->scp_get_content("my-file.txt");
 
 =back
 
