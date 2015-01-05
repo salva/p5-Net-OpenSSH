@@ -260,6 +260,7 @@ sub new {
     my $timeout = delete $opts{timeout};
     my $kill_ssh_on_timeout = delete $opts{kill_ssh_on_timeout};
     my $strict_mode = _first_defined delete $opts{strict_mode}, 1;
+    my $connect = _first_defined delete $opts{connect}, 1;
     my $async = delete $opts{async};
     my $remote_shell = _first_defined delete $opts{remote_shell}, 'POSIX';
     my $expand_vars = delete $opts{expand_vars};
@@ -393,6 +394,7 @@ sub new {
                  _default_argument_encoding => $default_argument_encoding,
 		 _expand_vars => $expand_vars,
 		 _vars => $vars,
+                 _wfm_state => 'start',
                };
     bless $self, $class;
 
@@ -461,12 +463,8 @@ sub new {
 
     $self->{_ctl_path} = $ctl_path;
 
-    if ($external_master) {
-        $self->_wait_for_master($async, 1);
-    }
-    else {
-        $self->_connect($async);
-    }
+    $self->_wait_for_master($async) if $connect;
+
     $self;
 }
 
@@ -697,6 +695,7 @@ sub _or_set_wfm_error { # wfm => wait_for_master
 
 sub disconnect {
     my ($self, $async) = @_;
+    return if $self->{_wfm_state} eq 'failed';
     $self->{_wfm_state} = 'killing_master';
     $self->_or_set_wfm_error('aborted');
     $self->_wait_for_master($async);
@@ -772,7 +771,7 @@ sub _connect {
                                                                    host => $self->{_host}, port => $self->{_port},
                                                                    %$gateway_args)) {
                 $self->_set_error(OSSH_MASTER_FAILED, 'Unable to build gateway object', join(', ', @$errors));
-                return undef;
+                return;
             }
         }
         else {
@@ -805,7 +804,7 @@ sub _connect {
     unless ($pid) {
         unless (defined $pid) {
             $self->_set_error(OSSH_MASTER_FAILED, "unable to fork ssh master: $!");
-            return undef;
+            return;
         }
 
         if ($debug and $debug & 512) {
@@ -828,9 +827,7 @@ sub _connect {
         POSIX::_exit(255);
     }
     $self->{_pid} = $pid;
-    my $r = $self->_wait_for_master($async, 1);
-    $mpty->close_slave if $mpty;
-    $r;
+    1;
 }
 
 sub _waitpid {
@@ -904,51 +901,66 @@ sub _waitpid {
 }
 
 sub wait_for_master {
-    my $self = shift;
-    @_ <= 1 or croak 'Usage: $ssh->wait_for_master([$async])';
+    my ($self, $async) = @_;
+    @_ <= 2 or croak 'Usage: $ssh->wait_for_master([$async])';
     return undef if $self->{_error} == OSSH_MASTER_FAILED;
     $self->{_error} = 0;
-    return $self->_wait_for_master($_[0]) if $self->{_wfm_state};
-
-    unless (-S $self->{_ctl_path}) {
-	$self->_set_error(OSSH_MASTER_FAILED, "master ssh connection broken");
-	return undef;
-    }
-    1;
+    $self->_wait_for_master($async);
 }
 
 sub check_master {
     my $self = shift;
     @_ and croak 'Usage: $ssh->check_master()';
-    $self->{_error} = 0;
-    $self->_wait_for_master;
+    $self->wait_for_master(0);
 }
 
 sub _wait_for_master {
-    my ($self, $async, $reset) = @_;
+    my ($self, $async) = @_;
 
-    my $state = delete $self->{_wfm_state} || 'waiting_for_mux_socket';
-    my $bout = \ ($self->{_wfm_bout});
+    my $external_master = $self->{_external_master};
+    my $ctl_path = $self->{_ctl_path};
+    my $state = $self->{_wfm_state};
+    defined $state or croak "internal error: wfm_state is undef";
 
-    my $mpty = $self->{_mpty};
+    if ($state eq 'ok') {
+        unless (-S $ctl_path) {
+            $self->_or_set_wfm_error("master ssh connection broken");
+            goto kill_master_and_fail;
+        }
+        unless ($external_master) {
+            my $pid = $self->{_pid};
+            if (waitpid($pid, WNOHANG) == $pid or $! == Errno::ECHILD) {
+                $self->_or_set_wfm_error("master process exited unexpectedly");
+                goto fail;
+            }
+        }
+        return 1;
+    }
+
+    return if $state eq 'failed';
+
     my $passwd = $deobfuscate->($self->{_passwd});
     my $login_handler = $self->{_login_handler};
-    my $pid = $self->{_pid};
-    # an undefined pid indicates we are reusing a master connection
+    my $bout = \($self->{_wfm_bout});
 
-    if ($reset) {
+    if ($state eq 'start') {
         $$bout = '';
-        $state = ( (defined $passwd and $pid) ? 'waiting_for_passwd_prompt' :
-                   (defined $login_handler)   ? 'waiting_for_login_handler'  :
-                                                'waiting_for_mux_socket' );
+        $state = 'waiting_for_mux_socket'; # default
+        unless ($external_master) {
+            $self->_connect or goto fail2;
+            $state = 'waiting_for_passwd_prompt' if defined $passwd;
+            $state = 'waiting_for_login_handler' if defined $login_handler;
+        }
     }
+
+    my $mpty = $self->{_mpty};
+    my $pid = $self->{_pid};
 
     if ($state eq 'killing_master') {
         $debug and $debug & 4 and _debug "resuming master killing";
         goto kill_master_and_fail;
     }
 
-    my $ctl_path = $self->{_ctl_path};
     my $dt = ($async ? 0 : 0.1);
     my $timeout = $self->{_timeout};
     my $start_time = time;
@@ -961,14 +973,16 @@ sub _wait_for_master {
     }
 
     my $old_tcpgrp;
-    if ($pid and $self->{_master_setpgrp} and not $async and not $self->{_batch_mode}) {
-        $old_tcpgrp = POSIX::tcgetpgrp(0);
-        if ($old_tcpgrp > 0) {
-            # let the master process ask for passwords at the TTY
-            POSIX::tcsetpgrp(0, $pid);
-        }
-        else {
-            undef $old_tcpgrp;
+    unless ($external_master) {
+        if ($self->{_master_setpgrp} and not $async and not $self->{_batch_mode}) {
+            $old_tcpgrp = POSIX::tcgetpgrp(0);
+            if ($old_tcpgrp > 0) {
+                # let the master process ask for passwords at the TTY
+                POSIX::tcsetpgrp(0, $pid);
+            }
+            else {
+                undef $old_tcpgrp;
+            }
         }
     }
 
@@ -984,6 +998,7 @@ sub _wait_for_master {
                 $self->_or_set_wfm_error("bad ssh master at $ctl_path, object is not a socket");
                 goto kill_master_and_fail;
             }
+            $self->{_wfm_state} = 'ok';
             my $check = $self->_master_ctl('check');
             if (defined $check) {
                 my $error;
@@ -998,6 +1013,7 @@ sub _wait_for_master {
                             local $SIG{TTOU} = 'IGNORE';
                             POSIX::tcsetpgrp(0, $old_tcpgrp);
                         }
+                        $self->{_wfm_state} = 'ok';
                         return 1;
                     }
                     $self->_or_set_wfm_error("bad ssh master at $ctl_path, socket owned by pid $1 (pid $pid expected)");
@@ -1017,10 +1033,10 @@ sub _wait_for_master {
             $self->_set_error(OSSH_MASTER_FAILED,
                               "process was forked or threaded before SSH connection had been established");
             # just return, the thread creating the mess should clean it all up!
-            return undef;
+            goto fail2;
         }
 
-        if (!$pid) {
+        if ($external_master) {
             # when using an external master the mux socket must be
             # there from the first time
             $self->_or_set_wfm_error("socket does not exist");
@@ -1094,22 +1110,26 @@ sub _wait_for_master {
     unless ($self->_kill_master($async)) {
         if ($async) {
             $self->{_wfm_state} = 'killing_master';
-            return;
+            return 0;
         }
     }
 
  fail:
-    if ($pid and $self->{_master_setpgrp} and $old_tcpgrp) {
-        if ($debug and $debug & 4) {
-            my $pgrp = getpgrp($pid);
-            my $tcpgrp = POSIX::tcgetpgrp(0);
-            $debug and _debug "ssh pid: $pid, pgrp: $pgrp \$\$: $$, tcpgrp: $tcpgrp old_tcppgrp: $old_tcpgrp";
+    unless ($external_master) {
+        if ($self->{_master_setpgrp} and $old_tcpgrp) {
+            if ($debug and $debug & 4) {
+                my $pgrp = getpgrp($pid);
+                my $tcpgrp = POSIX::tcgetpgrp(0);
+                $debug and _debug "ssh pid: $pid, pgrp: $pgrp \$\$: $$, tcpgrp: $tcpgrp old_tcppgrp: $old_tcpgrp";
+            }
+            local $SIG{TTOU} = 'IGNORE';
+            POSIX::tcsetpgrp(0, $old_tcpgrp);
         }
-        local $SIG{TTOU} = 'IGNORE';
-        POSIX::tcsetpgrp(0, $old_tcpgrp);
     }
-    $self->_set_error(OSSH_MASTER_FAILED, _first_defined(delete($self->{_wfm_error}), 'unknown error'));
-    return undef;
+    $self->_or_set_error(OSSH_MASTER_FAILED, _first_defined(delete($self->{_wfm_error}), 'unknown error'));
+ fail2:
+    $self->{_wfm_state} = 'failed';
+    return;
 }
 
 sub _master_ctl {
@@ -4742,8 +4762,6 @@ upon: L<http://www.openssh.org/donations.html>.
 - make L</pipe_in> and L</pipe_out> methods L</open_ex> based
 
 - add C<scp_cat> and similar methods
-
-- async disconnect
 
 - currently wait_for_master does not honor timeout
 
