@@ -685,19 +685,28 @@ sub _kill_master {
     1;
 }
 
-sub _or_set_wfm_error { # wfm => wait_for_master
-    my $self = shift;
-    unless (defined $self->{_wfm_error}) {
-        $self->{_wfm_error} = join(": ", @_);
-    }
-    1;
-}
-
 sub disconnect {
     my ($self, $async) = @_;
+    @_ <= 2 or croak 'Usage: $self->disconnect([$async])';
+    $self->_disconnect($async, 1);
+}
+
+sub _disconnect {
+    my ($self, $async, $send_ctl) = @_;
     return if $self->{_wfm_state} eq 'failed';
+
+    if (not $async and $self->{_wfm_state} eq 'running') {
+        my $pid = $self->{_pid};
+        if ($send_ctl or
+            ($pid and $self->{_perl_pid} == $$ and $self->{_thread_generation} == $thread_generation)) {
+            # we have successfully created the master connection so we
+            # can send control commands:
+            $debug and $debug & 32 and _debug("sending exit control to master");
+            $self->_master_ctl('exit');
+        }
+    }
+    $self->_set_error(OSSH_MASTER_FAILED, 'aborted');
     $self->{_wfm_state} = 'killing_master';
-    $self->_or_set_wfm_error('aborted');
     $self->_wait_for_master($async);
 }
 
@@ -903,15 +912,41 @@ sub _waitpid {
 sub wait_for_master {
     my ($self, $async) = @_;
     @_ <= 2 or croak 'Usage: $ssh->wait_for_master([$async])';
-    return undef if $self->{_error} == OSSH_MASTER_FAILED;
-    $self->{_error} = 0;
+    $self->{_error} = 0
+        unless $self->{_error} == OSSH_MASTER_FAILED;
     $self->_wait_for_master($async);
 }
 
 sub check_master {
     my $self = shift;
     @_ and croak 'Usage: $ssh->check_master()';
-    $self->wait_for_master(0);
+    return 1
+        if $self->wait_for_master
+            and $self->_check_master;
+
+    $self->_disconnect;
+    return;
+}
+
+sub _check_master {
+    my $self = shift;
+    my $out = $self->_master_ctl('check');
+    unless ($self->{error}) {
+        my $pid = $self->{_pid};
+        if ($out =~ /pid=(\d+)/) {
+            return 1 if !$pid or $1 == $pid;
+            $self->_set_error(OSSH_MASTER_FAILED, "bad ssh master at ",
+                              $self->{_ctl_path}, " socket owned by pid $1 (pid ",
+                              $pid, " expected)");
+        }
+        elsif ($output =~ /illegal option/i) {
+            $self->_set_error(OSSH_MASTER_FAILED, "OpenSSH 4.1 or later required");
+        }
+        else {
+            $self->_set_error(OSSH_MASTER_FAILED, "unknown error");
+        }
+    }
+    return;
 }
 
 sub _wait_for_master {
@@ -919,44 +954,43 @@ sub _wait_for_master {
 
     my $external_master = $self->{_external_master};
     my $ctl_path = $self->{_ctl_path};
-    my $state = $self->{_wfm_state};
-    defined $state or croak "internal error: wfm_state is undef";
+    defined $self->{_wfm_state} or croak "internal error: wfm_state is undef";
 
-    if ($state eq 'ok') {
+    if ($self->{_wfm_state} eq 'ok') {
         unless (-S $ctl_path) {
-            $self->_or_set_wfm_error("master ssh connection broken");
+            $self->_or_set_error(OSSH_MASTER_FAILED, "master ssh connection broken");
             goto kill_master_and_fail;
         }
         unless ($external_master) {
             my $pid = $self->{_pid};
             if (waitpid($pid, WNOHANG) == $pid or $! == Errno::ECHILD) {
-                $self->_or_set_wfm_error("master process exited unexpectedly");
+                $self->_or_set_error(OSSH_MASTER_FAILED, "master process exited unexpectedly");
                 goto fail;
             }
         }
         return 1;
     }
 
-    return if $state eq 'failed';
+    return if $self->{_wfm_state} eq 'failed';
 
     my $passwd = $deobfuscate->($self->{_passwd});
     my $login_handler = $self->{_login_handler};
     my $bout = \($self->{_wfm_bout});
 
-    if ($state eq 'start') {
+    if ($self->{_wfm_state} eq 'start') {
         $$bout = '';
-        $state = 'waiting_for_mux_socket'; # default
+        $self->{_wfm_state} = 'waiting_for_mux_socket'; # default
         unless ($external_master) {
             $self->_connect or goto fail2;
-            $state = 'waiting_for_passwd_prompt' if defined $passwd;
-            $state = 'waiting_for_login_handler' if defined $login_handler;
+            $self->{_wfm_state} = 'waiting_for_passwd_prompt' if defined $passwd;
+            $self->{_wfm_state} = 'waiting_for_login_handler' if defined $login_handler;
         }
     }
 
     my $mpty = $self->{_mpty};
     my $pid = $self->{_pid};
 
-    if ($state eq 'killing_master') {
+    if ($self->{_wfm_state} eq 'killing_master') {
         $debug and $debug & 4 and _debug "resuming master killing";
         goto kill_master_and_fail;
     }
@@ -967,7 +1001,7 @@ sub _wait_for_master {
 
     my $fnopty;
     my $rv = '';
-    if ($state eq 'waiting_for_passwd_prompt') {
+    if ($self->{_wfm_state} eq 'waiting_for_passwd_prompt') {
         $fnopty = fileno $mpty;
         vec($rv, $fnopty, 1) = 1
     }
@@ -995,39 +1029,27 @@ sub _wait_for_master {
         if (-e $ctl_path) {
             $debug and $debug & 4 and _debug "file object found at $ctl_path";
             unless (-S $ctl_path) {
-                $self->_or_set_wfm_error("bad ssh master at $ctl_path, object is not a socket");
+                $self->_or_set_error(OSSH_MASTER_FAILED, "bad ssh master at $ctl_path, object is not a socket");
                 goto kill_master_and_fail;
             }
-            $self->{_wfm_state} = 'ok';
-            my $check = $self->_master_ctl('check');
-            if (defined $check) {
-                my $error;
-		if ($check =~ /pid=(\d+)/) {
-		    if (!$pid or $1 == $pid) {
-                        if ($self->{_master_setpgrp} and $old_tcpgrp) {
-                            if ($debug and $debug & 4) {
-                                my $pgrp = getpgrp($pid);
-                                my $tcpgrp = POSIX::tcgetpgrp(0);
-                                $debug and _debug "ssh pid: $pid, pgrp: $pgrp \$\$: $$, tcpgrp: $tcpgrp old_tcppgrp: $old_tcpgrp";
-                            }
-                            local $SIG{TTOU} = 'IGNORE';
-                            POSIX::tcsetpgrp(0, $old_tcpgrp);
-                        }
-                        $self->{_wfm_state} = 'ok';
-                        return 1;
-                    }
-                    $self->_or_set_wfm_error("bad ssh master at $ctl_path, socket owned by pid $1 (pid $pid expected)");
-		}
-		elsif ($check =~ /illegal option/i) {
-                    $self->_or_set_wfm_error("OpenSSH 4.1 or later required");
-		}
-		else {
-		    $self->_or_set_wfm_error("unknown error");
-		}
+
+            if ($self->{_master_setpgrp} and $old_tcpgrp) {
+                $debug and $debug & 4 and
+                    _debug("ssh pid: $pid, pgrp: ", getpgrp($pid),
+                           "$pgrp \$\$: $$, tcpgrp: ", POSIX::tcgetpgrp(0),
+                           " old_tcppgrp: $old_tcpgrp");
+                local $SIG{TTOU} = 'IGNORE';
+                POSIX::tcsetpgrp(0, $old_tcpgrp);
+                undef $old_tcpgrp;
             }
-            goto kill_master_and_fail;
+
+            $self->{_wfm_state} = 'ok';
+            $self->_check_master or
+                goto kill_master_and_fail;
+
+            return 1;
         }
-        $debug and $debug & 4 and _debug "file object not yet found at $ctl_path, state: $state";
+        $debug and $debug & 4 and _debug "file object not yet found at $ctl_path, state:", $self->{_wfm_state};
 
         if ($self->{_perl_pid} != $$ or $self->{_thread_generation} != $thread_generation) {
             $self->_set_error(OSSH_MASTER_FAILED,
@@ -1039,25 +1061,25 @@ sub _wait_for_master {
         if ($external_master) {
             # when using an external master the mux socket must be
             # there from the first time
-            $self->_or_set_wfm_error("socket does not exist");
+            $self->_or_set_error(OSSH_MASTER_FAILED, "socket does not exist");
             goto fail;
         }
         elsif (waitpid($pid, WNOHANG) == $pid or $! == Errno::ECHILD) {
             my $wfm_error = "master process exited unexpectedly";
             $wfm_error =  "bad pass" . ($self->{_passphrase} ? 'phrase' : 'word') . " or $wfm_error"
                 if defined $self->{_passwd};
-            $self->_or_set_wfm_error($wfm_error);
+            $self->_or_set_error(OSSH_MASTER_FAILED, $wfm_error);
             goto fail; # master has already died
         }
 
-        if ($state eq 'waiting_for_login_handler') {
+        if ($self->{_wfm_state} eq 'waiting_for_login_handler') {
             local ($@, $SIG{__DIE__});
             if (eval { $login_handler->($self, $mpty, $bout) }) {
-                $state = 'waiting_for_mux_socket';
+                $self->{_wfm_state} = 'waiting_for_mux_socket';
                 next;
             }
             if ($@) {
-                $self->_or_set_wfm_error("custom login handler failed", $@);
+                $self->_or_set_error(OSSH_MASTER_FAILED, "custom login handler failed", $@);
                 goto kill_master_and_fail;
             }
         }
@@ -1072,9 +1094,9 @@ sub _wait_for_master {
                     my $passwd_prompt = _first_defined $self->{_passwd_prompt}, qr/[:?]/;
                     $passwd_prompt = quotemeta $passwd_prompt unless ref $passwd_prompt;
 
-                    if ($state eq 'waiting_for_passwd_prompt') {
+                    if ($self->{_wfm_state} eq 'waiting_for_passwd_prompt') {
                         if ($$bout =~ /The authenticity of host.*can't be established/si) {
-                            $self->_or_set_wfm_error("the authenticity of the target host can't be established, the remote host "
+                            $self->_or_set_error(OSSH_MASTER_FAILED, "the authenticity of the target host can't be established, the remote host "
                                                      . "public key is probably not present on the '~/.ssh/known_hosts' file");
                             goto kill_master_and_fail;
                         }
@@ -1083,27 +1105,22 @@ sub _wait_for_master {
                             $debug and $debug & 4 and _debug "passwd/passphrase requested ($1)";
                             print $mpty "$passwd\n";
                             $$bout = ''; # reset
-                            $state = 'waiting_for_mux_socket';
+                            $self->{_wfm_state} = 'waiting_for_mux_socket';
                         }
                     }
                     elsif (length($passwd_prompt) and $$bout =~ /^(.*$passwd_prompt)\s*$/s) {
                         $debug and $debug & 4 and _debug "passwd/passphrase requested again ($1)";
-                        $self->_or_set_wfm_error("password authentication failed");
+                        $self->_or_set_error(OSSH_MASTER_FAILED, "password authentication failed");
                         goto kill_master_and_fail;
                     }
                     next;
                 }
             }
         }
-        if ($async) {
-            $self->{_wfm_state} = $state;
-            return 0;
-        }
-        else {
-            select(undef, undef, undef, $dt);
-        }
+
+        $async and return 0;
+        select(undef, undef, undef, $dt);
     }
-    $self->_or_set_wfm_error("login timeout");
     $self->_set_error(OSSH_MASTER_FAILED, "login timeout");
 
  kill_master_and_fail:
@@ -1117,11 +1134,10 @@ sub _wait_for_master {
  fail:
     unless ($external_master) {
         if ($self->{_master_setpgrp} and $old_tcpgrp) {
-            if ($debug and $debug & 4) {
-                my $pgrp = getpgrp($pid);
-                my $tcpgrp = POSIX::tcgetpgrp(0);
-                $debug and _debug "ssh pid: $pid, pgrp: $pgrp \$\$: $$, tcpgrp: $tcpgrp old_tcppgrp: $old_tcpgrp";
-            }
+            $debug and $debug & 4 and
+                _debug("ssh pid: $pid, pgrp: ", getpgrp($pid),
+                       "$pgrp \$\$: $$, tcpgrp: ", POSIX::tcgetpgrp(0),
+                       " old_tcppgrp: $old_tcpgrp");
             local $SIG{TTOU} = 'IGNORE';
             POSIX::tcsetpgrp(0, $old_tcpgrp);
         }
@@ -2356,20 +2372,9 @@ sub any {
 
 sub DESTROY {
     my $self = shift;
-    my $pid = $self->{_pid};
-    local ($@, $SIG{__DIE__});
     $debug and $debug & 2 and _debug("DESTROY($self, pid: ", $pid, ")");
-    if ($pid and $self->{_perl_pid} == $$ and $self->{_thread_generation} == $thread_generation) {
-	$debug and $debug & 32 and _debug("killing master");
-        local ($?, $!);
-	unless ($self->{_wfm_state}) {
-	    # we have successfully created the master connection so we
-	    # can send control commands:
-	    $debug and $debug & 32 and _debug("sending exit control to master");
-	    $self->_master_ctl('exit');
-	}
-	$self->_kill_master;
-    }
+    local ($?, $!);
+    $self->_disconnect;
 }
 
 1;
