@@ -7,7 +7,7 @@ use Carp;
 sub new { __PACKAGE__ }
 
 my $noquote_class = '.\\w/\\-@,:';
-my $glob_class    = '*?\\[\\],{}:!^~';
+my $glob_class    = '*?\\[\\],\\{\\}:!^~';
 
 sub quote {
     shift;

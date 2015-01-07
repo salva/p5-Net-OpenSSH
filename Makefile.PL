@@ -1,7 +1,12 @@
 use 5.008;
 use ExtUtils::MakeMaker;
 
-$^O =~ /Win32/ and die "This module does not work on MS Windows.\nTry installing a real OS!\n";
+if ($^O =~ /MSWin|cygwin/i) {
+    warn <<EOW;
+Only a minor subset of the functionality of Net::OpenSSH is supported on Windows.
+It is OK to install it as a dependency of Net::SSH::Any though.
+EOW
+}
 
 my $ssh_V = `ssh -V 2>&1`;
 if (defined $ssh_V) {

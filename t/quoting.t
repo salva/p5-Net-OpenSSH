@@ -9,6 +9,10 @@ use Net::OpenSSH::ShellQuoter;
 use lib './t';
 use common;
 
+if ($^O =~ /MSWin/) {
+    plan skip_all => 'Core functionality does not work on Windows';
+}
+
 my $alt_lang;
 if ($^O =~ /^solaris/ and $ENV{LANG} =~ /\.UTF-8$/) {
     $alt_lang = $ENV{LANG};
@@ -119,7 +123,7 @@ sub perldump {
     my $fh = badfh();
     my @c;
     for (split //, $data) {
-        if (/[\w!#%&'()*+,\-.\/:;<=>?[]^`{|}~]/) {
+        if (/[\w!#%&'()*+,\-.\/:;<=>?\[\]^`{|}~]/) {
             push @c, $_;
         }
         elsif (/["\$\@\\]/) {
