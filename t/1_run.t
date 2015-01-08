@@ -259,7 +259,10 @@ SKIP: {
     my $ssh4;
     for my $passwd (qw(foo bar)) {
         $ssh4 = eval { Net::OpenSSH->new(%ctor_opts, passwd => $passwd, master_stderr_discard => 1) };
-        $@ and $@ =~ /IO::Pty/ and skip "no IO::Pty", 1;
+        if ($@) {
+            $@ =~ /IO::Pty/ and skip "no IO::Pty", 1;
+            diag "unexpected error: $@";
+        }
         last if $ssh4->error;
     }
     is ($ssh4->error+0, OSSH_MASTER_FAILED, "bad password");
