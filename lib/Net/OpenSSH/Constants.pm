@@ -5,10 +5,11 @@ our $VERSION = '0.51_07';
 use strict;
 use warnings;
 use Carp;
+use Scalar::Util ();
 
 require Exporter;
 our @ISA = qw(Exporter);
-our %EXPORT_TAGS = (error => []);
+our %EXPORT_TAGS = (error => [], _state => []);
 
 my %error = ( OSSH_MASTER_FAILED => 1,
               OSSH_SLAVE_FAILED => 2,
@@ -24,6 +25,22 @@ for my $key (keys %error) {
     my $value = $error{$key};
     *{$key} = sub () { $value };
     push @{$EXPORT_TAGS{error}}, $key
+}
+
+my @states = qw(_STATE_START
+                _STATE_LOGIN
+                _STATE_AWAITING_MUX
+                _STATE_RUNNING
+                _STATE_KILLING
+                _STATE_GONE
+                _STATE_STOPPED);
+
+my $last_value;
+for my $state (@states) {
+    no strict 'refs';
+    my $value = Scalar::Util::dualvar(++$last_value, $state);
+    *{$state} = sub () { $value };
+    push @{$EXPORT_TAGS{_state}}, $state
 }
 
 our @EXPORT_OK = map { @{$EXPORT_TAGS{$_}} } keys %EXPORT_TAGS;
