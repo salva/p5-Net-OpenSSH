@@ -1,6 +1,6 @@
 package Net::OpenSSH;
 
-our $VERSION = '0.63_04';
+our $VERSION = '0.63_05';
 
 use strict;
 use warnings;
@@ -948,16 +948,13 @@ sub _master_fail {
     if ($self->{_error} != OSSH_MASTER_FAILED) {
         $self->_set_error(OSSH_MASTER_FAILED, @_);
     }
-    $self->_master_jump_state(($self->_my_master_pid
-                               ? _STATE_KILLING
-                               : _STATE_GONE),
-                              $async);
+    $self->_master_jump_state(_STATE_KILLING, $async);
 }
 
 sub _master_jump_state {
     my ($self, $state, $async) = @_;
     $debug and $debug & 4 and _debug "master state jumping from $self->{_master_state} to $state";
-    $state == $self->{_master_state} and croak "internal error: state jump to itself!";
+    #$state == $self->{_master_state} and croak "internal error: state jump to itself ($state)!";
     $self->{_master_state} = $state;
     return $self->_master_wait($async);
 }
@@ -968,6 +965,7 @@ sub _master_wait {
     my $pid = $self->_my_master_pid;
     if ($pid) {
         if (waitpid($pid, WNOHANG) == $pid or $! == Errno::ECHILD) {
+            $debug and $debug & 4 and _debug "master $pid exited, rc:", $?,", err: ",$!;
             return $self->_master_gone($async);
         }
     }
@@ -3559,6 +3557,10 @@ It returns a true value after the connection has been successfully
 established. False is returned if the connection process fails or if
 it has not yet completed (then, the L</error> method can be used to
 distinguish between both cases).
+
+From version 0.64 upwards, undef is returned when the master is still
+in an unstable state (login, killing, etc.) and 0 when it is in a
+stable state (running, stopped or gone).
 
 =item $ssh->check_master
 
