@@ -2667,6 +2667,10 @@ in parallel:
       $ssh{$host}->system('ls /');
   }
 
+=item connect => 0
+
+Do not launch the master SSH process yet.
+
 =item master_opts => [...]
 
 Additional options to pass to the C<ssh> command when establishing the

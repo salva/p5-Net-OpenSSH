@@ -6,6 +6,7 @@ Revision history for Perl extension Net::OpenSSH.
         ===============================================================
         - completely revamp internal logic for master monitoring
         ===============================================================
+        - add constructor option 'connect'
         - add method 'any'
 
 0.63_04  Jan 4, 2015
