@@ -677,7 +677,7 @@ sub _master_kill {
         }
     }
     else {
-        $debug and $debug & 32 and _debug("not killing master SSH ($pid) started from " .
+        $debug and $debug & 32 and _debug("not killing master SSH (", $pid, ") started from " .
                                           "process $self->{_perl_pid}/$self->{_thread_generation}" .
                                           ", current $$/$thread_generation");
     }
@@ -948,13 +948,17 @@ sub _master_fail {
     if ($self->{_error} != OSSH_MASTER_FAILED) {
         $self->_set_error(OSSH_MASTER_FAILED, @_);
     }
-    $self->_master_jump_state(_STATE_KILLING, $async);
+    $self->_master_jump_state($self->{_pid} ? _STATE_KILLING : _STATE_GONE, $async);
 }
 
 sub _master_jump_state {
     my ($self, $state, $async) = @_;
     $debug and $debug & 4 and _debug "master state jumping from $self->{_master_state} to $state";
-    #$state == $self->{_master_state} and croak "internal error: state jump to itself ($state)!";
+    if ($state == $self->{_master_state} and
+        $state != _STATE_KILLING and
+        $state != _STATE_GONE) {
+        croak "internal error: state jump to itself ($state)!";
+    }
     $self->{_master_state} = $state;
     return $self->_master_wait($async);
 }
