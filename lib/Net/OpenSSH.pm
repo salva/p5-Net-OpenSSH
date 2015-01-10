@@ -4749,23 +4749,12 @@ upon: L<http://www.openssh.org/donations.html>.
 
 - *** add tests for C<scp_*>, C<rsync_*> and C<sftp> methods
 
-- *** add support for more target operating systems (quoting, OpenVMS,
-  Windows & others)
-
-- better timeout handling in system and capture methods
-
 - make L</pipe_in> and L</pipe_out> methods L</open_ex> based
-
-- add C<scp_cat> and similar methods
-
-- currently wait_for_master does not honor timeout
 
 - auto_discard_streams feature for mod_perl2 and similar environments
 
-- add proper shell quoting for Windows (see
-  L<http://blogs.msdn.com/b/twistylittlepassagesallalike/archive/2011/04/23/everyone-quotes-arguments-the-wrong-way.aspx>).
-
-- refactor open_ex support for multiple commands, maybe just keeping tunnel, ssh and raw
+- refactor open_ex support for multiple commands, maybe just keeping
+  tunnel, ssh and raw
 
 Send your feature requests, ideas or any feedback, please!
 
