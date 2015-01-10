@@ -4812,7 +4812,7 @@ incompatible change.
 
 Look at the rest of the code.
 
-I let Emacs do the formating for me using cperl-mode PerlStyle.
+I let Emacs do the formatting for me using cperl-mode PerlStyle.
 
 =item Talk to me
 
