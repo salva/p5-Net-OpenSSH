@@ -2175,11 +2175,11 @@ my %rsync_opt_with_arg = map { $_ => 1 } qw(chmod suffix backup-dir rsync-path m
                                             skip-compress filter exclude exclude-from include include-from
                                             out-format log-file log-file-format bwlimit protocol iconv checksum-seed);
 
-my %rsync_opt_forbiden = map { $_ => 1 } qw(rsh address port sockopts blocking-io password-file write-batch
+my %rsync_opt_forbidden = map { $_ => 1 } qw(rsh address port sockopts blocking-io password-file write-batch
                                             only-write-batch read-batch ipv4 ipv6 version help daemon config detach
                                             files-from from0 blocking-io protect-args list-only);
 
-$rsync_opt_forbiden{"no-$_"} = 1 for (keys %rsync_opt_with_arg, keys %rsync_opt_forbiden);
+$rsync_opt_forbidden{"no-$_"} = 1 for (keys %rsync_opt_with_arg, keys %rsync_opt_forbidden);
 
 my %rsync_error = (1, 'syntax or usage error',
 		   2, 'protocol incompatibility',
@@ -2235,7 +2235,7 @@ sub _rsync {
 	    else {
 		my $opt1 = $opt;
 		$opt1 =~ tr/_/-/;
-		$rsync_opt_forbiden{$opt1} and croak "forbiden rsync option '$opt' used";
+		$rsync_opt_forbidden{$opt1} and croak "forbidden rsync option '$opt' used";
 		if ($rsync_opt_with_arg{$opt1}) {
 		    push @opts, "--$opt1=$_" for _array_or_scalar_to_list($value)
 		}
@@ -3067,7 +3067,7 @@ Set encodings. See L</Data encoding>.
 Usage example:
 
   # similar to IPC::Open2 open2 function:
-  my ($in_pipe, $out_pipe, undef, $pid) = 
+  my ($in_pipe, $out_pipe, undef, $pid) =
       $ssh->open_ex( { stdin_pipe => 1,
                        stdout_pipe => 1 },
                      @cmd )
