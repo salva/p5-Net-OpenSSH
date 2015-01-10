@@ -4715,11 +4715,6 @@ Perl L<perlfunc/fcntl> can be used to unset the non-blocking flag:
   my $flags = fcntl(STDOUT, F_GETFL, 0);
   fcntl(STDOUT, F_SETFL, $flags & ~O_NONBLOCK);
 
-=head2 Git repository
-
-The source code of this module is hosted at GitHub:
-L<http://github.com/salva/p5-Net-OpenSSH>.
-
 =head2 Reporting bugs and asking for help
 
 To report bugs send an email to the address that appear below or use
@@ -4747,16 +4742,102 @@ upon: L<http://www.openssh.org/donations.html>.
 
 =head1 TODO
 
-- *** add tests for C<scp_*>, C<rsync_*> and C<sftp> methods
+- Tests for C<scp_*>, C<rsync_*> and C<sftp> methods
 
-- make L</pipe_in> and L</pipe_out> methods L</open_ex> based
+- Make L</pipe_in> and L</pipe_out> methods L</open_ex> based
 
-- auto_discard_streams feature for mod_perl2 and similar environments
+- C<auto_discard_streams> feature for mod_perl2 and similar environments
 
-- refactor open_ex support for multiple commands, maybe just keeping
+- Refactor open_ex support for multiple commands, maybe just keeping
   tunnel, ssh and raw
 
 Send your feature requests, ideas or any feedback, please!
+
+=head1 CONTRIBUTING CODE
+
+The source code of this module is hosted at GitHub:
+L<http://github.com/salva/p5-Net-OpenSSH>.
+
+Code contributions to the module are welcome but you should obey the
+following rules:
+
+=over 4
+
+=item Only Perl 5.8.4 required
+
+Yes, that's pretty old, but Net::OpenSSH is intended to be also used
+by system administrators that some times have to struggle with old
+systems. The reason to pick 5.8.4 is that is has been the default perl
+on Solaris for a long time.
+
+=item Avoid the "All the world's a Linux PC" syndrome
+
+The module should work on any (barely) sane Unix or Linux operating
+system. Specially, it should not be assumed that the over-featured GNU
+utilities and toolchain are available.
+
+=item Dependencies are optional
+
+In order to make the module very easy to install, no mandatory
+dependencies on other CPAN modules are allowed.
+
+Optional modules, that are loaded only on demand, are acceptable when
+they are used for adding new functionality (as it is done, for
+instance, with L<IO::Pty>).
+
+Glue code for integration with 3rd party modules is also allowed (as
+it is done with L<Expect>).
+
+Usage of language extension modules and alike is not acceptable.
+
+=item Tests should be lax
+
+We don't want false negatives when testing. In case of doubt tests
+should succeed.
+
+Also, in case of tests invoking some external program, it should be
+checked that the external program is available and that it works as
+expected or otherwise skip the tests.
+
+=item Backward compatibility
+
+Nowadays Net::OpenSSH is quite stable and there are lots of scripts
+out there using it that we don't want to break, so, keeping the API
+backward compatible is a top priority.
+
+Probably only security issues could now justify a backward
+incompatible change.
+
+=item Follow my coding style
+
+Look at the rest of the code.
+
+I let Emacs do the formating for me using cperl-mode PerlStyle.
+
+=item Talk to me
+
+Before making a large change or implementing a new feature get in
+touch with me.
+
+I may have my own ideas about how things should be done. It is better
+it you know them before hand or otherwise, you risk getting your patch
+rejected.
+
+=back
+
+Well, actually you should know that I am quite good at rejecting
+patches but it is not my fault!
+
+Most of the patches I get are broken in some way, don't follow the
+main module principles or just the author didn't get the full picture
+and solved its issue in a short-sighted way.
+
+In any case, you should not be discouraged to contribute. Even if your
+patch is not applied directly, seeing how it solves your requirements
+or, in the case of bugs, the underlying problem analysis may be very
+useful and help me do it... my way.
+
+I always welcome documentation corrections and improvements.
 
 =head1 COPYRIGHT AND LICENSE
 
