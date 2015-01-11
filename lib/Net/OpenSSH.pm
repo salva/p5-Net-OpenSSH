@@ -2415,7 +2415,7 @@ OpenSSH binary client (C<ssh>).
 
 This package is implemented around the multiplexing feature found in
 later versions of OpenSSH. That feature allows one to run several
-commands over a single SSH connection (IIRC, OpenSSH 4.1 is the first
+sessions over a single SSH connection (OpenSSH 4.1 was the first
 one to provide all the required functionality).
 
 When a new Net::OpenSSH object is created, the OpenSSH C<ssh> client
@@ -2441,7 +2441,7 @@ in some ways.
 
 L<Net::SSH2|Net::SSH2> is much better than Net::SSH::Perl, but not
 completely stable yet. It can be very difficult to install on some
-specific operative systems and its API is also limited, in the same
+specific operating systems and its API is also limited, in the same
 way as L<Net::SSH::Perl|Net::SSH::Perl>.
 
 Using L<Net::SSH::Expect|Net::SSH::Expect>, in general, is a bad
@@ -4025,7 +4025,7 @@ This example is adapted from L<Net::Telnet> documentation:
 =head2 mod_perl and mod_perl2
 
 L<mod_perl> and L<mod_perl2> tie STDIN and STDOUT to objects that are
-not backed up by real file descriptors at the operative system
+not backed up by real file descriptors at the operating system
 level. Net::OpenSSH will fail if any of these handles is used
 explicitly or implicitly when calling some remote command.
 
@@ -4118,7 +4118,7 @@ use. For instance:
                            ssh_cmd => "/opt/OpenSSH/5.8/bin/ssh")
 
 Some hardware vendors (e.g. Sun, err... Oracle) include custom
-versions of OpenSSH bundled with the operative system. In principle,
+versions of OpenSSH bundled with the operating system. In principle,
 Net::OpenSSH should work with these SSH clients as long as they are
 derived from some version of OpenSSH recent enough. Anyway, my advise
 is to use the real OpenSSH software if you can!
