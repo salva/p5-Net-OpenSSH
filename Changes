@@ -1,5 +1,8 @@
 Revision history for Perl extension Net::OpenSSH.
 
+0.63_06  Jan15, 2015
+        DESTROY was overwritting $@
+
 0.63_05  Jan 8, 2015
         WARNING, this is a mayor internal change!!!
         it may introduce regression bugs!!!

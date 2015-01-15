@@ -1,6 +1,6 @@
 package Net::OpenSSH;
 
-our $VERSION = '0.63_05';
+our $VERSION = '0.63_06';
 
 use strict;
 use warnings;
@@ -2355,7 +2355,7 @@ sub any {
 sub DESTROY {
     my $self = shift;
     $debug and $debug & 2 and _debug("DESTROY($self, pid: ", $self->{_pid}, ")");
-    local ($?, $!);
+    local ($SIG{__DIE__}, $@, $?, $!);
     $self->_disconnect;
 }
 
