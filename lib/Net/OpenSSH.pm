@@ -1,6 +1,6 @@
 package Net::OpenSSH;
 
-our $VERSION = '0.63_06';
+our $VERSION = '0.63_07';
 
 use strict;
 use warnings;
@@ -432,9 +432,7 @@ sub new {
             $ctl_dir = File::Spec->catdir($self->{_home}, ".libnet-openssh-perl");
         }
 
-	my $old_umask = umask 077;
-        mkdir $ctl_dir;
-	umask $old_umask;
+        mkdir $ctl_dir, 0700;
         unless (-d $ctl_dir) {
             $self->_master_fail($async, "unable to create ctl_dir $ctl_dir");
             return $self;

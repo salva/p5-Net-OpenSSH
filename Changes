@@ -1,7 +1,11 @@
 Revision history for Perl extension Net::OpenSSH.
 
-0.63_06  Jan15, 2015
-        DESTROY was overwritting $@
+0.63_07  Jan 25, 2015
+         - umask is not thread safe, avoid it (bug report and fix by
+           Shaun Pankau)
+
+0.63_06  Jan 15, 2015
+        - DESTROY was overwritting $@
 
 0.63_05  Jan 8, 2015
         WARNING, this is a mayor internal change!!!
