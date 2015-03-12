@@ -1,6 +1,6 @@
 package Net::OpenSSH;
 
-our $VERSION = '0.64';
+our $VERSION = '0.65_01';
 
 use strict;
 use warnings;
@@ -675,9 +675,9 @@ sub _master_kill {
         }
     }
     else {
-        $debug and $debug & 32 and _debug("not killing master SSH (", $pid, ") started from " .
-                                          "process $self->{_perl_pid}/$self->{_thread_generation}" .
-                                          ", current $$/$thread_generation");
+        $debug and $debug & 32 and _debug("not killing master SSH (", $self->{_pid}, ") started from " .
+                                          "process ", $self->{_perl_pid}, "/", $self->{_thread_generation},
+                                          ", current ", $$, "/", $thread_generation, ")");
     }
     $self->_master_gone($async);
 }
@@ -686,6 +686,17 @@ sub disconnect {
     my ($self, $async) = @_;
     @_ <= 2 or croak 'Usage: $self->disconnect([$async])';
     $self->_disconnect($async, 1);
+}
+
+sub disown_master {
+    my $self = shift;
+    if (my $pid = $self->_my_master_pid) {
+        if ($self->wait_for_master) {
+            $self->{_external_master} = 1;
+            return $pid;
+        }
+    }
+    undef;
 }
 
 sub _my_master_pid {
@@ -3685,6 +3696,31 @@ Example:
 
   my $any = $ssh->any;
   my $content = $any->scp_get_content("my-file.txt");
+
+=item $pid = $ssh->disown_master
+
+Under normal operation Net::OpenSSH controls the life-time of the
+master C<ssh> process and when the object is destroyed the master
+process and any connection running over it are terminated.
+
+In some (rare) cases, it is desirable to let the master process and
+all the running connections survive. Calling this method does just
+that, it tells Net::OpenSSH object that the master process is not its
+own anymore.
+
+The return value is the PID of the master process.
+
+Note also that disowning the master process does not affect the
+operation of the module in any other regard.
+
+For instance:
+
+  # See sample/sshfs_mount.pl for a working program
+  my $ssh = Net::OpenSSH->new($host);
+  my $sshfs_pid = $ssh->sshfs_import("/home/foo", "my-remote-home");
+  $ssh->disown_master;
+  $ssh->stop; # tells the master to stop accepting requests
+  exit(0);
 
 =back
 
