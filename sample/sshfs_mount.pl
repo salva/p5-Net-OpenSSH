@@ -4,7 +4,7 @@ use strict;
 use warnings;
 use 5.010;
 
-use Net::OpenSSH;
+use Net::OpenSSH 0.65;
 
 @ARGV == 3 or die <<USAGE;
 Usage:
