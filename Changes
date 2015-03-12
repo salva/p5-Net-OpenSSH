@@ -1,6 +1,6 @@
 Revision history for Perl extension Net::OpenSSH.
 
-0.65_01
+0.65_01  Mar 12, 2015
         - add disown_master method
         - add sshfs_mount.pl sample
 
