@@ -1,8 +1,13 @@
 Revision history for Perl extension Net::OpenSSH.
 
+0.64  Mar 12, 2015
+        WARNING: mayor internal changes have been introduced since
+                 last stable release!!!
+        - Rerelease as stable
+
 0.63_07  Jan 25, 2015
-         - umask is not thread safe, avoid it (bug report and fix by
-           Shaun Pankau)
+        - umask is not thread safe, avoid it (bug report and fix by
+          Shaun Pankau)
 
 0.63_06  Jan 15, 2015
         - DESTROY was overwritting $@
@@ -19,12 +24,12 @@ Revision history for Perl extension Net::OpenSSH.
         - update TODO list
 
 0.63_04  Jan 4, 2015
-	 - remove usage of defined-or operator in order to restore
-           support for perl 5.8
+        - remove usage of defined-or operator in order to restore
+          support for perl 5.8
 
 0.63_03  Jan 3, 2015
-	 - remove usage of defined-or operator in order to restore
-           support for perl 5.8
+	- remove usage of defined-or operator in order to restore
+          support for perl 5.8
 
 0.63_02  Jan 2, 2015
 	- make module instalable on Windows and Cygwin
