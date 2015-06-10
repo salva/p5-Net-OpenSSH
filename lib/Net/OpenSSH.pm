@@ -3856,7 +3856,7 @@ Closing the STDIN and STDOUT streams of the unresponsive remote
 process will effectively deliver a SIGPIPE when it tries to access any
 of them.
 
-Remote processes may not access STDIN or STDOUT and even them,
+Remote processes may not access STDIN or STDOUT and even then,
 Net::OpenSSH can only close these channels when it is capturing them,
 so this approach does not always work.
 
