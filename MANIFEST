@@ -22,6 +22,7 @@ t/test_user_key
 t/test_user_key.pub
 t/known_hosts
 t/quoting.t
+t/uri.t
 sample/expect.pl
 sample/change_passwd.pl
 sample/autosudo.pl

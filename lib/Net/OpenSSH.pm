@@ -171,7 +171,7 @@ sub parse_connection_opts {
         $target =~ m{^
                        \s*               # space
                        (?:
-                         ([^\@:]+)       # username
+                         ([^:]+)         # username
                          (?::(.*))?      # : password
                          \@              # @
                        )?

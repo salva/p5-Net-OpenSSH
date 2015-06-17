@@ -1,5 +1,9 @@
 Revision history for Perl extension Net::OpenSSH.
 
+0.65_02  Jun 17, 2015
+        - accept as targets URIs where the username contains the at
+          sign (bug report by Mark Rushing)
+
 0.65_01  Mar 12, 2015
         - add disown_master method
         - add sshfs_mount.pl sample
