@@ -1,5 +1,9 @@
 Revision history for Perl extension Net::OpenSSH.
 
+0.65_03  Jun 18, 2015
+        - remove defined-or operator usage in order to remain perl
+          5.8.x compatible
+
 0.65_02  Jun 17, 2015
         - accept as targets URIs where the username contains the at
           sign (bug report by Mark Rushing)

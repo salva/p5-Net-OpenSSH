@@ -10,12 +10,14 @@ use Test::More;
 sub test_uri {
     my ($args, $expected, $comment) = @_;
     $args = [$args] unless ref $args;
-    $comment //= join(', ', $args->[0], map "$args->[$_*2-1] => $args->[$_*2]", 1 .. ($#$args/2));
+    $comment = join(', ', $args->[0], map "$args->[$_*2-1] => $args->[$_*2]", 1 .. ($#$args/2))
+        unless defined $comment;
     my $out = Net::OpenSSH->parse_connection_opts({host => @$args});
     if ($out) {
         if ($expected) {
             for my $k (keys %$out) {
-                my $v = $out->{$k} // next;
+                my $v = $out->{$k};
+                defined $v or next;
                 my $ev = $expected->{$k};
                 unless (defined $ev and $ev eq $v) {
                     next if not defined $ev and $k eq 'host_squared';
@@ -26,7 +28,8 @@ sub test_uri {
                 }
             }
             for my $k (keys %$expected) {
-                my $ev = $expected->{$k} // next;
+                my $ev = $expected->{$k};
+                defined $ev or next;
                 unless (defined $out->{$k}) {
                     fail $comment;
                     my $qev = (defined $ev ? "'$ev'" : '(undef)');
