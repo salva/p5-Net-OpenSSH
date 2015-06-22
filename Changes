@@ -1,5 +1,9 @@
 Revision history for Perl extension Net::OpenSSH.
 
+0.65_04
+        - add support for connecting to remote unix sockets (not
+          working yet because of issues on OpenSSH)
+
 0.65_03  Jun 18, 2015
         - remove defined-or operator usage in order to remain perl
           5.8.x compatible

@@ -616,12 +616,17 @@ sub _make_rsync_call {
     @args;
 }
 
+sub _make_W_option {
+    my $self = shift;
+    croak "bad number of arguments for creating a tunnel"
+        if @_ < 1 or @_ > 2;
+    return "-W" . join(':', @_);
+}
+
 sub _make_tunnel_call {
-    @_ == 4 or croak "bad number of arguments for creating a tunnel";
     my $self = shift;
     my @before = @{shift||[]};
-    my $dest = join(':', @_);
-    push @before, "-W$dest";
+    push @before, $self->_make_W_option(@_);
     my @args = $self->_make_ssh_call(\@before);
     $debug and $debug & 8 and _debug_dump 'tunnel call args' => \@args;
     @args;
@@ -1098,7 +1103,6 @@ sub _master_wait {
                                 "public key is probably not present on the '~/.ssh/known_hosts' file";
                             last;
                         }
-
                         if ($self->{_wfm_bout} =~ /^(.*$passwd_prompt)/s) {
                             $debug and $debug & 4 and _debug "passwd/passphrase requested ($1)";
                             print $mpty $deobfuscate->($self->{_passwd}) . "\n";
@@ -1272,8 +1276,7 @@ sub make_remote_command {
     my $tunnel = delete $opts{tunnel};
     my (@args);
     if ($tunnel) {
-        @_ == 2 or croak "two arguments are required for tunnel command";
-        push @ssh_opts, "-W" . join(":", @_);
+        push @ssh_opts, $self->_make_W_option(@_);
     }
     else {
         @args = $self->_quote_args(\%opts, @_);
@@ -1363,7 +1366,6 @@ sub open_ex {
     my $tunnel = delete $opts{tunnel};
     my ($cmd, $close_slave_pty, @args);
     if ($tunnel) {
-	@_ == 2 or croak 'bad number of arguments for tunnel, use $ssh->method(\\%opts, $host, $port)';
 	@args = @_;
     }
     else {
