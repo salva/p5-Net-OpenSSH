@@ -1099,10 +1099,16 @@ sub _master_wait {
 
                     if ($self->{_master_state} == _STATE_LOGIN) {
                         if ($self->{_wfm_bout} =~ /The authenticity of host.*can't be established/si) {
-                            $error = "the authenticity of the target host can't be established, the remote host " .
+                            $error = "the authenticity of the target host can't be established; the remote host " .
                                 "public key is probably not present on the '~/.ssh/known_hosts' file";
                             last;
                         }
+                        if ($self->{_wfm_bout} =~ /WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED/si) {
+                            $error = "the authenticity of the target host can't be established; the remote host " .
+                                "public key doesn't match the one stored locally";
+                            last;
+                        }
+
                         if ($self->{_wfm_bout} =~ /^(.*$passwd_prompt)/s) {
                             $debug and $debug & 4 and _debug "passwd/passphrase requested ($1)";
                             print $mpty $deobfuscate->($self->{_passwd}) . "\n";
