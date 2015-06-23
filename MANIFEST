@@ -34,3 +34,4 @@ sample/password_from_data.pl
 sample/git_ssh_through_mux.pl
 sample/git_with_password.pl
 sample/sshfs_mount.pl
+patches/openssh-fwd-stdio-to-streamlocal-1.patch
