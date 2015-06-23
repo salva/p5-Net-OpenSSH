@@ -3,8 +3,8 @@ Revision history for Perl extension Net::OpenSSH.
 0.65_04
         - be more explicit on errors about non matching host public
           keys if possible (bug report by Ferenc Erki)
-        - add support for connecting to remote unix sockets (not
-          working yet because of issues on OpenSSH)
+        - add support for connecting to remote unix sockets (requires
+          patch to OpenSSH)
 
 0.65_03  Jun 18, 2015
         - remove defined-or operator usage in order to remain perl
