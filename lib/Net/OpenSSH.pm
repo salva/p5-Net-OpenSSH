@@ -546,7 +546,7 @@ sub _detect_ssh_version {
         local $self->{_kill_ssh_on_timeout} = 1;
         $self->_waitpid($pid, 10);
         if (my ($full, $num) = $txt =~ /^OpenSSH_((\d+\.\d+)\S*)/mi) {
-            $debug and $debug & 4 and _debug "OpenSSH verion is $full";
+            $debug and $debug & 4 and _debug "OpenSSH version is $full";
             $self->{_ssh_version} = $num;
         }
         else {
@@ -618,9 +618,16 @@ sub _make_rsync_call {
 
 sub _make_W_option {
     my $self = shift;
+    if (@_ == 1) {
+        my $path = shift;
+        $path = "./$path" unless $path =~ m|/|;
+        $path =~ s/([\\:])/\\$1/g;
+        return "-W$path";
+    }
+    if (@_ == 2) {
+        return "-W" . join(':', @_);
+    }
     croak "bad number of arguments for creating a tunnel"
-        if @_ < 1 or @_ > 2;
-    return "-W" . join(':', @_);
 }
 
 sub _make_tunnel_call {
@@ -1103,6 +1110,7 @@ sub _master_wait {
                                 "public key is probably not present on the '~/.ssh/known_hosts' file";
                             last;
                         }
+
                         if ($self->{_wfm_bout} =~ /WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED/si) {
                             $error = "the authenticity of the target host can't be established; the remote host " .
                                 "public key doesn't match the one stored locally";
@@ -3065,11 +3073,12 @@ checked in any way by the module, and they could interfere with it.
 
 Instead of executing a command in the remote host, this option
 instruct Net::OpenSSH to create a TCP tunnel. The arguments become the
-target IP and port.
+target IP and port or the remote path for an Unix socket.
 
 Example:
 
   my ($in, $out, undef, $pid) = $ssh->open_ex({tunnel => 1}, $IP, $port);
+  my ($in, $out, undef, $pid) = $ssh->open_ex({tunnel => 1}, $socket_path);
 
 See also L</Tunnels>.
 
@@ -3367,6 +3376,8 @@ processes that may survive the local program (see also the L</FAQ>
 about running remote processes detached).
 
 =item ($socket, $pid) = $ssh->open_tunnel(\%opts, $dest_host, $port)
+
+=item ($socket, $pid) = $ssh->open_tunnel(\%opts, $socket_path)
 
 X<open_tunnel>Similar to L</open2socket>, but instead of running a
 command, it opens a TCP tunnel to the given address. See also
@@ -3957,6 +3968,18 @@ OpenSSH 5.4 or later is required for the tunnels functionality to
 work. Also, note that tunnel forwarding may be administratively
 forbidden at the server side (see L<sshd(8)> and L<sshd_config(5)> or
 the documentation provided by your SSH server vendor).
+
+When connecting to hosts running a recent version of OpenSSH sshd, it
+is also possible to open connections targeting Unix sockets.
+
+For instance:
+
+  my $response = $ssh->capture({tunnel => 1, stdin_data => $request },
+                               "/tmp/socket-foo");
+
+Currently, this feature requires a patched OpenSSH ssh client. The
+patch is available as
+C<patches/openssh-fwd-stdio-to-streamlocal-1.patch>.
 
 =head2 Data encoding
 
@@ -4731,11 +4754,12 @@ Gorwits.
 
 =head2 Experimental features
 
+Support for tunnels targeting Unix sockets is highly experimental.
+
 Support for the setpgrp feature is highly experimental.
 
-Support for the gateway feature is highly experimental and mostly stalled.
-
-Support for data encoding is experimental.
+Support for the gateway feature is highly experimental and mostly
+stalled.
 
 Support for taint mode is experimental.
 

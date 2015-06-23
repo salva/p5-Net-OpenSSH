@@ -1,0 +1,167 @@
+From 9e8d31d31f4f7a18244c6195fea87ecad4428833 Mon Sep 17 00:00:00 2001
+From: Salvador Fandino <sfandino@yahoo.com>
+Date: Tue, 23 Jun 2015 15:34:31 +0200
+Subject: [PATCH] Allow forwarding of stdio to streamlocal end points.
+
+Later versions of OpenSSH allow the user to forward connections also to/from Unix sockets.
+
+This patch allows to use Unix sockets as the target when forwarding the local stdio using the -W feature.
+---
+ channels.c | 15 ++++++++++-----
+ channels.h |  2 +-
+ mux.c      |  6 +++---
+ ssh.c      | 21 +++++++++++++--------
+ 4 files changed, 27 insertions(+), 17 deletions(-)
+
+diff --git a/channels.c b/channels.c
+index 45e1f9f..d4bf467 100644
+--- a/channels.c
++++ b/channels.c
+@@ -1269,25 +1269,30 @@ channel_decode_socks5(Channel *c, fd_set *readset, fd_set *writeset)
+ }
+ 
+ Channel *
+-channel_connect_stdio_fwd(const char *host_to_connect, u_short port_to_connect,
++channel_connect_stdio_fwd(const char *path_to_connect, u_int port_to_connect,
+     int in, int out)
+ {
+ 	Channel *c;
+ 
+-	debug("channel_connect_stdio_fwd %s:%d", host_to_connect,
+-	    port_to_connect);
++	if (port_to_connect == (u_int)PORT_STREAMLOCAL)
++		debug("channel_connect_stdio_fwd stream local %s", path_to_connect);
++	else
++		debug("channel_connect_stdio_fwd %s:%d", path_to_connect,
++		    port_to_connect);
+ 
+ 	c = channel_new("stdio-forward", SSH_CHANNEL_OPENING, in, out,
+ 	    -1, CHAN_TCP_WINDOW_DEFAULT, CHAN_TCP_PACKET_DEFAULT,
+ 	    0, "stdio-forward", /*nonblock*/0);
+ 
+-	c->path = xstrdup(host_to_connect);
++	c->path = xstrdup(path_to_connect);
+ 	c->host_port = port_to_connect;
+ 	c->listening_port = 0;
+ 	c->force_drain = 1;
+ 
+ 	channel_register_fds(c, in, out, -1, 0, 1, 0);
+-	port_open_helper(c, "direct-tcpip");
++	port_open_helper(c, ((port_to_connect == (u_int)PORT_STREAMLOCAL)
++			     ? "direct-streamlocal@openssh.com"
++			     : "direct-tcpip"));
+ 
+ 	return c;
+ }
+diff --git a/channels.h b/channels.h
+index b9b4860..937e9b3 100644
+--- a/channels.h
++++ b/channels.h
+@@ -270,7 +270,7 @@ void 	 channel_print_adm_permitted_opens(void);
+ int      channel_input_port_forward_request(int, struct ForwardOptions *);
+ Channel	*channel_connect_to_port(const char *, u_short, char *, char *);
+ Channel *channel_connect_to_path(const char *, char *, char *);
+-Channel	*channel_connect_stdio_fwd(const char*, u_short, int, int);
++Channel	*channel_connect_stdio_fwd(const char*, u_int, int, int);
+ Channel	*channel_connect_by_listen_address(const char *, u_short,
+ 	     char *, char *);
+ Channel	*channel_connect_by_listen_path(const char *, char *, char *);
+diff --git a/mux.c b/mux.c
+index cdc01bd..dd448e9 100644
+--- a/mux.c
++++ b/mux.c
+@@ -88,7 +88,7 @@ extern char *host;
+ extern int subsystem_flag;
+ extern Buffer command;
+ extern volatile sig_atomic_t quit_pending;
+-extern char *stdio_forward_host;
++extern char *stdio_forward_path;
+ extern int stdio_forward_port;
+ 
+ /* Context for session open confirmation callback */
+@@ -1981,7 +1981,7 @@ mux_client_request_stdio_fwd(int fd)
+ 	buffer_put_int(&m, MUX_C_NEW_STDIO_FWD);
+ 	buffer_put_int(&m, muxclient_request_id);
+ 	buffer_put_cstring(&m, ""); /* reserved */
+-	buffer_put_cstring(&m, stdio_forward_host);
++	buffer_put_cstring(&m, stdio_forward_path);
+ 	buffer_put_int(&m, stdio_forward_port);
+ 
+ 	if (mux_client_write_packet(fd, &m) != 0)
+@@ -2102,7 +2102,7 @@ muxclient(const char *path)
+ 	u_int pid;
+ 
+ 	if (muxclient_command == 0) {
+-		if (stdio_forward_host != NULL)
++		if (stdio_forward_path != NULL)
+ 			muxclient_command = SSHMUX_COMMAND_STDIO_FWD;
+ 		else
+ 			muxclient_command = SSHMUX_COMMAND_OPEN;
+diff --git a/ssh.c b/ssh.c
+index 3fd5a94..60f86be 100644
+--- a/ssh.c
++++ b/ssh.c
+@@ -151,8 +151,8 @@ int ostdin_null_flag, ono_shell_flag, otty_flag, orequest_tty;
+  */
+ int fork_after_authentication_flag = 0;
+ 
+-/* forward stdio to remote host and port */
+-char *stdio_forward_host = NULL;
++/* forward stdio to remote host and port or unix socket */
++char *stdio_forward_path = NULL;
+ int stdio_forward_port = 0;
+ 
+ /*
+@@ -639,7 +639,7 @@ main(int ac, char **av)
+ 			options.fwd_opts.gateway_ports = 1;
+ 			break;
+ 		case 'O':
+-			if (stdio_forward_host != NULL)
++			if (stdio_forward_path != NULL)
+ 				fatal("Cannot specify multiplexing "
+ 				    "command with -W");
+ 			else if (muxclient_command != 0)
+@@ -756,12 +756,14 @@ main(int ac, char **av)
+ 			}
+ 			break;
+ 		case 'W':
+-			if (stdio_forward_host != NULL)
++			if (stdio_forward_path != NULL)
+ 				fatal("stdio forward already specified");
+ 			if (muxclient_command != 0)
+ 				fatal("Cannot specify stdio forward with -O");
+ 			if (parse_forward(&fwd, optarg, 1, 0)) {
+-				stdio_forward_host = fwd.listen_host;
++				stdio_forward_path = ((fwd.listen_port == PORT_STREAMLOCAL)
++						      ? fwd.listen_path
++						      : fwd.listen_host);
+ 				stdio_forward_port = fwd.listen_port;
+ 				free(fwd.connect_host);
+ 			} else {
+@@ -1493,17 +1495,20 @@ ssh_init_stdio_forwarding(void)
+ 	Channel *c;
+ 	int in, out;
+ 
+-	if (stdio_forward_host == NULL)
++	if (stdio_forward_path == NULL)
+ 		return;
+ 	if (!compat20)
+ 		fatal("stdio forwarding require Protocol 2");
+ 
+-	debug3("%s: %s:%d", __func__, stdio_forward_host, stdio_forward_port);
++	if (stdio_forward_port == PORT_STREAMLOCAL)
++		debug3("%s: stream local %s", __func__, stdio_forward_path);
++	else
++		debug3("%s: %s:%d", __func__, stdio_forward_path, stdio_forward_port);
+ 
+ 	if ((in = dup(STDIN_FILENO)) < 0 ||
+ 	    (out = dup(STDOUT_FILENO)) < 0)
+ 		fatal("channel_connect_stdio_fwd: dup() in/out failed");
+-	if ((c = channel_connect_stdio_fwd(stdio_forward_host,
++	if ((c = channel_connect_stdio_fwd(stdio_forward_path,
+ 	    stdio_forward_port, in, out)) == NULL)
+ 		fatal("%s: channel_connect_stdio_fwd failed", __func__);
+ 	channel_register_cleanup(c->self, client_cleanup_stdio_fwd, 0);
+-- 
+2.1.4
+
