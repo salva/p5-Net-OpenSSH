@@ -30,7 +30,7 @@ plan skip_all => 'Your shell does unexpected things!'
 
 my $N = 200;
 
-my @shells = grep try_shell($_), qw(sh csh bash tcsh ksh dash ash pdksh mksh zsh);
+my @shells = grep try_shell($_), qw(sh csh bash tcsh ksh dash ash pdksh mksh zsh fish);
 my %quoter = map { $_ => Net::OpenSSH::ShellQuoter->quoter($_) } @shells;
 
 my @chars = ([grep /\W/, map chr, 1..130],
@@ -87,6 +87,10 @@ sub try_shell {
                     return undef;
                 }
             }
+        }
+        if ($shell eq 'fish') {
+            diag "TODO: add support for fish shell!";
+            return undef;
         }
         return 1;
     }
