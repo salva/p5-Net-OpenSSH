@@ -1,5 +1,8 @@
 Revision history for Perl extension Net::OpenSSH.
 
+0.65_05  Jul 13, 2015
+        - improve documentation
+
 0.65_04  Jul 13, 2015
         - add support for Object::Remote framework integration
         - be more explicit on errors about non matching host public

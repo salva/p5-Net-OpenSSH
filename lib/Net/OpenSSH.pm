@@ -1,6 +1,6 @@
 package Net::OpenSSH;
 
-our $VERSION = '0.65_04';
+our $VERSION = '0.65_05';
 
 use strict;
 use warnings;
@@ -3542,8 +3542,8 @@ For instance:
 
 =item $sftp = $ssh->sftp(%sftp_opts)
 
-Creates a new L<Net::SFTP::Foreign|Net::SFTP::Foreign> object for SFTP
-interaction that runs through the ssh master connection.
+X<Net_SFTP_Foreign>Creates a new L<Net::SFTP::Foreign|Net::SFTP::Foreign> object
+for SFTP interaction that runs through the ssh master connection.
 
 =item @call = $ssh->make_remote_command(\%opts, @cmd)
 
@@ -3717,8 +3717,8 @@ L<http://fuse.sourceforge.net/> respectively.
 
 =item $or = $ssh->object_remote(@args)
 
-Returns an L<Object::Remote::Connection> instance running on top of
-the Net::OpenSSH connection.
+X<Object_Remote>Returns an L<Object::Remote::Connection> instance
+running on top of the Net::OpenSSH connection.
 
 Example:
 
@@ -3730,7 +3730,7 @@ See also L<Object::Remote>.
 
 =item $any = $ssh->any(%opts)
 
-Wraps the current object inside a Net::SSH::Any one.
+X<Net_SSH_Any>Wraps the current object inside a Net::SSH::Any one.
 
 Example:
 
@@ -4136,6 +4136,18 @@ under a different user account.
 
 At a minimum, ensure that C<~www-data/.ssh> (or similar) is not
 accessible through the web server!
+
+=head2 Net::SFTP::Foreign
+
+See L<method C<sftp>|/Net_SFTP_Foreign>.
+
+=head2 Net::SSH::Any
+
+See L<method C<any>|/Net_SSH_Any>.
+
+=head2 Object::Remote
+
+See L<method C<object_remote>|/Object_Remote>.
 
 =head2 Other modules
 
