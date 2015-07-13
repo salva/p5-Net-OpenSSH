@@ -4921,7 +4921,7 @@ Before making a large change or implementing a new feature get in
 touch with me.
 
 I may have my own ideas about how things should be done. It is better
-it you know them before hand or otherwise, you risk getting your patch
+if you know them before hand, otherwise, you risk getting your patch
 rejected.
 
 =back
