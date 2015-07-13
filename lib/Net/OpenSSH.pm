@@ -2369,6 +2369,14 @@ sub sshfs_export {
     $self->spawn(\%opts, $self->{_sshfs_cmd}, "$hostname:$from", $to, @sshfs_opts);
 }
 
+sub object_remote {
+    my $self = shift;
+    _load_module('Object::Remote') or return;
+    _load_module('Net::OpenSSH::ObjectRemote') or return;
+    my $connector = Net::OpenSSH::ObjectRemote->new(net_openssh => $self);
+    $connector->connect(@_);
+}
+
 sub any {
     my $self = shift;
     _load_module('Net::SSH::Any');
@@ -3707,6 +3715,19 @@ See also the L<sshfs(1)> man page and the C<sshfs> and FUSE web sites
 at L<http://fuse.sourceforge.net/sshfs.html> and
 L<http://fuse.sourceforge.net/> respectively.
 
+=item $or = $ssh->object_remote(@args)
+
+Returns an L<Object::Remote::Connection> instance running on top of
+the Net::OpenSSH connection.
+
+Example:
+
+   my $or = $ssh->object_remote;
+   my $hostname = Sys::Hostname->can::on($or, 'hostname');
+   say $hostname->();
+
+See also L<Object::Remote>.
+
 =item $any = $ssh->any(%opts)
 
 Wraps the current object inside a Net::SSH::Any one.
@@ -4753,6 +4774,8 @@ Gorwits.
 =head1 BUGS AND SUPPORT
 
 =head2 Experimental features
+
+L<Object::Remote> integration is highly experimental.
 
 Support for tunnels targeting Unix sockets is highly experimental.
 

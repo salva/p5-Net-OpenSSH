@@ -15,6 +15,7 @@ lib/Net/OpenSSH/ShellQuoter/csh.pm
 lib/Net/OpenSSH/ShellQuoter/MSWin.pm
 lib/Net/OpenSSH/ShellQuoter/MSCmd.pm
 lib/Net/OpenSSH/ShellQuoter/Chain.pm
+lib/Net/OpenSSH/ObjectRemote.pm
 t/common.pm
 t/test_server_key
 t/test_server_key.pub
