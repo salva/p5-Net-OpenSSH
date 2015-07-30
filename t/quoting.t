@@ -88,7 +88,7 @@ sub try_shell {
                 }
             }
         }
-        if ($shell eq 'fish') {
+        if ($shell eq '!!fish') {
             diag "TODO: add support for fish shell!";
             return undef;
         }
