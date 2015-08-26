@@ -73,4 +73,7 @@ test_uri('foo@bar:met@a:pun@doz', { host => 'doz', user => 'foo@bar', password =
 test_uri('foo@bar:met@a:p@un@doz', { host => 'doz', user => 'foo@bar', password => 'met@a:p@un' });
 test_uri('username@SAMBA.MYDOMAIN.COM@myhost.mydomain.com',
          { host => 'myhost.mydomain.com', user => 'username@SAMBA.MYDOMAIN.COM' }, '#RT105253');
+test_uri('foo@[fe80::1:f6ff:fe01:47%eth0]',
+         { host => 'fe80::1:f6ff:fe01:47%eth0', user => 'foo', ipv6 => 1 }, 'IPv6 with zone index');
+
 done_testing();

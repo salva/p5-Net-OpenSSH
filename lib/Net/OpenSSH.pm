@@ -1,6 +1,6 @@
 package Net::OpenSSH;
 
-our $VERSION = '0.65_05';
+our $VERSION = '0.65_06';
 
 use strict;
 use warnings;
@@ -177,7 +177,7 @@ sub parse_connection_opts {
                        )?
                        (?:               # host
                           (              #   IPv6...
-                            \[$IPv6_re\] #     [IPv6]
+                            \[$IPv6_re(?:\%[^\[\]]*)\] #     [IPv6]
                             |            #     or
                             $IPv6_re     #     IPv6
                           )
@@ -3648,8 +3648,8 @@ Returns current state of variable expansion feature.
 
 =item $ssh->get_var($name, $value)
 
-These methods allow to change and to retrieve the value of the logical
-value of the given name.
+These methods allow one to change and to retrieve the value of the
+given name.
 
 =item $ssh->get_master_pid
 

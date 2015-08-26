@@ -1,6 +1,6 @@
 package Net::OpenSSH::OSTracer;
 
-our $VERSION = '0.58_01';
+our $VERSION = '0.65_06';
 
 use strict;
 use warnings;
@@ -160,8 +160,8 @@ the tracer type will be appended.
 =item $Net::OpenSSH::OSTracer::sudo
 
 This variable can be used to request the tracer to be run with C<sudo>
-(some operating systems as for example Ubuntu, do not allow to attach
-tracers, even to your own processes, unless you do it as root).
+(some operating systems as for example Ubuntu, do not allow one to
+attach tracers, even to your own processes, unless you do it as root).
 
 The variable has to be set with the path of the C<sudo> binary. For
 instance:

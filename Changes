@@ -1,5 +1,11 @@
 Revision history for Perl extension Net::OpenSSH.
 
+0.65_06  Aug 26, 2015
+        - accept IPv6 addresess with zone indexes (bug report by
+          Cserbák Márton)
+        - somo documentation corrections (bug report and patch by
+          Florian Schlichting)
+
 0.65_05  Jul 13, 2015
         - improve documentation
 
