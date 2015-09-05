@@ -1,11 +1,12 @@
 package Net::OpenSSH;
 
-our $VERSION = '0.65_06';
+our $VERSION = '0.65_07';
 
 use strict;
 use warnings;
 
 our $debug ||= 0;
+our $debug_fh ||= \*STDERR;
 
 our $FACTORY;
 
@@ -26,7 +27,7 @@ sub CLONE { $thread_generation++ };
 
 sub _debug {
     local ($!, $@);
-    print STDERR '# ', (map { defined($_) ? $_ : '<undef>' } @_), "\n"
+    print {$debug_fh} '# ', (map { defined($_) ? $_ : '<undef>' } @_), "\n"
 }
 
 sub _debug_dump {
@@ -46,7 +47,7 @@ sub _hexdump {
         my @c= (( map { sprintf "%02x",$_ } unpack('C*', $line)),
                 (("  ") x 32))[0..31];
         $line=~s/(.)/ my $c=$1; unpack("c",$c)>=32 ? $c : '.' /egms;
-        print STDERR "#> ", join(" ", @c, '|', $line), "\n";
+        print {$debug_fh} "#> ", join(" ", @c, '|', $line), "\n";
     }
 }
 
@@ -4323,7 +4324,7 @@ systems.
 =head1 DEBUGGING
 
 Debugging of Net::OpenSSH internals is controlled through the variable
-C<$Net::OpenSSH::debug>.  Every bit of this variable activates
+C<$Net::OpenSSH::debug>. Every bit of this variable activates
 debugging of some subsystem as follows:
 
 =over 4
@@ -4385,6 +4386,16 @@ If you are using password authentication, enabling debugging for
 L<IO::Tty> may also show interesting information:
 
     IO::Tty::DEBUG = 1;
+
+Finally, by default debugging output is sent to C<STDERR>. You can
+override it pointing C<$Net::OpenSSH::debug_fh> to a different file
+handle. For instance:
+
+  BEGIN {
+    open my $out, '>', '/tmp/debug.txt' or warn $!;
+    $Net::OpenSSH::debug_fh = $out;
+    $Net::OpenSSH::debug = -1;
+  }
 
 =head1 SECURITY
 
