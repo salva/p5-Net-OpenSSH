@@ -4878,7 +4878,7 @@ following rules:
 =item Only Perl 5.8.4 required
 
 Yes, that's pretty old, but Net::OpenSSH is intended to be also used
-by system administrators that some times have to struggle with old
+by system administrators that sometimes have to struggle with old
 systems. The reason to pick 5.8.4 is that it has been the default perl
 on Solaris for a long time.
 
@@ -4909,7 +4909,7 @@ should succeed.
 
 Also, in case of tests invoking some external program, it should be
 checked that the external program is available and that it works as
-expected or otherwise skip the tests.
+expected or otherwise skip those tests.
 
 =item Backward compatibility
 
@@ -4942,12 +4942,12 @@ patches but it is not my fault!
 
 Most of the patches I get are broken in some way: they don't follow
 the main module principles, sometimes the author didn't get the full
-picture and solved its issue in a short-sighted way, etc.
+picture and solved the issue in a short-sighted way, etc.
 
 In any case, you should not be discouraged to contribute. Even if your
 patch is not applied directly, seeing how it solves your requirements
 or, in the case of bugs, the underlying problem analysis may be very
-useful and would help me to do it... my way.
+useful and help me to do it... my way.
 
 I always welcome documentation corrections and improvements.
 
