@@ -2422,7 +2422,7 @@ Net::OpenSSH - Perl SSH client package implemented on top of OpenSSH
   my ($rin, $pid) = $ssh->pipe_in("cat >/tmp/foo") or
     die "pipe_in method failed: " . $ssh->error;
 
-  print $rin, "hello\n";
+  print $rin "hello\n";
   close $rin;
 
   my ($rout, $pid) = $ssh->pipe_out("cat /tmp/foo") or
