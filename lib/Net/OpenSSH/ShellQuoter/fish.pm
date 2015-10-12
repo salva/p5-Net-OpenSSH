@@ -20,7 +20,7 @@ sub quote_glob {
     shift;
     my $arg = shift;
     my @parts;
-    while ((pos $arg ||0) < length $arg) {
+    while ((pos $arg || 0) < length $arg) {
         if ($arg =~ m|\G('+)|gc) {
             push @parts, (length($1) > 1 ? "\"$1\"" : "\\'");
         }
