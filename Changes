@@ -1,5 +1,9 @@
 Revision history for Perl extension Net::OpenSSH.
 
+0.67_01
+        - use strict and warnings in Net::OpenSSH::ConnectionCache
+          (bug report and fix by Mohammad S Anwar)
+
 0.66  Oct 11, 2015
         - documentation fix (reported by Alex Kok)
 	- allow redirecting debug output to a custom file handle

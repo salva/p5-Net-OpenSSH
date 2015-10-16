@@ -1,5 +1,8 @@
 package Net::OpenSSH::ConnectionCache;
 
+use strict;
+use warnings;
+
 use Net::OpenSSH;
 use Net::OpenSSH::Constants qw(:error);
 
