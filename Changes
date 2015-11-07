@@ -1,6 +1,8 @@
 Revision history for Perl extension Net::OpenSSH.
 
-0.67_01
+0.67_01  Nov 7, 2015
+        - fix internal waitpid usage (bug report by Konrad
+          Bucheli, #rt108516)
         - use strict and warnings in Net::OpenSSH::ConnectionCache
           (bug report and fix by Mohammad S Anwar)
 
