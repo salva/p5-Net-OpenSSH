@@ -674,9 +674,9 @@ sub _master_kill {
                 $debug and $debug & 32 and _debug "killing master $$ with signal $sig";
                 kill $sig, $pid;
             }
-            my $r = waitpid($pid, WNOHANG);
-            $debug and $debug & 32 and _debug "waitpid(master: $pid) => pid: $r, rc: $!";
-            last if $r == $pid or $! == Errno::ECHILD();
+            my $deceased = waitpid($pid, WNOHANG);
+            $debug and $debug & 32 and _debug "waitpid(master: $pid) => pid: $deceased, rc: $!";
+            last if $deceased == $pid or ($deceased < 0 and $! == Errno::ECHILD());
             if ($self->{_master_kill_count} > 20) {
                 # FIXME: remove the hard-coded 20 retries?
                 $debug and $debug & 32 and _debug "unable to kill SSH master process, giving up";
@@ -778,12 +778,12 @@ sub _waitpid {
         }
         local $SIG{CHLD} = sub {};
 	while (1) {
-            my $r;
+            my $deceased;
             if (defined $time_limit) {
                 while (1) {
                     # TODO: we assume that all OSs return 0 when the
                     # process is still running, that may be wrong!
-                    $r = waitpid($pid, WNOHANG) and last;
+                    $deceased = waitpid($pid, WNOHANG) and last;
                     my $remaining = $time_limit - time;
                     if ($remaining <= 0) {
                         $debug and $debug & 16 and _debug "killing SSH slave, pid: $pid";
@@ -796,15 +796,15 @@ sub _waitpid {
                     my $sleep = ($remaining < 0.1 ? 0.1 : 1);
                     $debug and $debug & 16 and
                         _debug "waiting for slave, timeout: $timeout, remaining: $remaining, sleep: $sleep";
-                    $r = waitpid($pid, WNOHANG) and last;
+                    $deceased = waitpid($pid, WNOHANG) and last;
                     select(undef, undef, undef, $sleep);
                 }
             }
             else {
-                $r = waitpid($pid, 0);
+                $deceased = waitpid($pid, 0);
             }
-            $debug and $debug & 16 and _debug "_waitpid($pid) => pid: $r, rc: $?, err: $!";
-	    if ($r == $pid) {
+            $debug and $debug & 16 and _debug "_waitpid($pid) => pid: $deceased, rc: $?, err: $!";
+	    if ($deceased == $pid) {
 		if ($?) {
 		    my $signal = ($? & 255);
 		    my $errstr = "child exited with code " . ($? >> 8);
@@ -814,16 +814,18 @@ sub _waitpid {
 		}
 		return 1;
 	    }
-	    if ($r > 0) {
-		warn "internal error: spurious process $r exited";
-		next;
+	    elsif ($deceased < 0) {
+		# at this point $deceased < 0 and so, $! has a valid error value.
+		next if $! == Errno::EINTR();
+		if ($! == Errno::ECHILD) {
+		    $self->_or_set_error(OSSH_SLAVE_FAILED, "child process $pid does not exist", $!);
+		    return undef
+		}
+		warn "Internal error: unexpected error (".($!+0).": $!) from waitpid($pid) = $deceased. Report it, please!";
 	    }
-	    next if $! == Errno::EINTR();
-	    if ($! == Errno::ECHILD) {
-		$self->_or_set_error(OSSH_SLAVE_FAILED, "child process $pid does not exist", $!);
-		return undef
+	    elsif ($deceased > 0) {
+		warn "Internal error: spurious process $deceased exited"
 	    }
-	    warn "Internal error: unexpected error (".($!+0).": $!) from waitpid($pid) = $r. Report it, please!";
 
 	    # wait a bit before trying again
 	    select(undef, undef, undef, 0.1);
@@ -990,7 +992,8 @@ sub _master_wait {
 
     my $pid = $self->_my_master_pid;
     if ($pid) {
-        if (waitpid($pid, WNOHANG) == $pid or $! == Errno::ECHILD) {
+	my $deceased = waitpid($pid, WNOHANG);
+        if ($deceased == $pid or ($deceased < 0 and $! == Errno::ECHILD)) {
             $debug and $debug & 4 and _debug "master $pid exited, rc:", $?,", err: ",$!;
             return $self->_master_gone($async);
         }
@@ -1072,7 +1075,8 @@ sub _master_wait {
             last;
         }
 
-        if (waitpid($pid, WNOHANG) == $pid or $! == Errno::ECHILD) {
+	my $deceased = waitpid($pid, WNOHANG);
+        if ($deceased == $pid or ($deceased < 0 and $! == Errno::ECHILD)) {
             $error = "master process exited unexpectedly";
             $error = "bad pass" . ($self->{_passphrase} ? 'phrase' : 'word') . " or $error"
                 if defined $self->{_passwd};
@@ -1529,7 +1533,7 @@ sub open_ex {
 		 $cmd eq 'scp'   ? $self->_make_scp_call(\@ssh_opts, @args)    :
 		 $cmd eq 'rsync' ? $self->_make_rsync_call(\@ssh_opts, @args)  :
                  $cmd eq 'raw'   ? @args                                       :
-		 die "internal error: bad _cmd protocol" );
+		 die "Internal error: bad _cmd protocol" );
 
     $debug and $debug & 16 and _debug_dump open_ex => \@call;
 
