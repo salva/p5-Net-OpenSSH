@@ -64,7 +64,7 @@ sub _hexdump {
         if (%$opts) {
 	    my $sub = (caller 1)[3];
             my $good = $good{$sub};
-            my @keys = ( $good ? grep !$good->{$_}, keys %$opts : keys %$opts);
+            my @keys = grep (defined $opts->{$_}), ( $good ? grep !$good->{$_}, keys %$opts : keys %$opts);
             if (@keys) {
                 croak "Invalid or bad combination of options ('" . CORE::join("', '", @keys) . "')";
             }
