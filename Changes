@@ -1,5 +1,9 @@
 Revision history for Perl extension Net::OpenSSH.
 
+0.67_02  Dec 4, 2015
+        - Do not croak when a method gets an unknown argument as far
+          as its value is undef
+
 0.67_01  Nov 7, 2015
         - fix internal waitpid usage (bug report by Konrad
           Bucheli, #rt108516)
