@@ -40,6 +40,7 @@ WriteMakefile( NAME => 'Net::OpenSSH',
                ABSTRACT_FROM => 'lib/Net/OpenSSH.pm',
                PREREQ_PM => { Test::More => 0, },
                AUTHOR => 'Salvador Fandino <sfandino@yahoo.com>',
+               LICENSE => 'perl',
                META_MERGE => {
                    resources => {
                        repository => 'https://github.com/salva/p5-Net-OpenSSH',
