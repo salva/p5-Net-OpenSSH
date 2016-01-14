@@ -1,5 +1,8 @@
 Revision history for Perl extension Net::OpenSSH.
 
+0.69_01  Jan 14, 2016
+        - Add fish.pm to MANIFEST (bug reported by Erik Ferguson).
+
 0.68  Dec 20, 2015
         - Rerelease as stable
 
