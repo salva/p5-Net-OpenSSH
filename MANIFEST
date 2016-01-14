@@ -12,6 +12,7 @@ lib/Net/OpenSSH/SSH.pm
 lib/Net/OpenSSH/ShellQuoter.pm
 lib/Net/OpenSSH/ShellQuoter/POSIX.pm
 lib/Net/OpenSSH/ShellQuoter/csh.pm
+lib/Net/OpenSSH/ShellQuoter/fish.pm
 lib/Net/OpenSSH/ShellQuoter/MSWin.pm
 lib/Net/OpenSSH/ShellQuoter/MSCmd.pm
 lib/Net/OpenSSH/ShellQuoter/Chain.pm
