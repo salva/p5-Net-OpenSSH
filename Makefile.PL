@@ -38,6 +38,7 @@ EOW
 WriteMakefile( NAME => 'Net::OpenSSH',
                VERSION_FROM => 'lib/Net/OpenSSH.pm',
                ABSTRACT_FROM => 'lib/Net/OpenSSH.pm',
+               LICENSE => 'perl_5',
                PREREQ_PM => { Test::More => 0, },
                AUTHOR => 'Salvador Fandino <sfandino@yahoo.com>',
                META_MERGE => {
