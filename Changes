@@ -1,14 +1,17 @@
 Revision history for Perl extension Net::OpenSSH.
 
+0.70  Jan 20, 2016
+        - Re-release as stable.
+
 0.69_01  Jan 14, 2016
         - Add fish.pm to MANIFEST (bug reported by Erik Ferguson).
 
 0.68  Dec 20, 2015
-        - Rerelease as stable
+        - Rerelease as stable.
 
 0.67_02  Dec 4, 2015
         - Do not croak when a method gets an unknown argument as far
-          as its value is undef
+          as its value is undef.
 
 0.67_01  Nov 7, 2015
         - fix internal waitpid usage (bug report by Konrad
