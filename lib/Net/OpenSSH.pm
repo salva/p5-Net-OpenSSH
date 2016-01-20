@@ -1062,12 +1062,13 @@ sub _master_wait {
     }
 
     my $timeout = $self->{_timeout};
-    my $dt = ($async ? 0 : 0.1);
+    my $dt = ($async ? 0 : 0.02);
     my $start_time = time;
     my $error;
 
     # Loop until the mux socket appears or something goes wrong:
     while (1) {
+        $dt *= 1.10 if $dt < 0.2; # adaptative delay
         if (-e $self->{_ctl_path}) {
             $debug and $debug & 4 and _debug "file object found at $self->{_ctl_path}";
             last;

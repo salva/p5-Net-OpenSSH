@@ -1,6 +1,8 @@
 Revision history for Perl extension Net::OpenSSH.
 
-0.71_01
+0.71_01  Jan 20, 2016
+        - Use an adaptative delaying algorithm while waiting for the
+          multiplexing socket to pop up (bug report by Doug Hoyte).
         - Improve SIGCHLD handling and interoperability with other
           modules setting custom handlers (bug report by Doug Hoyte).
 
