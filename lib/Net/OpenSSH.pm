@@ -918,7 +918,7 @@ sub _master_start {
 
     my @call = $self->_make_ssh_call(\@master_opts);
 
-    local $SIG{CHLD};
+    local $SIG{CHLD} unless $async;
     my $pid = fork;
     unless ($pid) {
         defined $pid
