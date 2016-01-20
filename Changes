@@ -1,10 +1,15 @@
 Revision history for Perl extension Net::OpenSSH.
 
 0.71_01  Jan 20, 2016
+        - Add entry on the documentation about how to integrate the
+          module with event-oriented programming frameworks (bug
+          report by Doug Hoyte, #gh17)
         - Use an adaptative delaying algorithm while waiting for the
-          multiplexing socket to pop up (bug report by Doug Hoyte).
+          multiplexing socket to pop up (bug report by Doug Hoyte,
+          #gh17).
         - Improve SIGCHLD handling and interoperability with other
-          modules setting custom handlers (bug report by Doug Hoyte).
+          modules setting custom handlers (bug report by Doug Hoyte,
+          #gh16).
 
 0.70  Jan 20, 2016
         - Re-release as stable.

@@ -4159,6 +4159,65 @@ See L<method C<any>|/Net_SSH_Any>.
 
 See L<method C<object_remote>|/Object_Remote>.
 
+=head2 AnyEvent (and similar frameworks)
+
+Net::OpenSSH provides all the functionality required to be integrated
+inside event oriented programming framework such as L<AnyEvent> or
+L<IO::Async> in the following way:
+
+=over 4
+
+=item 1. Create a disconnected Net::OpenSSH object:
+
+    my $ssh = Net::OpenSSH->new($host, async => 1, ...);
+
+=item 2. Let the object connect to the remote host:
+
+Use a timer to call the C<wait_for_master> method in async mode
+repeatedly until it returns a true value indicating success.
+
+Also, the object error state needs to be checked after every call in
+order to detect failed connections. For instance:
+
+  my $ssh = Net::OpenSSH->new(..., async => 1);
+  my $w;
+  $w = AE::timer 0.1, 0.1, sub {
+    if ($ssh->wait_for_master(1)) {
+      # the connection has been established!
+      # remote commands can be run now
+      undef $w;
+      on_ssh_success(...);
+    }
+    elsif ($ssh->error) {
+      # connection can not be established
+      undef $w;
+      on_ssh_failure(...);
+    }
+  }
+
+=item 3. Use the event framework to launch the remote processes:
+
+Call Net::OpenSSH C<make_remote_command> to construct commands which
+can be run using the framework regular facilities for launching external
+commands.
+
+Error checking should also be performed at this point because the SSH
+connection could be broken.
+
+For instance:
+
+  if (defined(my $cmd = $ssh->make_remote_command(echo => 'hello!')) {
+    AnyEvent::Util::run_cmd($cmd, %run_cmd_opts);
+  }
+  else {
+    # something went wrong!
+  }
+
+=back
+
+Alternatively, any of the C<open*> methods provided by Net::OpenSSH
+could also be used to launch remote commands.
+
 =head2 Other modules
 
 CPAN contains several modules that rely on SSH to perform their duties
