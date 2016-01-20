@@ -654,6 +654,11 @@ sub _master_gone {
 
 my @kill_signal = qw(0 0 TERM TERM TERM KILL);
 
+sub __has_sigchld_handle {
+    my $h = $SIG{CHLD};
+    defined $h and $h ne 'IGNORE' and $h ne 'DEFAULT'
+}
+
 sub _master_kill {
     my ($self, $async) = @_;
 
@@ -665,7 +670,7 @@ sub _master_kill {
         $self->{_master_kill_last} ||= $now;
         $self->{_master_kill_count} ||= 0;
 
-        local $SIG{CHLD} = sub {} unless $async;
+        local $SIG{CHLD} = sub {} unless $async or __has_sigchld_handle;
         while (1) {
             if ($self->{_master_kill_last} < $now) {
                 $self->{_master_kill_last} = $now;
@@ -776,7 +781,7 @@ sub _waitpid {
             $timeout = 0 if $self->error == OSSH_SLAVE_TIMEOUT;
             $time_limit = time + $timeout;
         }
-        local $SIG{CHLD} = sub {};
+        local $SIG{CHLD} = sub {} unless __has_sigchld_handle;
 	while (1) {
             my $deceased;
             if (defined $time_limit) {
@@ -918,7 +923,6 @@ sub _master_start {
 
     my @call = $self->_make_ssh_call(\@master_opts);
 
-    local $SIG{CHLD};
     my $pid = fork;
     unless ($pid) {
         defined $pid
@@ -4585,19 +4589,6 @@ If you want to use it anyway, past it to the constructor:
   $ssh = Net::OpenSSH->new($host,
            master_opts => [-o => "StrictHostKeyChecking=no"],
            ...);
-
-
-=item child process 14947 does not exist: No child processes
-
-B<Q>: Calls to C<system>, C<capture> or C<capture2> fail with the
-previous error, what I am doing wrong?
-
-B<A>: That usually happens when C<$SIG{CHLD}> is set to C<IGNORE> or
-to some custom handler reaping child processes by itself. In order to
-solve the problem just disable the handler during the method call:
-
-  local $SIG{CHLD};
-  $ssh->system($cmd);
 
 =item child process STDIN/STDOUT/STDERR is not a real system file
 handle

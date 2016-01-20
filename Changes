@@ -1,5 +1,9 @@
 Revision history for Perl extension Net::OpenSSH.
 
+0.71_01
+        - Improve SIGCHLD handling and interoperability with other
+          modules setting custom handlers (bug report by Doug Hoyte).
+
 0.70  Jan 20, 2016
         - Re-release as stable.
 
@@ -667,16 +671,16 @@ Revision history for Perl extension Net::OpenSSH.
 	- use correct ps args when testing on Solaris
 	- new mux_socket_path method
 	- more tests
-	
+
 0.09  Dec 10, 2008
 	- fallback testing method when ssh'ing to localhost is not enabled
 	- add support for master_opts constructor argument
-	
+
 0.08  Dec 10, 2008
 	- require 5.8.x and remove compatibility hacks for older versions
 	- solve bug in open_ex when pty is requested
 	- perform sanity checks on child file handles on open_ex
-	
+
 0.07  Dec 9, 2008
         - remove >>& incompatibility for perl 5.6.x
 	- in tests, sort "ls" output, as it seems that it can change
