@@ -4213,10 +4213,31 @@ For instance:
     # something went wrong!
   }
 
-=back
-
 Alternatively, any of the C<open*> methods provided by Net::OpenSSH
 could also be used to launch remote commands.
+
+=item 4. When finished, disconnect asynchronously
+
+After initiating an asynchronous disconnect with C<disconnect(1)>,
+repeatedly call C<wait_for_master> until you get a defined but false
+value:
+
+  $ssh->disconnect(1);
+
+  my $w; $w = AE::timer 0.1, 0.1, sub {
+    my $res = $ssh->wait_for_master(1);
+
+    if (defined $res && !$res) {
+      undef $w;
+      undef $ssh;
+    }
+  };
+
+Be careful not to let the C<$ssh> object go out of scope until the
+disconnection has finished, otherwise its destructor will wait and
+block your program until the disconnection has completed.
+
+=back
 
 =head2 Other modules
 
