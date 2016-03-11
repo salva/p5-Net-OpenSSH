@@ -953,18 +953,25 @@ sub _master_start {
 
 sub _master_check {
     my ($self, $async) = @_;
-    my $out = $self->_master_ctl('check');
-    my $error = $self->{_error};
-    unless ($error) {
-        my $pid = $self->{_pid};
-        if ($out =~ /pid=(\d+)/) {
-            return 1 if !$pid or $1 == $pid;
-            $error = "bad ssh master at $self->{_ctl_path} socket owned by pid $1 (pid $pid expected)";
-        }
-        else {
-            $error = ($out =~ /illegal option/i
-                      ? 'OpenSSH 4.1 or later required'
-                      : 'unknown error');
+    my $error;
+    if ($async) {
+        return 1 if -S $self->{_ctl_path};
+        $error = "master SSH connection broken";
+    }
+    else {
+        my $out = $self->_master_ctl('check');
+        my $error = $self->{_error};
+        unless ($error) {
+            my $pid = $self->{_pid};
+            if ($out =~ /pid=(\d+)/) {
+                return 1 if !$pid or $1 == $pid;
+                $error = "bad ssh master at $self->{_ctl_path} socket owned by pid $1 (pid $pid expected)";
+            }
+            else {
+                $error = ($out =~ /illegal option/i
+                          ? 'OpenSSH 4.1 or later required'
+                          : 'unknown error');
+            }
         }
     }
     $self->_master_fail($async, $error);
