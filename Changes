@@ -1,5 +1,11 @@
 Revision history for Perl extension Net::OpenSSH.
 
+0.72_02  Mar 11, 2016
+        - Lighten master socket checks in async mode in order to avoid
+          blocking and setting custom signal handlers which can
+          interfere with event-programming frameworks (bug report by
+          Doug Hoyte).
+
 0.71_01  Jan 20, 2016
         - Add entry on the documentation about how to integrate the
           module with event-oriented programming frameworks (bug
