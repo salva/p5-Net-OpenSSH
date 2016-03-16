@@ -1,5 +1,12 @@
 Revision history for Perl extension Net::OpenSSH.
 
+0.72_03  Mar 16, 2016
+        - Improve shell detection code.
+        - Use a timeout to kill external commands not returning
+          control.
+        - improve ksh version checking in tests (bug report by jtzako
+          via PerlMonks)
+
 0.72_02  Mar 11, 2016
         - Lighten master socket checks in async mode in order to avoid
           blocking and setting custom signal handlers which can

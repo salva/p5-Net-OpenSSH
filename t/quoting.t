@@ -67,34 +67,50 @@ for my $shell (@shells) {
     }
 }
 
+our $child_pid;
 sub capture {
     no warnings 'io';
-    open my $fh, '-|', @_ or die "unable to exec @_";
+    my $pid = open my $fh, '-|', @_ or die "unable to exec @_";
     local $/;
-    my $out = <$fh>;
+    my $out = do {
+        local $child_pid = $pid;
+        <$fh>
+    };
     close $fh;
     $out;
 }
 
 sub try_shell {
     my $shell = shift;
-    my $out = eval { capture($shell, '-c', 'echo good') };
-    if ($out and $out =~ /^good$/) {
-        if ($shell =~ /ksh/) {
-            if (defined (my $version = eval { `$shell --version 2>&1` })) {
-                if ($version =~ /version\s+sh\s+\(AT\&T\s+Research\)/) {
-                    diag "skipping tests for broken AT&T ksh shell!";
-                    return undef;
-                }
+    my $ok;
+    local $SIG{ALRM} = sub {
+        kill KILL => $child_pid if $child_pid;
+        die "timeout while waiting for shell $shell"
+    };
+    eval {
+        eval {
+            no warnings 'uninitialized';
+            alarm 10;
+            my $out = capture($shell, '-c', 'echo good');
+            $out =~ /^good$/ or die "shell $shell not found";
+            if ($shell =~ /ksh/) {
+                my $version = `$shell --version 2>&1 </dev/null`;
+                $version =~ /version\s+sh\s+\(AT\&T\s+Research\)/
+                    and die "skipping tests for broken AT&T ksh shell";
             }
-        }
-        if ($shell eq '!!fish') {
-            diag "TODO: add support for fish shell!";
-            return undef;
-        }
-        return 1;
+            else {
+                $shell eq '!!fish' and die "TODO: add support for fish shell";
+            }
+        };
+        alarm 0;
+        die $@ if $@;
+        $ok = 1;
+    };
+    if ($@) {
+        $@ =~ s/ at .*//m;
+        diag $@;
     }
-    return undef;
+    $ok;
 }
 
 my $badfh;
