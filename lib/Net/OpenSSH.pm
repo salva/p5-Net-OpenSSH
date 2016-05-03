@@ -4615,8 +4615,8 @@ B<A>: Roughly, the SSH protocol allows for two modes of operation:
 command mode and interactive mode.
 
 Command mode is designed to run single commands on the remote host. It
-opens an SSH channel between both hosts, ask the remote computer to
-run some given command and when it finish the channel is closed. It
+opens a SSH channel between both hosts, asks the remote computer to
+run some given command and when it finishes, the channel is closed. It
 is what you get, for instance, when you run something as...
 
   $ ssh my.unix.box cat foo.txt
