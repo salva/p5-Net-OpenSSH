@@ -1,6 +1,6 @@
 package Net::OpenSSH;
 
-our $VERSION = '0.71_02';
+our $VERSION = '0.71_03';
 
 use strict;
 use warnings;
@@ -3695,6 +3695,18 @@ If your program rips the master process and this method is not called,
 the OS could reassign the PID to a new unrelated process and the
 module would try to kill it at object destruction time.
 
+=item $ssh->disconnect($async)
+
+Shuts down the SSH connection.
+
+Usually, you don't need to call this method explicitly, but just let
+the Net::OpenSSH object go out of scope.
+
+If C<async> is true, it doesn't wait for the SSH connection to
+terminate. In that case, L</wait_for_master> must be called repeatedly
+until the shutdown sequence terminates (See the L</AnyEvent>
+integration section bellow).
+
 =item $pid = $ssh->sshfs_import(\%opts, $remote_fs, $local_mnt_point)
 
 =item $pid = $ssh->sshfs_export(\%opts, $local_fs, $remote_mnt_point)
@@ -4168,9 +4180,9 @@ See L<method C<object_remote>|/Object_Remote>.
 
 =head2 AnyEvent (and similar frameworks)
 
-Net::OpenSSH provides all the functionality required to be integrated
-inside event oriented programming framework such as L<AnyEvent> or
-L<IO::Async> in the following way:
+X<AnyEvent>Net::OpenSSH provides all the functionality required to be
+integrated inside event oriented programming framework such as
+L<AnyEvent> or L<IO::Async> in the following way:
 
 =over 4
 
@@ -4615,8 +4627,8 @@ B<A>: Roughly, the SSH protocol allows for two modes of operation:
 command mode and interactive mode.
 
 Command mode is designed to run single commands on the remote host. It
-opens an SSH channel between both hosts, ask the remote computer to
-run some given command and when it finish the channel is closed. It
+opens a SSH channel between both hosts, asks the remote computer to
+run some given command and when it finishes, the channel is closed. It
 is what you get, for instance, when you run something as...
 
   $ ssh my.unix.box cat foo.txt
