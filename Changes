@@ -1,5 +1,8 @@
 Revision history for Perl extension Net::OpenSSH.
 
+0.72  Jun 9, 2016
+        - Rerelease as stable.
+
 0.71_03  Mar 16, 2016
         - Improve shell detection code.
         - Use a timeout to kill external commands not returning
