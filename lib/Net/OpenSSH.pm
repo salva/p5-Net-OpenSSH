@@ -822,7 +822,7 @@ sub _waitpid {
 	    elsif ($deceased < 0) {
 		# at this point $deceased < 0 and so, $! has a valid error value.
 		next if $! == Errno::EINTR();
-		if ($! == Errno::ECHILD) {
+		if ($! == Errno::ECHILD()) {
 		    $self->_or_set_error(OSSH_SLAVE_FAILED, "child process $pid does not exist", $!);
 		    return undef
 		}
@@ -1004,7 +1004,7 @@ sub _master_wait {
     my $pid = $self->_my_master_pid;
     if ($pid) {
 	my $deceased = waitpid($pid, WNOHANG);
-        if ($deceased == $pid or ($deceased < 0 and $! == Errno::ECHILD)) {
+        if ($deceased == $pid or ($deceased < 0 and $! == Errno::ECHILD())) {
             $debug and $debug & 4 and _debug "master $pid exited, rc:", $?,", err: ",$!;
             return $self->_master_gone($async);
         }
@@ -1088,7 +1088,7 @@ sub _master_wait {
         }
 
 	my $deceased = waitpid($pid, WNOHANG);
-        if ($deceased == $pid or ($deceased < 0 and $! == Errno::ECHILD)) {
+        if ($deceased == $pid or ($deceased < 0 and $! == Errno::ECHILD())) {
             $error = "master process exited unexpectedly";
             $error = "bad pass" . ($self->{_passphrase} ? 'phrase' : 'word') . " or $error"
                 if defined $self->{_passwd};
@@ -1698,8 +1698,8 @@ sub _decode {
     $self->_check_eval_ok(OSSH_ENCODING_ERROR);
 }
 
-my @retriable = (Errno::EINTR, Errno::EAGAIN);
-push @retriable, Errno::EWOULDBLOCK if Errno::EWOULDBLOCK != Errno::EAGAIN;
+my @retriable = (Errno::EINTR(), Errno::EAGAIN());
+push @retriable, Errno::EWOULDBLOCK() if Errno::EWOULDBLOCK() != Errno::EAGAIN();
 
 sub _io3 {
     my ($self, $out, $err, $in, $stdin_data, $timeout, $encoding) = @_;
