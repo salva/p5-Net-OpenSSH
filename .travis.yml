@@ -8,6 +8,7 @@ perl:
   - "5.14"
   - "5.12"
   - "5.10"
+  - "5.8"
 notifications:
   email:
     - sfandino@yahoo.com
