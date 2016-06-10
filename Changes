@@ -1,5 +1,9 @@
 Revision history for Perl extension Net::OpenSSH.
 
+0.73  Jun 10, 2016
+        - Some old perl versions doesn't like Errno constant subs
+          being called without parents. Add them.
+
 0.72  Jun 9, 2016
         - Rerelease as stable.
 
