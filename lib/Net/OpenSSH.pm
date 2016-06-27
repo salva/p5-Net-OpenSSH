@@ -2531,7 +2531,7 @@ For password authentication, L<IO::Pty|IO::Pty> has to be
 installed. Other modules and binaries are also required to implement
 specific functionality (for instance
 L<Net::SFTP::Foreign|Net::SFTP::Foreign>, L<Expect|Expect> or
-L<rsync(1)|rsync(1)|>).
+L<rsync(1)|rsync(1)>).
 
 Net::OpenSSH and Net::SSH2 do not support version 1 of the SSH
 protocol.
