@@ -3741,8 +3741,8 @@ the time of writing, it requires the yet unreleased version available
 from the FUSE git repository!).
 
 See also the L<sshfs(1)> man page and the C<sshfs> and FUSE web sites
-at L<http://fuse.sourceforge.net/sshfs.html> and
-L<http://fuse.sourceforge.net/> respectively.
+at L<https://github.com/libfuse/sshfs> and
+L<https://github.com/libfuse/libfuse> respectively.
 
 =item $or = $ssh->object_remote(@args)
 
