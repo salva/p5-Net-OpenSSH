@@ -2531,7 +2531,7 @@ For password authentication, L<IO::Pty|IO::Pty> has to be
 installed. Other modules and binaries are also required to implement
 specific functionality (for instance
 L<Net::SFTP::Foreign|Net::SFTP::Foreign>, L<Expect|Expect> or
-L<rsync(1)|rsync(1)|>).
+L<rsync(1)|rsync(1)>).
 
 Net::OpenSSH and Net::SSH2 do not support version 1 of the SSH
 protocol.
@@ -3741,8 +3741,8 @@ the time of writing, it requires the yet unreleased version available
 from the FUSE git repository!).
 
 See also the L<sshfs(1)> man page and the C<sshfs> and FUSE web sites
-at L<http://fuse.sourceforge.net/sshfs.html> and
-L<http://fuse.sourceforge.net/> respectively.
+at L<https://github.com/libfuse/sshfs> and
+L<https://github.com/libfuse/libfuse> respectively.
 
 =item $or = $ssh->object_remote(@args)
 
