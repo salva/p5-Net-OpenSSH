@@ -1,5 +1,9 @@
 Revision history for Perl extension Net::OpenSSH.
 
+0.74  Feb 10, 2017
+        - Update list of options accepted by method "sftp" (bug report
+          by Mirror).
+
 0.73  Jun 10, 2016
         - Some old perl versions doesn't like Errno constant subs
           being called without parents. Add them.

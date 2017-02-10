@@ -1,6 +1,6 @@
 package Net::OpenSSH;
 
-our $VERSION = '0.73';
+our $VERSION = '0.74';
 
 use strict;
 use warnings;
@@ -2307,8 +2307,9 @@ sub _rsync {
     return undef
 }
 
-_sub_options sftp => qw(autoflush timeout argument_encoding encoding block_size
-			queue_size late_set_perm forward_agent setpgrp);
+_sub_options sftp => qw(autoflush timeout argument_encoding encoding block_size queue_size autodie
+			late_set_perm forward_agent setpgrp min_block_size read_ahead write_delay
+			dirty_cleanup remote_has_volumes autodisconnect more);
 
 sub sftp {
     ${^TAINT} and &_catch_tainted_args;
@@ -5048,7 +5049,7 @@ I always welcome documentation corrections and improvements.
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright (C) 2008-2016 by Salvador FandiE<ntilde>o
+Copyright (C) 2008-2017 by Salvador FandiE<ntilde>o
 (sfandino@yahoo.com)
 
 This library is free software; you can redistribute it and/or modify
