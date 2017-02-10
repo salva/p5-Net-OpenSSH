@@ -3706,7 +3706,7 @@ the Net::OpenSSH object go out of scope.
 If C<async> is true, it doesn't wait for the SSH connection to
 terminate. In that case, L</wait_for_master> must be called repeatedly
 until the shutdown sequence terminates (See the L</AnyEvent>
-integration section bellow).
+integration section below).
 
 =item $pid = $ssh->sshfs_import(\%opts, $remote_fs, $local_mnt_point)
 
