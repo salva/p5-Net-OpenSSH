@@ -1702,7 +1702,7 @@ my @retriable = (Errno::EINTR(), Errno::EAGAIN());
 push @retriable, Errno::EWOULDBLOCK() if Errno::EWOULDBLOCK() != Errno::EAGAIN();
 
 sub _io3 {
-    my ($self, $out, $err, $in, $stdin_data, $timeout, $encoding) = @_;
+    my ($self, $out, $err, $in, $stdin_data, $timeout, $encoding, $keep_in_open) = @_;
     # $self->wait_for_master or return;
     my @data = _array_or_scalar_to_list $stdin_data;
     my ($cout, $cerr, $cin) = (defined($out), defined($err), defined($in));
@@ -1710,7 +1710,7 @@ sub _io3 {
 
     my $has_input = grep { defined and length } @data;
     if ($cin and !$has_input) {
-        close $in;
+        close $in unless $keep_in_open;
         undef $cin;
     }
     elsif (!$cin and $has_input) {
@@ -1800,7 +1800,7 @@ sub _io3 {
                     elsif (grep $! == $_, @retriable) {
                         next FAST;
                     }
-                    close $in;
+                    close $in unless $keep_in_open;
                     undef $cin;
                     $recalc_vecs = 1;
                 }
@@ -1814,7 +1814,7 @@ sub _io3 {
     }
     close $out if $cout;
     close $err if $cerr;
-    close $in if $cin;
+    close $in if $cin and not $keep_in_open;
 
     if ($enc) {
         local $self->{_error_prefix} = [@{$self->{_error_prefix}}, 'output decoding failed'];
@@ -1957,22 +1957,27 @@ sub system {
     my $self = shift;
     my %opts = (ref $_[0] eq 'HASH' ? %{shift()} : ());
     my $stdin_data = delete $opts{stdin_data};
+    my $stdin_keep_open = delete $opts{stdin_keep_open};
     my $timeout = delete $opts{timeout};
     my $async = delete $opts{async};
     _croak_bad_options %opts;
 
-    local $SIG{INT} = 'IGNORE';
-    local $SIG{QUIT} = 'IGNORE';
-    local $SIG{CHLD};
+    $stdin_data = '' if $stdin_keep_open and not defined $stdin_data;
 
     my $stream_encoding;
     if (defined $stdin_data) {
         $opts{stdin_pipe} = 1;
         $stream_encoding = $self->_delete_stream_encoding(\%opts);
     }
+
+    local $SIG{INT} = 'IGNORE';
+    local $SIG{QUIT} = 'IGNORE';
+    local $SIG{CHLD};
+
     my ($in, undef, undef, $pid) = $self->open_ex(\%opts, @_) or return undef;
 
-    $self->_io3(undef, undef, $in, $stdin_data, $timeout, $stream_encoding) if defined $stdin_data;
+    $self->_io3(undef, undef, $in, $stdin_data,
+                $timeout, $stream_encoding, $stdin_keep_open) if defined $stdin_data;
     return $pid if $async;
     $self->_waitpid($pid, $timeout);
 }
@@ -2013,8 +2018,11 @@ sub capture {
     my $self = shift;
     my %opts = (ref $_[0] eq 'HASH' ? %{shift()} : ());
     my $stdin_data = delete $opts{stdin_data};
+    my $stdin_keep_open = delete $opts{stdin_keep_open};
     my $timeout = delete $opts{timeout};
     _croak_bad_options %opts;
+
+    $stdin_data = '' if $stdin_keep_open and not defined $stdin_data;
 
     my $stream_encoding = $self->_delete_stream_encoding(\%opts);
     $opts{stdout_pipe} = 1;
@@ -2025,7 +2033,8 @@ sub capture {
     local $SIG{CHLD};
 
     my ($in, $out, undef, $pid) = $self->open_ex(\%opts, @_) or return ();
-    my ($output) = $self->_io3($out, undef, $in, $stdin_data, $timeout, $stream_encoding);
+    my ($output) = $self->_io3($out, undef, $in, $stdin_data,
+                               $timeout, $stream_encoding, $stdin_keep_open);
     $self->_waitpid($pid, $timeout);
     if (wantarray) {
         my $pattern = quotemeta $/;
@@ -2043,8 +2052,11 @@ sub capture2 {
     my $self = shift;
     my %opts = (ref $_[0] eq 'HASH' ? %{shift()} : ());
     my $stdin_data = delete $opts{stdin_data};
+    my $stdin_keep_open = delete $opts{stdin_keep_open};
     my $timeout = delete $opts{timeout};
     _croak_bad_options %opts;
+
+    $stdin_data = '' if $stdin_keep_open and not defined $stdin_data;
 
     my $stream_encoding = $self->_delete_stream_encoding(\%opts);
     $opts{stdout_pipe} = 1;
@@ -2056,7 +2068,8 @@ sub capture2 {
     local $SIG{CHLD};
 
     my ($in, $out, $err, $pid) = $self->open_ex( \%opts, @_) or return ();
-    my @capture = $self->_io3($out, $err, $in, $stdin_data, $timeout, $stream_encoding);
+    my @capture = $self->_io3($out, $err, $in, $stdin_data,
+                              $timeout, $stream_encoding, $stdin_keep_open);
     $self->_waitpid($pid, $timeout);
     wantarray ? @capture : $capture[0];
 }
