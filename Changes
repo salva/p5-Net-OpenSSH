@@ -1,5 +1,14 @@
 Revision history for Perl extension Net::OpenSSH.
 
+0.75_01  Mar 3, 2017
+        - Use an opaque digest as the last part of the multiplexing
+          socket path in order to reduce its size (bug report by
+          Sombrerero_Loco at PerlMonks).
+        - Improve ctl_path/ctl_dir handling catching more errors
+          earlier.
+        - Add support for stdin_keep_open feature (bug report by
+          fwalters at PerlMonks).
+
 0.74  Feb 10, 2017
         - Update list of options accepted by method "sftp" (bug report
           by Mirror).

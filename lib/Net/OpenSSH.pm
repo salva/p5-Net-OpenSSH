@@ -1,6 +1,6 @@
 package Net::OpenSSH;
 
-our $VERSION = '0.74';
+our $VERSION = '0.75_01';
 
 use strict;
 use warnings;
@@ -20,6 +20,7 @@ use Errno ();
 use Net::OpenSSH::Constants qw(:error :_state);
 use Net::OpenSSH::ModuleLoader;
 use Net::OpenSSH::ShellQuoter;
+use Digest::MD5;
 
 my $thread_generation = 0;
 
@@ -213,6 +214,10 @@ sub parse_connection_opts {
     $r{ipv6} = 1 if defined $ipv6;
     return \%r;
 }
+
+my $sizeof_sun_path = ($^O eq 'linux' ? 108 :
+                       $^O =~ /bsd/i  ? 104 :
+                       $^O eq 'hpux'  ? 92  : undef);
 
 sub new {
     ${^TAINT} and &_catch_tainted_args;
@@ -421,7 +426,21 @@ sub new {
     $ctl_path = $self->_expand_vars($ctl_path);
     $ctl_dir = $self->_expand_vars($ctl_dir);
 
-    unless (defined $ctl_path) {
+    if  (defined $ctl_path) {
+        if ($external_master) {
+            unless (-S $ctl_path) {
+                $self->_master_fail($async, "ctl_path $ctl_path does not point to a socket");
+                return $self;
+            }
+        }
+        else {
+            if (-e $ctl_path) {
+                $self->_master_fail($async, "unable to use ctl_path $ctl_path, a file object already exists there");
+                return $self;
+            }
+        }
+    }
+    else {
         $external_master and croak "external_master is set but ctl_path is not defined";
 
         unless (defined $ctl_dir) {
@@ -442,7 +461,8 @@ sub new {
         my $target = join('-', grep defined, $user, $host, $port);
 
         for (1..10) {
-            $ctl_path = File::Spec->join($ctl_dir, sprintf("%s-%d-%d", substr($target, 0, 20), $$, rand(1e6)));
+            my $ctl_file = Digest::MD5::md5_hex(sprintf "%s-%d-%d-%d", $target, $$, time, rand 1e6);
+            $ctl_path = File::Spec->join($ctl_dir, $ctl_file);
             last unless -e $ctl_path
         }
         if (-e $ctl_path) {
@@ -450,6 +470,12 @@ sub new {
             return $self;
         }
     }
+
+    if (defined $sizeof_sun_path and length $ctl_path > $sizeof_sun_path) {
+        $self->_master_fail($async, "ctl_path $ctl_path is too long (max permissible size for $^O is $sizeof_sun_path)");
+        return $self;
+    }
+
     $ctl_dir = File::Spec->catpath((File::Spec->splitpath($ctl_path))[0,1], "");
     $debug and $debug & 2 and _debug "ctl_path: $ctl_path, ctl_dir: $ctl_dir";
 
@@ -1957,9 +1983,10 @@ sub system {
     my $self = shift;
     my %opts = (ref $_[0] eq 'HASH' ? %{shift()} : ());
     my $stdin_data = delete $opts{stdin_data};
-    my $stdin_keep_open = delete $opts{stdin_keep_open};
     my $timeout = delete $opts{timeout};
     my $async = delete $opts{async};
+    my $stdin_keep_open = ($async ? undef : delete $opts{stdin_keep_open});
+
     _croak_bad_options %opts;
 
     $stdin_data = '' if $stdin_keep_open and not defined $stdin_data;
@@ -1983,10 +2010,12 @@ sub system {
 }
 
 _sub_options test => qw(stdout_discard stdout_fh stdin_discard stdout_file stdin_fh stdin_file
-                        quote_args quote_args_extended remote_shell glob_quoting
-                        stderr_to_stdout stderr_discard stderr_fh stderr_file
-                        stdinout_dpipe stdinout_dpipe_make_parent tty ssh_opts timeout stdin_data
-                        encoding stream_encoding argument_encoding forward_agent forward_X11 setpgrp);
+                        quote_args quote_args_extended remote_shell glob_quoting stderr_to_stdout
+                        stderr_discard stderr_fh stderr_file stdinout_dpipe
+                        stdinout_dpipe_make_parent tty ssh_opts timeout stdin_data stdin_keep_open
+                        encoding stream_encoding argument_encoding forward_agent forward_X11
+                        setpgrp);
+
 sub test {
     ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
@@ -2668,6 +2697,17 @@ avoid insecure operation.
 
 By default C<~/.libnet-openssh-perl> is used.
 
+=item ctl_path => $path
+
+Path to the SSH master control socket.
+
+Usually this option should be avoided as the module is able to pick an unused
+socket path by itself. An exception to that rule is when the C<external_master>
+feature is enabled.
+
+Note that the length of the path is usually limited to between 92 and 108 bytes,
+depending of the underlying operating system.
+
 =item ssh_cmd => $cmd
 
 Name or full path to OpenSSH C<ssh> binary. For instance:
@@ -3228,6 +3268,15 @@ See also the L</spawn> method documentation below.
 See the L</open_ex> method documentation for an explanation of these
 options.
 
+=item stdin_keep_open => $bool
+
+When C<stdin_data> is given, the module closes the stdin stream once
+all the data has been sent. Unfortunately, some SSH buggy servers fail
+to handle this event correctly and close the channel prematurely.
+
+As a workaround, when this flag is set the stdin is left open until
+the remote process terminates.
+
 =back
 
 =item $ok = $ssh->test(\%opts, @cmd);
@@ -3292,6 +3341,11 @@ Accepted options:
 
 =item stdin_data => \@input
 
+=item stdin_keep_open => $bool
+
+See the L</system> method documentation for an explanation of these
+options.
+
 =item timeout => $timeout
 
 See L</Timeouts>.
@@ -3328,6 +3382,8 @@ The accepted options are:
 =item stdin_data => $input
 
 =item stdin_data => \@input
+
+=item stdin_keep_open => $bool
 
 See the L</system> method documentation for an explanation of these
 options.
