@@ -111,13 +111,15 @@ if (0 and $ssh->error and $num > 4.7) {
 plan skip_all => 'Unable to establish SSH connection to localhost!'
     if $ssh->error;
 
-plan tests => 46;
+plan tests => 47;
 
 sub shell_quote {
     my $txt = shift;
     $txt =~ s|([^\w+\-\./])|\\$1|g;
     $txt
 }
+
+my $old_open_fds = count_open_fds;
 
 my $muxs = $ssh->get_ctl_path;
 ok(-S $muxs, "mux socket exists");
@@ -195,6 +197,7 @@ my $fh = $ssh->pipe_out("$CAT $sq_cwd/test.dat");
 ok($fh, "pipe_out");
 $output = join('', <$fh>);
 is($output, $lines, "pipe_out lines");
+ok(close $fh, "close pipe_out");
 
 my $string = q(#@$#$%&(@#_)erkljgfd'' 345345' { { / // ///foo bar////doz '''' heloo);
 
@@ -246,6 +249,14 @@ my $rcmd = $ssh->make_remote_command($ECHO => 'hello');
 my $pipe_out = readpipe $rcmd;
 chomp $pipe_out;
 is ($pipe_out, 'hello', 'make_remote_command');
+
+SKIP: {
+    skip "Don't know how to count open file descriptors under $^O, patches welcome!", 1
+        unless defined $old_open_fds;
+
+    is(count_open_fds, $old_open_fds, "fds are not leaked")
+        or diag dump_open_fds;
+}
 
 eval {
     my $ssh3 = $ssh;

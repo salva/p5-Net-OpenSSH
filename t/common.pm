@@ -70,4 +70,25 @@ sub shell_is_clean {
     1
 }
 
+my @last_open_fds;
+
+sub count_open_fds {
+    @last_open_fds = ();
+    if ($^O eq 'linux') {
+        if (opendir my $dh, "/proc/$$/fd") {
+            my $count = 0;
+            while (defined(my $fd = readdir $dh)) {
+                push @last_open_fds, $fd if $fd =~ /^\d+$/;
+            }
+            return scalar @last_open_fds;
+        }
+    }
+    ()
+}
+
+sub dump_open_fds {
+    my @ls = map { `ls -l /proc/$$/fd/$_ 2>&1` } @last_open_fds;
+    join('', "Currently open flle descriptors:\n", @ls);
+}
+
 1;
