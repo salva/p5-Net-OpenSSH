@@ -4955,7 +4955,7 @@ Net::OpenSSH to handle the connections.
 
 L<Net::CLI::Interact> allows one to interact with remote shells
 and other services. It is specially suited for interaction with
-network equipment. The passphrase approach it uses is very clever. You
+network equipment. The phrasebook approach it uses is very clever. You
 may also like to check the L<other
 modules|https://metacpan.org/author/OLIVER> from its author, Oliver
 Gorwits.
