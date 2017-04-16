@@ -4731,8 +4731,9 @@ There are some devices that support command mode but that only accept
 one command per connection. In that cases, using L<Expect> is also
 probably the best option.
 
-Nowadays, there is a new player, L<Net::CLI::Interaction> that may be
-more suitable than Expect.
+Nowadays, there is a new player, L<Net::CLI::Interact> that may be
+more suitable than Expect, and L<Net::Appliance::Session> for working
+specifically with network devices.
 
 =item Connection fails
 
