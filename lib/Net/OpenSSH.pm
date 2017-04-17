@@ -4731,8 +4731,9 @@ There are some devices that support command mode but that only accept
 one command per connection. In that cases, using L<Expect> is also
 probably the best option.
 
-Nowadays, there is a new player, L<Net::CLI::Interaction> that may be
-more suitable than Expect.
+Nowadays, there is a new player, L<Net::CLI::Interact> that may be
+more suitable than Expect, and L<Net::Appliance::Session> for working
+specifically with network devices.
 
 =item Connection fails
 
@@ -4954,7 +4955,7 @@ Net::OpenSSH to handle the connections.
 
 L<Net::CLI::Interact> allows one to interact with remote shells
 and other services. It is specially suited for interaction with
-network equipment. The passphrase approach it uses is very clever. You
+network equipment. The phrasebook approach it uses is very clever. You
 may also like to check the L<other
 modules|https://metacpan.org/author/OLIVER> from its author, Oliver
 Gorwits.
