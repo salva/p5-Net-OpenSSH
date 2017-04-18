@@ -1,5 +1,8 @@
 Revision history for Perl extension Net::OpenSSH.
 
+0.75_02
+        - Add support for "subsystem" feature.
+
 0.75_01  Mar 3, 2017
         - Use an opaque digest as the last part of the multiplexing
           socket path in order to reduce its size (bug report by

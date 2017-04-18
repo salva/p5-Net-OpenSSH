@@ -1,6 +1,6 @@
 package Net::OpenSSH;
 
-our $VERSION = '0.75_01';
+our $VERSION = '0.75_02';
 
 use strict;
 use warnings;
@@ -1336,6 +1336,11 @@ sub make_remote_command {
         push @ssh_opts, $self->_make_W_option(@_);
     }
     else {
+        my $subsystem = delete $opts{subsystem};
+        if ($subsystem) {
+            push @ssh_opts, '-s';
+            @_ == 1 or croak "wrong number of arguments for subsystem command";
+        }
         @args = $self->_quote_args(\%opts, @_);
     }
     _croak_bad_options %opts;
@@ -1489,6 +1494,9 @@ sub open_ex {
     if ($self->{_forward_X11}) {
         my $forward_X11 = delete $opts{forward_X11};
         $ssh_flags .= ($forward_X11 ? 'X' : 'x');
+    }
+    if (delete $opts{subsystem}) {
+        $ssh_flags .= 's';
     }
 
     my $setpgrp = delete $opts{setpgrp};
@@ -1855,10 +1863,11 @@ sub _io3 {
 
 
 
-_sub_options spawn => qw(stderr_to_stdout stdin_discard stdin_fh stdin_file stdout_discard
-                         stdout_fh stdout_file stderr_discard stderr_fh stderr_file
-                         stdinout_dpipe stdinout_dpipe_make_parent quote_args quote_args_extended remote_shell glob_quoting
-                         tty ssh_opts tunnel encoding argument_encoding forward_agent forward_X11 setpgrp);
+_sub_options spawn => qw(stderr_to_stdout stdin_discard stdin_fh stdin_file stdout_discard stdout_fh
+                         stdout_file stderr_discard stderr_fh stderr_file stdinout_dpipe
+                         stdinout_dpipe_make_parent quote_args quote_args_extended remote_shell
+                         glob_quoting tty ssh_opts tunnel encoding argument_encoding forward_agent
+                         forward_X11 setpgrp subsystem);
 sub spawn {
     ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
@@ -1870,7 +1879,7 @@ sub spawn {
 
 _sub_options open2 => qw(stderr_to_stdout stderr_discard stderr_fh stderr_file quote_args quote_args_extended
                          remote_shell glob_quoting tty ssh_opts tunnel encoding argument_encoding forward_agent
-                         forward_X11 setpgrp);
+                         forward_X11 setpgrp subsystem);
 sub open2 {
     ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
@@ -1888,7 +1897,7 @@ sub open2 {
 _sub_options open2pty => qw(stderr_to_stdout stderr_discard stderr_fh stderr_file
                             quote_args quote_args_extended remote_shell glob_quoting tty
                             close_slave_pty ssh_opts encoding argument_encoding forward_agent
-                            forward_X11 setpgrp);
+                            forward_X11 setpgrp subsystem);
 sub open2pty {
     ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
@@ -1906,7 +1915,7 @@ sub open2pty {
 _sub_options open2socket => qw(stderr_to_stdout stderr_discard stderr_fh stderr_file
                                quote_args quote_args_extended remote_shell glob_quoting tty
                                ssh_opts tunnel encoding argument_encoding forward_agent
-                               forward_X11 setpgrp);
+                               forward_X11 setpgrp subsystem);
 sub open2socket {
     ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
@@ -1920,7 +1929,7 @@ sub open2socket {
 }
 
 _sub_options open3 => qw(quote_args quote_args_extended remote_shell glob_quoting tty ssh_opts
-                         encoding argument_encoding forward_agent forward_X11 setpgrp);
+                         encoding argument_encoding forward_agent forward_X11 setpgrp subsystem);
 sub open3 {
     ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
@@ -1938,7 +1947,7 @@ sub open3 {
 }
 
 _sub_options open3pty => qw(quote_args quote_args_extended remote_shell glob_quoting tty close_slave_pty ssh_opts
-                            encoding argument_encoding forward_agent forward_X11 setpgrp);
+                            encoding argument_encoding forward_agent forward_X11 setpgrp subsystem);
 sub open3pty {
     ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
@@ -1957,8 +1966,7 @@ sub open3pty {
 }
 
 _sub_options open3socket => qw(quote_args quote_args_extended remote_shell glob_quoting tty ssh_opts encoding
-                               argument_encoding forward_agent
-                               forward_X11 setpgrp);
+                               argument_encoding forward_agent forward_X11 setpgrp subsystem);
 sub open3socket {
     ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
@@ -1977,7 +1985,7 @@ _sub_options system => qw(stdout_discard stdout_fh stdin_discard stdout_file std
                           quote_args quote_args_extended remote_shell glob_quoting
                           stderr_to_stdout stderr_discard stderr_fh stderr_file
                           stdinout_dpipe stdinout_dpipe_make_parent tty ssh_opts tunnel encoding
-                          argument_encoding forward_agent forward_X11 setpgrp);
+                          argument_encoding forward_agent forward_X11 setpgrp subsystem);
 sub system {
     ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
@@ -2014,7 +2022,7 @@ _sub_options test => qw(stdout_discard stdout_fh stdin_discard stdout_file stdin
                         stderr_discard stderr_fh stderr_file stdinout_dpipe
                         stdinout_dpipe_make_parent tty ssh_opts timeout stdin_data stdin_keep_open
                         encoding stream_encoding argument_encoding forward_agent forward_X11
-                        setpgrp);
+                        setpgrp subsystem);
 
 sub test {
     ${^TAINT} and &_catch_tainted_args;
@@ -2038,10 +2046,10 @@ sub test {
     return undef;
 }
 
-_sub_options capture => qw(stderr_to_stdout stderr_discard stderr_fh stderr_file
-                           stdin_discard stdin_fh stdin_file quote_args quote_args_extended
-                           remote_shell glob_quoting tty ssh_opts tunnel
-                           encoding argument_encoding forward_agent forward_X11 setpgrp);
+_sub_options capture => qw(stderr_to_stdout stderr_discard stderr_fh stderr_file stdin_discard
+                           stdin_fh stdin_file quote_args quote_args_extended remote_shell
+                           glob_quoting tty ssh_opts tunnel encoding argument_encoding forward_agent
+                           forward_X11 setpgrp subsystem);
 sub capture {
     ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
@@ -2072,10 +2080,9 @@ sub capture {
     $output
 }
 
-_sub_options capture2 => qw(stdin_discard stdin_fh stdin_file
-                            quote_args quote_args_extended remote_shell glob_quoting
-                            tty ssh_opts encoding stream_encoding
-                            argument_encoding forward_agent forward_X11 setpgrp);
+_sub_options capture2 => qw(stdin_discard stdin_fh stdin_file quote_args quote_args_extended
+                            remote_shell glob_quoting tty ssh_opts encoding stream_encoding
+                            argument_encoding forward_agent forward_X11 setpgrp subsystem);
 sub capture2 {
     ${^TAINT} and &_catch_tainted_args;
     my $self = shift;
@@ -2368,7 +2375,7 @@ sub sftp {
     _croak_bad_options %opts;
     $opts{timeout} = $self->{_timeout} unless defined $opts{timeout};
     $self->wait_for_master or return undef;
-    my ($in, $out, $pid) = $self->open2( { ssh_opts => '-s',
+    my ($in, $out, $pid) = $self->open2( { subsystem => 1,
 					   stderr_fh => $stderr_fh,
 					   stderr_discard => $stderr_discard },
 					 'sftp' )
@@ -3161,6 +3168,13 @@ Example:
 
 See also L</Tunnels>.
 
+=item subsystem => $bool
+
+Request a connection to a SSH subsystem. The name of the subsystem
+must be passed as an argument, as in the following example:
+
+  my $s = $ssh->open2socket({subsystem => 1}, 'netconf');
+
 =item encoding => $encoding
 
 =item argument_encoding => $encoding
@@ -3670,6 +3684,11 @@ from the remote host. In that case the arguments are the destination
 address and port. For instance:
 
   $cmd = $ssh->make_remote_command({tunnel => 1}, $host, $port);
+
+=item subsystem => 1
+
+Return a command for invoking a SSH subsystem (i.e. SFTP or
+netconf). In that case the only argument is the subsystem name.
 
 =back
 
