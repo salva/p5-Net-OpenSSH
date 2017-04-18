@@ -111,7 +111,7 @@ if (0 and $ssh->error and $num > 4.7) {
 plan skip_all => 'Unable to establish SSH connection to localhost!'
     if $ssh->error;
 
-plan tests => 47;
+plan tests => 48;
 
 sub shell_quote {
     my $txt = shift;
