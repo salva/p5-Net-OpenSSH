@@ -4376,7 +4376,21 @@ check:
 
 The error message will tell what has gone wrong.
 
-=item 2 - OpenSSH version
+=item 2 - Check the connection parameters
+
+Believe it or not, passing bad parameters to Net::OpenSSH turns to be
+one of the top causes of failures so check that you are using the
+right parameters.
+
+Specifically, if you are obtaining them from the outside, ensure that
+they don't have extra espaces or new lines attached (do you need to
+C<chomp>?).
+
+Passwords and URIs may contain C<$> or C<@> characters. If you have
+then hardcoded in your script, check that those are quoted properly
+(and BTW, use C<strict>).
+
+=item 3 - OpenSSH version
 
 Ensure that you have a version of C<ssh> recent enough:
 
@@ -4385,8 +4399,7 @@ Ensure that you have a version of C<ssh> recent enough:
 
 OpenSSH version 4.1 was the first to support the multiplexing feature
 and is the minimal required by the module to work. I advise you to use
-the latest OpenSSH (currently 5.8) or at least a more recent
-version.
+the latest OpenSSH (currently 7.5).
 
 The C<ssh_cmd> constructor option lets you select the C<ssh> binary to
 use. For instance:
@@ -4400,7 +4413,7 @@ Net::OpenSSH should work with these SSH clients as long as they are
 derived from some version of OpenSSH recent enough. Anyway, my advise
 is to use the real OpenSSH software if you can!
 
-=item 3 - run ssh from the command line
+=item 4 - run ssh from the command line
 
 Check you can connect to the remote host using the same parameters you
 are passing to Net::OpenSSH. In particular, ensure that you are
@@ -4461,7 +4474,7 @@ key is correctly installed on the server.
 
 =back
 
-=item 4 - security checks on the multiplexing socket
+=item 5 - security checks on the multiplexing socket
 
 Net::OpenSSH performs some security checks on the directory where the
 multiplexing socket is going to be placed to ensure that it can not be
@@ -4489,7 +4502,7 @@ else has permissions to perform write operations on them.
 The constructor option C<strict_mode> disables these security checks,
 but you should not use it unless you understand its implications.
 
-=item 5 - file system must support sockets
+=item 6 - file system must support sockets
 
 Some file systems (as for instance FAT or AFS) do not support placing
 sockets inside them.
