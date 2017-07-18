@@ -1,6 +1,6 @@
 package Net::OpenSSH;
 
-our $VERSION = '0.75_02';
+our $VERSION = '0.75_03';
 
 use strict;
 use warnings;
@@ -2944,7 +2944,7 @@ Note, that blocking operations should not be performed inside the
 login handler (at least if you want the C<async> and C<timeout>
 features to work).
 
-See also the sample script C<login_handler.pl> in the C<samples>
+See also the sample script C<login_handler.pl> in the C<examples>
 directory.
 
 Usage of this option is incompatible with the C<password> and
@@ -3918,7 +3918,7 @@ operation of the module in any other regard.
 
 For instance:
 
-  # See sample/sshfs_mount.pl for a working program
+  # See examples/sshfs_mount.pl for a working program
   my $ssh = Net::OpenSSH->new($host);
   my $sshfs_pid = $ssh->sshfs_import("/home/foo", "my-remote-home");
   $ssh->disown_master;
@@ -4980,7 +4980,7 @@ pipes).
 
 If for whatever reason the methods described above fail, you can
 always revert to using Expect to talk to the remote C<sudo>. See the
-C<sample/expect.pl> script from this module distribution.
+C<examples/expect.pl> script from this module distribution.
 
 =back
 
@@ -5007,7 +5007,7 @@ implementation.
 
 L<Expect|Expect> can be used to interact with commands run through
 this module on the remote machine (see also the C<expect.pl> and
-<autosudo.pl> scripts in the sample directory).
+<autosudo.pl> scripts in the examples directory).
 
 L<SSH::OpenSSH::Parallel> is an advanced scheduler that allows one to run
 commands in remote hosts in parallel. It is obviously based on

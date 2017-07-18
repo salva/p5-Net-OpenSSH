@@ -1,5 +1,9 @@
 Revision history for Perl extension Net::OpenSSH.
 
+0.75_03
+        - Rename sample directory to examples (fixes #rt122042
+          reported by Karen Etheridge).
+
 0.75_02  Jul 18, 2017
         - Add support for "master_pty_force" and "get_master_pty_log"
           features.
