@@ -1,6 +1,8 @@
 Revision history for Perl extension Net::OpenSSH.
 
-0.75_02
+0.75_02  Jul 18, 2017
+        - Add support for "master_pty_force" and "get_master_pty_log"
+          features.
         - Add support for "subsystem" feature.
 
 0.75_01  Mar 3, 2017

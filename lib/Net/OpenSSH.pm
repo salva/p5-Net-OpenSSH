@@ -281,6 +281,7 @@ sub new {
         croak "agent forwarding can not be used when a passphrase has also been given";
     my $forward_X11 = delete $opts{forward_X11};
     my $passwd_prompt = delete $opts{password_prompt};
+    my $master_pty_force = delete $opts{master_pty_force};
     $passwd_prompt = delete $opts{passwd_prompt} unless defined $passwd_prompt;
 
     my ($master_opts, @master_opts,
@@ -395,6 +396,7 @@ sub new {
 		 _master_stdout_discard => $master_stdout_discard,
 		 _master_stderr_discard => $master_stderr_discard,
                  _master_setpgrp => $master_setpgrp,
+                 _master_pty_force => $master_pty_force,
 		 _remote_shell => $remote_shell,
                  _default_stream_encoding => $default_stream_encoding,
                  _default_argument_encoding => $default_argument_encoding,
@@ -497,6 +499,8 @@ sub get_port { shift->{_port} }
 sub get_master_pid { shift->{_pid} }
 sub get_ctl_path { shift->{_ctl_path} }
 sub get_expand_vars { shift->{_expand_vars} }
+
+sub get_master_pty_log { shift->{_master_pty_log} }
 
 sub set_expand_vars {
     my $self = shift;
@@ -896,7 +900,8 @@ sub _master_start {
                       $ssh_flags);
 
     my ($mpty, $use_pty, $pref_auths);
-    $use_pty = 1 if defined $self->{_login_handler};
+    $use_pty = 1 if ( $self->{_master_pty_force} or
+                      defined $self->{_login_handler} );
     if (defined $self->{_passwd}) {
         $use_pty = 1;
         $pref_auths = ($self->{_passphrase}
@@ -981,7 +986,10 @@ sub _master_check {
     my ($self, $async) = @_;
     my $error;
     if ($async) {
-        return 1 if -S $self->{_ctl_path};
+        if (-S $self->{_ctl_path}) {
+            delete $self->{_master_pty_log};
+            return 1
+        }
         $error = "master SSH connection broken";
     }
     else {
@@ -990,7 +998,10 @@ sub _master_check {
         unless ($error) {
             my $pid = $self->{_pid};
             if ($out =~ /pid=(\d+)/) {
-                return 1 if !$pid or $1 == $pid;
+                if (!$pid or $1 == $pid) {
+                    delete $self->{_master_pty_log};
+                    return 1;
+                }
                 $error = "bad ssh master at $self->{_ctl_path} socket owned by pid $1 (pid $pid expected)";
             }
             else {
@@ -1053,9 +1064,12 @@ sub _master_wait {
         }
 
         $self->_master_start($async) or return;
-        if (defined $self->{_passwd} or $self->{_login_handler}) {
+        if ($self->{_mpty}) {
             $self->{_wfm_bout} = '';
-            return $self->_master_jump_state(_STATE_LOGIN, $async);
+            $self->{_master_pty_log} = '';
+            if (defined $self->{passwd} or $self->{_login_handler}) {
+                return $self->_master_jump_state(_STATE_LOGIN, $async);
+            }
         }
         return $self->_master_jump_state(_STATE_AWAITING_MUX, $async);
     }
@@ -1089,7 +1103,9 @@ sub _master_wait {
     my $mpty = $self->{_mpty};
     my $fnopty;
     my $rv = '';
-    if ($self->{_master_state} == _STATE_LOGIN) {
+    if ($mpty and 
+        ( $self->{_master_state} == _STATE_LOGIN or
+          $self->{_master_state} == _STATE_AWAITING_MUX )) {
         $fnopty = fileno $mpty;
         vec($rv, $fnopty, 1) = 1
     }
@@ -1144,22 +1160,30 @@ sub _master_wait {
                 vec($rv1, $fnopty, 1) or die "internal error";
                 my $read = sysread($mpty, $self->{_wfm_bout}, 4096, length $self->{_wfm_bout});
                 if ($read) {
+                    do {
+                        no warnings 'uninitialized';
+                        $self->{_master_pty_log} .= substr($self->{_wfm_bout}, -$read);
+                        if ((my $remove = length($self->{_master_pty_log}) - 4096) > 0) {
+                            substr($self->{_master_pty_log}, 0, $remove) = ''
+                        }
+                    };
+
+                    if ($self->{_wfm_bout} =~ /The authenticity of host.*can't be established/si) {
+                        $error = "the authenticity of the target host can't be established; the remote host " .
+                            "public key is probably not present in the '~/.ssh/known_hosts' file";
+                        last;
+                    }
+
+                    if ($self->{_wfm_bout} =~ /WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED/si) {
+                        $error = "the authenticity of the target host can't be established; the remote host " .
+                            "public key doesn't match the one stored locally";
+                        last;
+                    }
+
                     my $passwd_prompt = _first_defined $self->{_passwd_prompt}, qr/[:?]/;
                     $passwd_prompt = quotemeta $passwd_prompt unless ref $passwd_prompt;
 
                     if ($self->{_master_state} == _STATE_LOGIN) {
-                        if ($self->{_wfm_bout} =~ /The authenticity of host.*can't be established/si) {
-                            $error = "the authenticity of the target host can't be established; the remote host " .
-                                "public key is probably not present on the '~/.ssh/known_hosts' file";
-                            last;
-                        }
-
-                        if ($self->{_wfm_bout} =~ /WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED/si) {
-                            $error = "the authenticity of the target host can't be established; the remote host " .
-                                "public key doesn't match the one stored locally";
-                            last;
-                        }
-
                         if ($self->{_wfm_bout} =~ /^(.*$passwd_prompt)/s) {
                             $debug and $debug & 4 and _debug "passwd/passphrase requested ($1)";
                             print $mpty $deobfuscate->($self->{_passwd}) . "\n";
@@ -2945,6 +2969,16 @@ reset.
 This feature is highly experimental. Report any problems you may find,
 please.
 
+=item master_pty_force => 1
+
+By default, Net::OpenSSH attaches the master SSH process to a pty only
+when some kind of interactive authentication is requested. If this
+flag is set a pty will be attached always.
+
+That allows to get better diagnostics for some kind of errors (as for
+instance, bad host keys) and also allows to retrieve the pty log using
+L<get_master_pty_log>.
+
 =back
 
 =item $ssh->error
@@ -2955,6 +2989,20 @@ The returned value is a dualvar as $! (see L<perlvar/"$!">) that
 renders an informative message when used in string context or an error
 number in numeric context (error codes appear in
 L<Net::OpenSSH::Constants|Net::OpenSSH::Constants>).
+
+=item $ssh->get_master_pty_log
+
+In order to handle password authentication or entering the passphrase
+for a private key, Net::OpenSSH may run the master SSH process attached
+to a pty.
+
+In that case and after a constructor call returns a connection failure
+error, this method can be called to retrieve the output captured at
+the pty (the log is discarded when the connection is established
+successfully).
+
+Any data consumed from the pty by custom login handlers will be
+missing from the the returned log.
 
 =item $ssh->get_user
 
@@ -4402,7 +4450,7 @@ one of the top causes of failures so check that you are using the
 right parameters.
 
 Specifically, if you are obtaining them from the outside, ensure that
-they don't have extra espaces or new lines attached (do you need to
+they don't have extra spaces or new lines attached (do you need to
 C<chomp>?).
 
 Passwords and URIs may contain C<$> or C<@> characters. If you have
