@@ -70,7 +70,8 @@ my %ctor_opts = (host => 'localhost',
                  timeout => $timeout,
                  strict_mode => 0,
                  batch_mode => ($bg ? 1 : 0),
-                 master_opts => [-o => "StrictHostKeyChecking no"]);
+                 master_opts => [-o => "StrictHostKeyChecking no",
+                                 -o => "UserKnownHostsFile /dev/null"]);
 
 my $ssh = Net::OpenSSH->new(%ctor_opts);
 
