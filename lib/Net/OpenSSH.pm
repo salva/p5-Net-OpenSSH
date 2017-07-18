@@ -1160,13 +1160,10 @@ sub _master_wait {
                 vec($rv1, $fnopty, 1) or die "internal error";
                 my $read = sysread($mpty, $self->{_wfm_bout}, 4096, length $self->{_wfm_bout});
                 if ($read) {
-                    do {
-                        no warnings 'uninitialized';
-                        $self->{_master_pty_log} .= substr($self->{_wfm_bout}, -$read);
-                        if ((my $remove = length($self->{_master_pty_log}) - 4096) > 0) {
-                            substr($self->{_master_pty_log}, 0, $remove) = ''
-                        }
-                    };
+                    $self->{_master_pty_log} .= substr($self->{_wfm_bout}, -$read);
+                    if ((my $remove = length($self->{_master_pty_log}) - 4096) > 0) {
+                        substr($self->{_master_pty_log}, 0, $remove) = ''
+                    }
 
                     if ($self->{_wfm_bout} =~ /The authenticity of host.*can't be established/si) {
                         $error = "the authenticity of the target host can't be established; the remote host " .
