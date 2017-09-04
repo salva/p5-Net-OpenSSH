@@ -1,6 +1,7 @@
 Revision history for Perl extension Net::OpenSSH.
 
 0.75_03
+        - Document how to manipulate port forwardings
         - Rename sample directory to examples (fixes #rt122042
           reported by Karen Etheridge).
 

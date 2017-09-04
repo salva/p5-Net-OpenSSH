@@ -4153,6 +4153,8 @@ work. Also, note that tunnel forwarding may be administratively
 forbidden at the server side (see L<sshd(8)> and L<sshd_config(5)> or
 the documentation provided by your SSH server vendor).
 
+=head3 Tunnels targeting UNIX sockets
+
 When connecting to hosts running a recent version of OpenSSH sshd, it
 is also possible to open connections targeting Unix sockets.
 
@@ -4164,6 +4166,28 @@ For instance:
 Currently, this feature requires a patched OpenSSH ssh client. The
 patch is available as
 C<patches/openssh-fwd-stdio-to-streamlocal-1.patch>.
+
+=head3 Port forwarding
+
+L<Net::OpenSSH> does not offer direct support for handling port
+forwardings between server and client. But that can be done easily
+anyway passing custom SSH options to its methods.
+
+For instance, tunnel creation options can be passed to the constructor:
+
+  my $ssh = Net::OpenSSH->new(...
+                    master_opts => -Llocalhost:1234:localhost:3306');
+
+The port forwardings can also be changed for a running SSH connection
+using a Control command:
+
+    # setting up a tunnel:
+    $ssh->system({ssh_opts => ['-O','forward',
+                               '-L127.0.0.1:12345:127.0.0.1:3306']});
+
+    # canceling it:
+    $ssh->system({ssh_opts => ['-O', 'cancel',
+                               '-L127.0.0.1:12345:127.0.0.1:3306']});
 
 =head2 Data encoding
 
