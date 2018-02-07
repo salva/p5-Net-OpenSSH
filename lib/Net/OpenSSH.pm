@@ -2285,11 +2285,11 @@ sub _scp {
 my %rsync_opt_with_arg = map { $_ => 1 } qw(chmod suffix backup-dir rsync-path max-delete max-size min-size partial-dir
                                             timeout modify-window temp-dir compare-dest copy-dest link-dest compress-level
                                             skip-compress filter exclude exclude-from include include-from
-                                            out-format log-file log-file-format bwlimit protocol iconv checksum-seed);
+                                            out-format log-file log-file-format bwlimit protocol iconv checksum-seed files-from);
 
 my %rsync_opt_forbidden = map { $_ => 1 } qw(rsh address port sockopts blocking-io password-file write-batch
                                             only-write-batch read-batch ipv4 ipv6 version help daemon config detach
-                                            files-from from0 blocking-io protect-args list-only);
+                                            blocking-io protect-args list-only);
 
 $rsync_opt_forbidden{"no-$_"} = 1 for (keys %rsync_opt_with_arg, keys %rsync_opt_forbidden);
 
