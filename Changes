@@ -1,7 +1,9 @@
 Revision history for Perl extension Net::OpenSSH.
 
-0.75_03
-        - Document how to manipulate port forwardings
+0.76  Feb 8, 2018
+        - Allow passing "file_from" and "from0" options into "rsync"
+          (bug report and patch by Slaven Rezic, fixes #rt124357)
+        - Document how to manipulate port forwardings.
         - Rename sample directory to examples (fixes #rt122042
           reported by Karen Etheridge).
 
