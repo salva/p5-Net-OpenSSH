@@ -4,7 +4,6 @@ Revision history for Perl extension Net::OpenSSH.
 	- Fix regression broking password authentication (bug report
           by Russell Shingleton).
 
-
 0.76  Feb 8, 2018
         - Allow passing "file_from" and "from0" options into "rsync"
           (bug report and patch by Slaven Rezic, fixes #rt124357)
