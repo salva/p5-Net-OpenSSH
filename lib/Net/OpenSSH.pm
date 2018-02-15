@@ -1,6 +1,6 @@
 package Net::OpenSSH;
 
-our $VERSION = '0.76';
+our $VERSION = '0.77';
 
 use strict;
 use warnings;
@@ -1067,7 +1067,7 @@ sub _master_wait {
         if ($self->{_mpty}) {
             $self->{_wfm_bout} = '';
             $self->{_master_pty_log} = '';
-            if (defined $self->{passwd} or $self->{_login_handler}) {
+            if (defined $self->{_passwd} or $self->{_login_handler}) {
                 return $self->_master_jump_state(_STATE_LOGIN, $async);
             }
         }
