@@ -1074,8 +1074,13 @@ sub _master_wait {
         return $self->_master_jump_state(_STATE_AWAITING_MUX, $async);
     }
 
-    if ($self->{_master_state} == _STATE_GONE or
-        $self->{_master_state} == _STATE_STOPPED) {
+    if ($self->{_master_state} == _STATE_GONE) {
+	if (my $mpty = delete $self->{_mpty}) {
+	    close($mpty)
+	}
+	return 0;
+    }
+    if ($self->{_master_state} == _STATE_STOPPED) {
         return 0;
     }
 
