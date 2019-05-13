@@ -4669,7 +4669,7 @@ notice between releases.
 If you are using password authentication, enabling debugging for
 L<IO::Tty> may also show interesting information:
 
-    IO::Tty::DEBUG = 1;
+    $IO::Tty::DEBUG = 1;
 
 Finally, by default debugging output is sent to C<STDERR>. You can
 override it pointing C<$Net::OpenSSH::debug_fh> to a different file
