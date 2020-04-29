@@ -1230,6 +1230,7 @@ sub _master_ctl {
     my %opts = (ref $_[0] eq 'HASH' ? %{shift()} : ());
     my $cmd = shift;
 
+    local $?;
     local $self->{_error_prefix} = [@{$self->{_error_prefix}},
                                     "control command failed"];
     $self->capture({ %opts,
