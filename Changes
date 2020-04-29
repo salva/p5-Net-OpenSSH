@@ -1,5 +1,13 @@
 Revision history for Perl extension Net::OpenSSH.
 
+0.79  Apr 29, 2020
+        - Don't clobber $? in disconnect (bug report by Slaven Rezic,
+          #rt129350).
+        - Silence spurious warnings being generated in _set_error (bug
+          report by Jaroslav Reindl, #rt132449).
+	- Error handling in _master_check method was broken.
+	- Fix documentation error (patch by Martin Barth)
+
 0.78  May 5, 2018
 	- Free master pty when the user calls disconnect (bug report
           by Jaroslav Reindl, #rt125240).
