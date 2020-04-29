@@ -418,7 +418,7 @@ sub new {
     $self->{_default_stdin_fh} = $self->_open_file('<', $default_stdin_file)
 	if defined $default_stdin_file;
 
-    if ($self->error == OSSH_SLAVE_PIPE_FAILED) {
+    if ($self->{_error} == OSSH_SLAVE_PIPE_FAILED) {
         $self->_master_fail($async, "Unable to create default slave stream", $self->{_error});
         return $self;
     }
@@ -809,7 +809,7 @@ sub _waitpid {
 
         my $time_limit;
         if (defined $timeout and $self->{_kill_ssh_on_timeout}) {
-            $timeout = 0 if $self->error == OSSH_SLAVE_TIMEOUT;
+            $timeout = 0 if $self->{_error} == OSSH_SLAVE_TIMEOUT;
             $time_limit = time + $timeout;
         }
         local $SIG{CHLD} = sub {} unless __has_sigchld_handle;
@@ -1741,7 +1741,7 @@ sub _encode_args {
             local $self->{_error_prefix} = [@{$self->{_error_prefix}}, "argument encoding failed"];
             $self->_encode($enc, @_);
         }
-        return !$self->error;
+        return !$self->{_error};
     }
     1;
 }
@@ -1782,7 +1782,7 @@ sub _io3 {
     if ($enc and @data) {
         local $self->{_error_prefix} = [@{$self->{_error_prefix}}, "stdin data encoding failed"];
         $self->_encode($enc, @data) if $has_input;
-        return if $self->error;
+        return if $self->{_error};
     }
 
     my $bout = '';
@@ -2062,7 +2062,7 @@ sub test {
     _croak_bad_options %opts;
 
     $self->system(\%opts, @_);
-    my $error = $self->error;
+    my $error = $self->{_error};
     unless ($error) {
         return 1;
     }
@@ -2371,7 +2371,7 @@ sub _rsync {
     return $pid if $async;
     $self->_waitpid($pid, $timeout) and return 1;
 
-    if ($self->error == OSSH_SLAVE_CMD_FAILED and $?) {
+    if ($self->{_error} == OSSH_SLAVE_CMD_FAILED and $?) {
 	my $err = ($? >> 8);
 	my $errstr = $rsync_error{$err};
 	$errstr = 'Unknown rsync error' unless defined $errstr;
