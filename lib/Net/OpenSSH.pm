@@ -118,9 +118,10 @@ sub _catch_tainted_args {
 sub _set_error {
     my $self = shift;
     my $code = shift || 0;
+    my @extra = grep defined, @_;
     my $err = $self->{_error} = ( $code
                                   ? Scalar::Util::dualvar($code, join(': ', @{$self->{_error_prefix}},
-                                                                      (@_ ? @_ : "Unknown error $code")))
+                                                                      (@extra ? @extra : "Unknown error $code")))
                                   : 0 );
     $debug and $debug & 1 and _debug "set_error($code - $err)";
     return $err
