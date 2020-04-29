@@ -995,7 +995,7 @@ sub _master_check {
     }
     else {
         my $out = $self->_master_ctl('check');
-        my $error = $self->{_error};
+        $error = $self->{_error};
         unless ($error) {
             my $pid = $self->{_pid};
             if ($out =~ /pid=(\d+)/) {
