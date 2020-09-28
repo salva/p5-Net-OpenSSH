@@ -1,6 +1,6 @@
 package Net::OpenSSH;
 
-our $VERSION = '0.79';
+our $VERSION = '0.80';
 
 use strict;
 use warnings;
@@ -746,6 +746,26 @@ sub disown_master {
         }
     }
     undef;
+}
+
+sub restart {
+    my ($self, $async) = @_;
+    $self->{_external_master} and croak "Can restart SSH connection when using external master";
+
+    # user is responsible for calling us in STATE_GONE in async mode
+    $self->_disconnect($async, 1) unless $async;
+
+    if ($self->{_master_state} != _STATE_GONE) {
+	croak "restart method called in wrong state (terminate the connection first!)" if $async;
+	return $self->_master_fail($async, "Unable to restart SSH session from state $self->{_master_state}")
+    }
+
+    # These slots should be deleted when exiting the KILLING state but
+    # I like keeping them around for throubleshoting purposes.
+    delete $self->{_master_kill_start};
+    delete $self->{_master_kill_last};
+    delete $self->{_master_kill_count};
+    $self->_master_jump_state(_STATE_START, $async);
 }
 
 sub _my_master_pid {
@@ -3848,6 +3868,35 @@ terminate. In that case, L</wait_for_master> must be called repeatedly
 until the shutdown sequence terminates (See the L</AnyEvent>
 integration section below).
 
+=item $ssh->restart($async)
+
+Restarts the SSH session closing any open connection and creating a
+new one. Any open channel would also be killed.
+
+Note that calling this method may request again the password or
+passphrase from the user.
+
+In asynchronous mode, this method requires the connection to be
+terminated before it gets called. Afterwards, C<wait_for_master>
+should be called repeaptly until the new connection is stablished.
+
+  my $async = 1;
+  $ssh->disconnect($async);
+  while (1) {
+    defined $ssh->wait_for_master($async) # returns 0 when the
+                                          # disconnect process
+                                          # finishes
+      and last;
+    do_something_else();
+  }
+  $ssh->restart($async);
+  while (1) {
+    defined $ssh->wait_for_master($async)
+      and last;
+    do_somethin_else();
+  }
+
+
 =item $pid = $ssh->sshfs_import(\%opts, $remote_fs, $local_mnt_point)
 
 =item $pid = $ssh->sshfs_export(\%opts, $local_fs, $remote_mnt_point)
@@ -5072,11 +5121,13 @@ Gorwits.
 
 =head2 Experimental features
 
+Support for the C<restart> feature is experimental.
+
 L<Object::Remote> integration is highly experimental.
 
 Support for tunnels targeting Unix sockets is highly experimental.
 
-Support for the setpgrp feature is highly experimental.
+Support for the C<setpgrp> feature is highly experimental.
 
 Support for the gateway feature is highly experimental and mostly
 stalled.

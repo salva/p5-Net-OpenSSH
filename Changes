@@ -1,5 +1,8 @@
 Revision history for Perl extension Net::OpenSSH.
 
+0.80  Sep 28, 2020
+	- Add restart method
+
 0.79  Apr 29, 2020
         - Don't clobber $? in disconnect (bug report by Slaven Rezic,
           #rt129350).
