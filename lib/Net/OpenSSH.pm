@@ -3879,6 +3879,7 @@ passphrase from the user.
 In asynchronous mode, this method requires the connection to be
 terminated before it gets called. Afterwards, C<wait_for_master>
 should be called repeaptly until the new connection is stablished.
+For instance:
 
   my $async = 1;
   $ssh->disconnect($async);
@@ -3893,7 +3894,7 @@ should be called repeaptly until the new connection is stablished.
   while (1) {
     defined $ssh->wait_for_master($async)
       and last;
-    do_somethin_else();
+    do_something_else();
   }
 
 
