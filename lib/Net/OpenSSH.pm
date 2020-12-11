@@ -1371,7 +1371,8 @@ sub make_remote_command {
     my $ssh_flags = '';
     $ssh_flags .= ($tty ? 'qtt' : 'T') if defined $tty;
     if ($self->{_forward_agent}) {
-        my $forward_agent = delete $opts{forward_agent};
+	my $forward_always = (($self->{_forward_agent} eq 'always') ? 1 : undef);
+        my $forward_agent = delete($opts{forward_agent}) // $forward_always;
         $ssh_flags .= ($forward_agent ? 'A' : 'a') if defined $forward_agent;
     }
     if ($self->{_forward_X11}) {
@@ -1534,9 +1535,9 @@ sub open_ex {
     my $ssh_opts = delete $opts{ssh_opts};
     $ssh_opts = $self->{_default_ssh_opts} unless defined $ssh_opts;
     my @ssh_opts = $self->_expand_vars(_array_or_scalar_to_list $ssh_opts);
-
     if ($self->{_forward_agent}) {
-        my $forward_agent = delete $opts{forward_agent};
+	my $forward_always = (($self->{_forward_agent} eq 'always') ? 1 : undef);
+        my $forward_agent = delete($opts{forward_agent}) // $forward_always;
         $ssh_flags .= ($forward_agent ? 'A' : 'a') if defined $forward_agent;
     }
     if ($self->{_forward_X11}) {
@@ -2850,7 +2851,15 @@ For instance:
 
 =item forward_agent => 1
 
+=item forward_agent => 'always'
+
 Enables forwarding of the authentication agent.
+
+When C<always> is passed as the argument, agent forwarding will be
+enabled by default in all the channels created from the
+object. Otherwise, it will have to be explicitly requested when
+calling the channel creating methods (i.e. C<open_ex> and its
+derivations).
 
 This option can not be used when passing a passphrase (via
 L</passphrase>) to unlock the login private key.
