@@ -1,5 +1,8 @@
 Revision history for Perl extension Net::OpenSSH.
 
+0.81_03  Apr 18, 2021
+        - Improve forward_agent always semantics.
+
 0.81_02  Apr 18, 2021
         - Fix regression, module was broken for perl 5.8.x.
 

@@ -1,6 +1,6 @@
 package Net::OpenSSH;
 
-our $VERSION = '0.81_02';
+our $VERSION = '0.81_03';
 
 use strict;
 use warnings;
@@ -1372,7 +1372,7 @@ sub make_remote_command {
     $ssh_flags .= ($tty ? 'qtt' : 'T') if defined $tty;
     if ($self->{_forward_agent}) {
 	my $forward_always = (($self->{_forward_agent} eq 'always') ? 1 : undef);
-        my $forward_agent = delete($opts{forward_agent}) || $forward_always;
+        my $forward_agent = _first_defined(delete($opts{forward_agent}), $forward_always);
         $ssh_flags .= ($forward_agent ? 'A' : 'a') if defined $forward_agent;
     }
     if ($self->{_forward_X11}) {
@@ -1537,7 +1537,7 @@ sub open_ex {
     my @ssh_opts = $self->_expand_vars(_array_or_scalar_to_list $ssh_opts);
     if ($self->{_forward_agent}) {
 	my $forward_always = (($self->{_forward_agent} eq 'always') ? 1 : undef);
-        my $forward_agent = delete($opts{forward_agent}) || $forward_always;
+        my $forward_agent = _first_defined(delete($opts{forward_agent}), $forward_always);
         $ssh_flags .= ($forward_agent ? 'A' : 'a') if defined $forward_agent;
     }
     if ($self->{_forward_X11}) {
