@@ -1,6 +1,6 @@
 package Net::OpenSSH;
 
-our $VERSION = '0.81_03';
+our $VERSION = '0.81_04';
 
 use strict;
 use warnings;
@@ -2315,9 +2315,9 @@ my %rsync_opt_with_arg = map { $_ => 1 } qw(chmod suffix backup-dir rsync-path m
                                             skip-compress filter exclude exclude-from include include-from
                                             out-format log-file log-file-format bwlimit protocol iconv checksum-seed files-from);
 
-my %rsync_opt_forbidden = map { $_ => 1 } qw(rsh address port sockopts blocking-io password-file write-batch
+my %rsync_opt_forbidden = map { $_ => 1 } qw(rsh address port sockopts password-file write-batch
                                             only-write-batch read-batch ipv4 ipv6 version help daemon config detach
-                                            blocking-io protect-args list-only);
+                                            protect-args list-only);
 
 $rsync_opt_forbidden{"no-$_"} = 1 for (keys %rsync_opt_with_arg, keys %rsync_opt_forbidden);
 
@@ -2358,7 +2358,7 @@ sub _rsync {
     my $timeout = delete $opts{timeout};
     $quiet = 1 unless (defined $quiet or $verbose);
 
-    my @opts = qw(--blocking-io) ;
+    my @opts;
     push @opts, '-q' if $quiet;
     push @opts, '-pt' if $copy_attrs;
     push @opts, '-' . ($verbose =~ /^\d+$/ ? 'v' x $verbose : 'v') if $verbose;
