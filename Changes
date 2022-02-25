@@ -1,5 +1,9 @@
 Revision history for Perl extension Net::OpenSSH.
 
+0.81_04  Feb 25, 2022
+	- Let rsync use the ssh connection in non-blocking mode (bug
+          report and pull-request by monkburger@github).
+
 0.81_03  Apr 18, 2021
         - Improve forward_agent always semantics.
 
