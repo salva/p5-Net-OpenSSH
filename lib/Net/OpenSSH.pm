@@ -5072,6 +5072,13 @@ If for whatever reason the methods described above fail, you can
 always revert to using Expect to talk to the remote C<sudo>. See the
 C<examples/expect.pl> script from this module distribution.
 
+=item How can I start an interactive remote session?
+
+B<Q>Just call the C<system> method with an empty argument list:
+
+   my $ssh = Net::OpenSSH->new(...);
+   $ssh->system;
+
 =back
 
 =head1 SEE ALSO
