@@ -1,5 +1,8 @@
 Revision history for Perl extension Net::OpenSSH.
 
+0.84
+        - Document how to run interative sftp sessions.
+
 0.83  Jan 22, 2023
         - Skip quoting test for broken AIX csh shell (bug report by
           jrtaisto@gmail.com, #rt133092).
