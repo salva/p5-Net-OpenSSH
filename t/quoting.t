@@ -49,7 +49,7 @@ plan tests => @str * @shells;
 diag "running tests for shells @shells";
 for my $shell (@shells) {
 
-    # workaround for solaris csh fixing invalid UTF8 sequences. 
+    # workaround for solaris csh fixing invalid UTF8 sequences.
     local $ENV{LANG} = $alt_lang if $shell eq 'csh' and defined $alt_lang;
 
     my $i = 0;
@@ -96,10 +96,13 @@ sub try_shell {
             if ($shell =~ /ksh/) {
                 my $version = `$shell --version 2>&1 </dev/null`;
                 $version =~ /version\s+sh\s+\(AT\&T\s+Research\)/
-                    and die "skipping tests for broken AT&T ksh shell";
+                    and die "Skipping tests for broken AT&T ksh shell";
             }
-            else {
-                $shell eq '!!fish' and die "TODO: add support for fish shell";
+            elsif ($shell =~ /csh/ and $^O =~ /^aix/) {
+                die "Skipping tests for broken AIX csh shell";
+            }
+            elsif ($shell eq '!!fish') {
+                die "TODO: add support for fish shell";
             }
         };
         alarm 0;
