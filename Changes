@@ -1,5 +1,12 @@
 Revision history for Perl extension Net::OpenSSH.
 
+0.83  Jan 22, 2023
+        - Skip quoting test for broken AIX csh shell (bug report by
+          jrtaisto@gmail.com, #rt133092).
+        - New FAQ entry about running interactive sessions.
+        - Add new method "default_ssh_configuration" (feature request
+          by Diab Jerius, #rt140762).
+
 0.82  Mar 5, 2022
         - Rerelease as stable version
 
