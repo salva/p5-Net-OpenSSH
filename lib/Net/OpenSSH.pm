@@ -3887,7 +3887,7 @@ passphrase from the user.
 
 In asynchronous mode, this method requires the connection to be
 terminated before it gets called. Afterwards, C<wait_for_master>
-should be called repeaptly until the new connection is stablished.
+should be called repeatedly until the new connection is established.
 For instance:
 
   my $async = 1;
@@ -5072,9 +5072,11 @@ If for whatever reason the methods described above fail, you can
 always revert to using Expect to talk to the remote C<sudo>. See the
 C<examples/expect.pl> script from this module distribution.
 
-=item How can I start an interactive remote session?
+=item Interactive sessions
 
-B<Q>Just call the C<system> method with an empty argument list:
+B<Q>: How can I start an interactive remote session?
+
+B<A>: Just call the C<system> method with an empty argument list:
 
    my $ssh = Net::OpenSSH->new(...);
    $ssh->system;
