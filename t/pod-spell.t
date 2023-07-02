@@ -39,7 +39,7 @@ my @ignore = ("Salvador", "Fandi\xf1o", "API", "CPAN", "GitHub",
               "stdin", "stdout", "stderr", "timeout", "vars", "SSH",
               "Unix", "Ubuntu", "ssh", "cmd.exe", "BTW", "namespace",
               "IIRC", "Shellshock", "googling", "Gorwits", "netconf",
-              "forwardings");
+              "forwardings", "passphraseUses", "spawnAnother");
 
 local $ENV{LC_ALL} = 'C';
 add_stopwords(@ignore);
