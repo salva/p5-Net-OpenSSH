@@ -1,6 +1,6 @@
 package Net::OpenSSH;
 
-our $VERSION = '0.83';
+our $VERSION = '0.84';
 
 use strict;
 use warnings;
@@ -2222,10 +2222,9 @@ sub _scp_get_args {
     my $prefix = $self->{_host_squared};
     $prefix = "$self->{_user}\@$prefix" if defined $self->{_user};
 
-    my $src = "$prefix:". join(" ", $self->_quote_args({quote_args => 1,
-                                                        glob_quoting => $glob},
-                                                       @_));
-    ($self, \%opts, $target, $src);
+    my @src = map "$prefix:". $self->_quote_args({quote_args => 1,
+                                                  glob_quoting => $glob}, $_), @_;
+    ($self, \%opts, $target, @src);
 }
 
 sub scp_get {

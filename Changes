@@ -1,6 +1,8 @@
 Revision history for Perl extension Net::OpenSSH.
 
-0.84
+0.84  Jul 2, 2023
+        - Fix scp/rsync_get handling of multiple source files (bug
+          report by Diab Jerius).
         - Document how to run interative sftp sessions.
 
 0.83  Jan 22, 2023
