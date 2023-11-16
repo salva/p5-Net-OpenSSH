@@ -2253,9 +2253,17 @@ sub _scp_put_args {
     $prefix = "$self->{_user}\@$prefix" if defined $self->{_user};
 
     my $remote_shell = delete $opts{remote_shell};
-    my $target = $prefix . ':' . ( @_ > 1
-                                   ? $self->_quote_args({quote_args => 1, remote_shell => $remote_shell}, pop(@_))
-                                   : '');
+    my $remote_src = delete $opts{remote_src};
+
+    # if remote_src is set then we are 'put'ing from the remote machine
+    # so we can't assume the target will be the remote machine
+    my($target);
+    if (! $remote_src) {
+	$target = $prefix . ':';
+    }
+    $target .= ( @_ > 1
+		 ? $self->_quote_args({quote_args => 1, remote_shell => $remote_shell}, pop(@_))
+		 : '');
 
     my @src = @_;
     if ($glob) {
@@ -2267,7 +2275,11 @@ sub _scp_put_args {
 	    return undef;
 	}
     }
-    $_ = "./$_" for grep m|^[^/]*:|, @src;
+    if ($remote_src) {
+	map { $_ = $prefix . ':' . $_ } @src;
+    } else {
+	$_ = "./$_" for grep m|^[^/]*:|, @src;
+    }
 
     ($self, \%opts, $target, @src);
 }
@@ -3706,6 +3718,15 @@ capture of the output of the C<scp> program.
 
 Note that C<scp> will not generate progress reports unless its stdout
 stream is attached to a tty.
+
+=item remote_src => 0
+
+scp_put only. Indicates that the src argument is located on the remote host
+and the scp is initiated from there. Ordinarily you will specify a target
+string beginning with 'host:' to perform a server to server copy. For example,
+to copy a file from the remote system to a machine called "host2":
+
+  $ssh->scp_put({'remote_src' => 1 }, 'example.txt', 'host2:new_example.txt');
 
 =item ssh_opts => \@opts
 
