@@ -4345,7 +4345,7 @@ caching, for instance:
   sub factory {
     my ($class, %opts) = @_;
     my $signature = join("\0", $class, map { $_ => $opts{$_} }, sort keys %opts);
-    my $old = $cache{signature};
+    my $old = $cache{$signature};
     return $old if ($old and $old->error != OSSH_MASTER_FAILED);
     local $Net::OpenSSH::FACTORY = $old_factory;
     $cache{$signature} = $class->new(%opts);
