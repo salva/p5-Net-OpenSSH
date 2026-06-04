@@ -2138,6 +2138,7 @@ sub capture {
                                $timeout, $stream_encoding, $stdin_keep_open);
     $self->_waitpid($pid, $timeout);
     if (wantarray) {
+        return () unless defined $output;
         my $pattern = quotemeta $/;
         return split /(?<=$pattern)/, $output;
     }

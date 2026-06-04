@@ -112,7 +112,7 @@ if (0 and $ssh->error and $num > 4.7) {
 plan skip_all => 'Unable to establish SSH connection to localhost!'
     if $ssh->error;
 
-plan tests => 48;
+plan tests => 50;
 
 sub shell_quote {
     my $txt = shift;
@@ -241,6 +241,11 @@ $ssh->wait_for_master;
 is ($ssh->error, 0, "wait_for_master resets error");
 $ssh->capture({encoding => 'ascii'}, $ECHO => $enne);
 is ($ssh->error+0, OSSH_ENCODING_ERROR, "bad encoding");
+$ssh->wait_for_master;
+my @bad_encoding = $ssh->capture({encoding => 'ascii'}, $ECHO => $enne);
+is ($ssh->error+0, OSSH_ENCODING_ERROR, "bad encoding in list context");
+is (scalar @bad_encoding, 0, "bad encoding returns an empty list");
+$ssh->wait_for_master;
 my $captured_enne = $ssh->capture({encoding => 'latin1'}, $ECHO => $enne);
 chomp $captured_enne;
 is ($ssh->error+0, 0, "good encoding");
@@ -279,4 +284,3 @@ SKIP: {
     }
     is ($ssh4->error+0, OSSH_MASTER_FAILED, "bad password");
 }
-
