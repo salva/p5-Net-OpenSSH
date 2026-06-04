@@ -24,6 +24,7 @@ t/test_user_key
 t/test_user_key.pub
 t/known_hosts
 t/quoting.t
+t/pod-spell.t
 t/uri.t
 examples/expect.pl
 examples/change_passwd.pl
