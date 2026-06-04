@@ -640,11 +640,9 @@ sub _make_scp_call {
 sub _rsync_quote {
     my ($self, @args) = @_;
     for (@args) {
-	if (/['"\s]/) {
-	    s/"/""/g;
-	    $_ = qq|"$_"|;
-	}
-	s/%/%%/;
+        s/%/%%/g;
+        s/'/'\\''/g;
+        $_ = qq|'$_'|;
     }
     wantarray ? @args : join(' ', @args);
 }
