@@ -474,8 +474,9 @@ sub new {
         }
     }
 
-    if (defined $sizeof_sun_path and length $ctl_path > $sizeof_sun_path) {
-        $self->_master_fail($async, "ctl_path $ctl_path is too long (max permissible size for $^O is $sizeof_sun_path)");
+    if (defined $sizeof_sun_path and length $ctl_path >= $sizeof_sun_path) {
+        my $max_ctl_path = $sizeof_sun_path - 1;
+        $self->_master_fail($async, "ctl_path $ctl_path is too long (max permissible size for $^O is $max_ctl_path)");
         return $self;
     }
 
