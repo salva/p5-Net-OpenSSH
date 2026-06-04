@@ -1,3 +1,12 @@
+package Net::OpenSSH;
+
+use strict;
+use warnings;
+
+use Net::OpenSSH ();
+
+our $debug;
+
 _sub_options scp_cat => qw(); # stderr_discard stderr_fh stderr_file);
 
 sub scp_cat {
@@ -87,6 +96,8 @@ sub scp_cat {
     wantarray ? ($cat, $pid) : $cat;
 }
 
+1;
+
 =head1 API
 
 =over 4
@@ -123,4 +134,3 @@ prints errors to STDERR
 =head1 BUGS AND SUPPORT
 
 Support for scp_cat is experimental.
-
