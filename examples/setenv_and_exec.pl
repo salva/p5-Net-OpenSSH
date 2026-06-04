@@ -25,7 +25,6 @@ for my $env (@envs) {
     push @cmds, "export " . $ssh->shell_quote($env) .'='.$ssh->shell_quote($ENV{$env})
 }
 
-my $cmd = join('&&', @cmds, '('. join(' ', @ARGV) .')');
+my $cmd = join('&&', @cmds, '('. join(' ', map $ssh->shell_quote($_), @ARGV) .')');
 warn "remote command: $cmd\n";
 $ssh->system($cmd);
-
