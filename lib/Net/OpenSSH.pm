@@ -699,6 +699,7 @@ sub _master_gone {
 }
 
 my @kill_signal = qw(0 0 TERM TERM TERM KILL);
+my @slave_kill_signal = qw(TERM TERM TERM KILL);
 
 sub __has_sigchld_handle {
     my $h = $SIG{CHLD};
@@ -847,6 +848,8 @@ sub _waitpid {
             $timeout = 0 if $self->{_error} == OSSH_SLAVE_TIMEOUT;
             $time_limit = time + $timeout;
         }
+        my $kill_last;
+        my $kill_count = 0;
         local $SIG{CHLD} = sub {} unless __has_sigchld_handle;
 	while (1) {
             my $deceased;
@@ -857,9 +860,16 @@ sub _waitpid {
                     $deceased = waitpid($pid, WNOHANG) and last;
                     my $remaining = $time_limit - time;
                     if ($remaining <= 0) {
-                        $debug and $debug & 16 and _debug "killing SSH slave, pid: $pid";
-                        kill TERM => $pid;
+                        my $now = time;
+                        if (!defined($kill_last) or $kill_last < $now) {
+                            $kill_last = $now;
+                            my $sig = $slave_kill_signal[$kill_count++];
+                            $sig = 'KILL' unless defined $sig;
+                            $debug and $debug & 16 and _debug "killing SSH slave, pid: $pid, signal: $sig";
+                            kill $sig => $pid;
+                        }
                         $self->_or_set_error(OSSH_SLAVE_TIMEOUT, "ssh slave failed", "timed out");
+                        return undef if $kill_count > 20;
                     }
                     # There is a race condition here. We try to
                     # minimize it keeping the waitpid and the select
