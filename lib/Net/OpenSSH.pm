@@ -983,6 +983,7 @@ sub _master_start {
     if ($use_pty) {
         _load_module('IO::Pty');
         $self->{_mpty} = $mpty = IO::Pty->new;
+        $mpty or return $self->_master_fail($async, "unable to allocate pseudo-tty: $!");
     }
 
     push @master_opts, -o => "PreferredAuthentications=$pref_auths"
