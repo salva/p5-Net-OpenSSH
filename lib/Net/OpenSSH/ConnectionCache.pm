@@ -27,15 +27,15 @@ sub _factory {
         }
     }
     if ($MAX_SIZE <= keys %cache) {
-	for (keys %cache) {
-	    $ssh = $cache{$_};
-	    delete $cache{$_} unless $ssh and $ssh->error != OSSH_MASTER_FAILED;
-	}
-	for (keys %cache) {
-	    last if (keys %cache < $MAX_SIZE);
-	    weaken $cache{$_};
-	    if (defined $cache{$_}) {
-		$cache{$_} = $cache{$_}; # unweaken
+        for (keys %cache) {
+            $ssh = $cache{$_};
+            delete $cache{$_} unless $ssh and $ssh->error != OSSH_MASTER_FAILED;
+        }
+        for (keys %cache) {
+            last if (keys %cache < $MAX_SIZE);
+            weaken $cache{$_};
+            if (defined $cache{$_}) {
+                $cache{$_} = $cache{$_}; # unweaken
             }
             else {
                 delete $cache{$_};

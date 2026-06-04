@@ -40,7 +40,7 @@ ok(!exists $Net::OpenSSH::ConnectionCache::cache{failed}, 'failed master entry i
 ok(!exists $Net::OpenSSH::ConnectionCache::cache{empty}, 'empty cache entry is removed');
 ok(exists $Net::OpenSSH::ConnectionCache::cache{live}, 'live cache entry is retained');
 ok((keys %Net::OpenSSH::ConnectionCache::cache) <= $Net::OpenSSH::ConnectionCache::MAX_SIZE,
-   'cache is reduced below the configured maximum');
+   'cache is reduced to the configured maximum or below');
 
 Net::OpenSSH::ConnectionCache::clean_cache();
 is(scalar keys %Net::OpenSSH::ConnectionCache::cache, 0, 'clean_cache clears cache');
