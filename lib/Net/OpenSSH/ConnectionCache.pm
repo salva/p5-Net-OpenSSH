@@ -29,10 +29,10 @@ sub _factory {
     if ($MAX_SIZE <= keys %cache) {
         for (keys %cache) {
             $ssh = $cache{$_};
-            $ssh or $ssh->error != OSSH_MASTER_FAILED or delete $cache{$_}
+            delete $cache{$_} unless $ssh and $ssh->error != OSSH_MASTER_FAILED;
         }
         for (keys %cache) {
-            last if ($MAX_SIZE <= keys %cache);
+            last if (keys %cache < $MAX_SIZE);
             weaken $cache{$_};
             if (defined $cache{$_}) {
                 $cache{$_} = $cache{$_}; # unweaken

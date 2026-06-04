@@ -18,6 +18,7 @@ lib/Net/OpenSSH/ShellQuoter/MSCmd.pm
 lib/Net/OpenSSH/ShellQuoter/Chain.pm
 lib/Net/OpenSSH/ObjectRemote.pm
 t/common.pm
+t/connection-cache.t
 t/test_server_key
 t/test_server_key.pub
 t/test_user_key
