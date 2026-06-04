@@ -3,7 +3,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 5;
+use Test::More tests => 6;
 
 use Net::OpenSSH::ModuleLoader;
 
@@ -11,6 +11,9 @@ ok(_load_module('strict'), 'loads a valid module name');
 
 eval { _load_module('strict; die "boom"') };
 like($@, qr/bad Perl module name/, 'rejects unsafe module names');
+
+eval { _load_module(undef) };
+like($@, qr/bad Perl module name/, 'rejects undefined module names without warnings');
 
 eval { _load_module('strict', 999_999) };
 like($@, qr/strict version 999999 required|strict version 999999 required--this is only version/,

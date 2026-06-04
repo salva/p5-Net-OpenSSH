@@ -11,6 +11,7 @@ our @EXPORT = qw(_load_module);
 
 sub _load_module {
     my ($module, $version) = @_;
+    defined $module or croak "bad Perl module name";
     $module =~ /\A[A-Za-z_]\w*(?:::\w+)*\z/
         or croak "bad Perl module name $module";
     $loaded_module{$module} ||= do {
