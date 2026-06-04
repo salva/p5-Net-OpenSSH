@@ -4,6 +4,9 @@ use strict;
 use warnings;
 use Test::More;
 
+plan skip_all => 'Author test. Set AUTHOR_TESTING to run.'
+    unless $ENV{AUTHOR_TESTING};
+
 eval "use Test::Spelling";
 plan skip_all => "Test::Spelling required for testing POD spelling" if $@;
 
@@ -40,8 +43,8 @@ my @ignore = ("Salvador", "Fandi\xf1o", "API", "CPAN", "GitHub",
               "Unix", "Ubuntu", "ssh", "cmd.exe", "BTW", "namespace",
               "IIRC", "Shellshock", "googling", "Gorwits", "netconf",
               "forwardings", "passphraseUses", "spawnAnother");
+push @ignore, qw(X11 didn doesn);
 
 local $ENV{LC_ALL} = 'C';
 add_stopwords(@ignore);
 all_pod_files_spelling_ok();
-
