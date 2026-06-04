@@ -6,6 +6,7 @@ t/1_run.t
 lib/Net/OpenSSH.pm
 lib/Net/OpenSSH/Constants.pm
 lib/Net/OpenSSH/ConnectionCache.pm
+lib/Net/OpenSSH/More.pm
 lib/Net/OpenSSH/OSTracer.pm
 lib/Net/OpenSSH/ModuleLoader.pm
 lib/Net/OpenSSH/SSH.pm
