@@ -26,11 +26,13 @@ my $good = ctl_path_of_length($sizeof_sun_path - 1);
 my $bad = ctl_path_of_length($sizeof_sun_path);
 
 my $ssh = Net::OpenSSH->new(host => 'localhost', ctl_path => $good,
-                            connect => 0, strict_mode => 0);
+                            connect => 0, strict_mode => 0,
+                            ssh_version => 'OpenSSH_10.0');
 is($ssh->error + 0, 0, 'usable maximum ctl_path length is accepted');
 is(length($ssh->get_ctl_path), $sizeof_sun_path - 1, 'accepted ctl_path has expected length');
 
 $ssh = Net::OpenSSH->new(host => 'localhost', ctl_path => $bad,
-                         connect => 0, strict_mode => 0);
+                         connect => 0, strict_mode => 0,
+                         ssh_version => 'OpenSSH_10.0');
 like($ssh->error, qr/max permissible size for \Q$^O\E is @{[$sizeof_sun_path - 1]}/,
      'ctl_path requiring an extra NUL byte is rejected');
