@@ -3,6 +3,7 @@
 use strict;
 use warnings;
 use Cwd;
+use File::Temp qw(tempdir);
 
 use lib "./t";
 use common;
@@ -132,6 +133,12 @@ SKIP: {
 
 my $cwd = cwd;
 my $sq_cwd = shell_quote $cwd;
+my $test_dir = tempdir(CLEANUP => 1);
+my $sq_test_dir = shell_quote $test_dir;
+my $test_dat = "$test_dir/test.dat";
+my $sq_test_dat = shell_quote $test_dat;
+my $delete_me = "$test_dir/test.dat.deleteme";
+my $sq_delete_me = shell_quote $delete_me;
 
 my $rshell = $ssh->capture($ECHO => \\'$SHELL');
 my $rshell_is_csh = ($rshell =~ /\bt?csh$/);
@@ -143,7 +150,7 @@ is("@ls", "@ls_good");
 my @lines = map "foo $_\n", 1..10;
 my $lines = join('', @lines);
 
-my ($in, $pid) = $ssh->pipe_in("$CAT > $sq_cwd/test.dat");
+my ($in, $pid) = $ssh->pipe_in("$CAT > $sq_test_dat");
 ok($ssh->error == 0);
 ok($in);
 ok(defined $pid);
@@ -155,30 +162,30 @@ ok(close $in);
 @ps = `$PS_P $pid`;
 ok(!grep(/ssh/i, @ps), "pipe_in SSH proccess is reaped on close");
 
-ok(-f "$cwd/test.dat");
+ok(-f $test_dat);
 
-my ($output, $errput) = $ssh->capture2("$CAT $sq_cwd/test.dat");
+my ($output, $errput) = $ssh->capture2("$CAT $sq_test_dat");
 is($errput, '', "errput");
 is($output, $lines, "output") or diag $output;
 
 {
     my $ssh2 = Net::OpenSSH->new(external_master => 1, ctl_path => $ssh->get_ctl_path);
-    my ($output, $errput) = $ssh2->capture2("$CAT $sq_cwd/test.dat");
+    my ($output, $errput) = $ssh2->capture2("$CAT $sq_test_dat");
     is($errput, '', "external_master 1");
     is($output, $lines, "external_master 2") or diag $output;
     # DESTROY $ssh2
 }
 ok($ssh->check_master, "check_master") or diag "error: ", $ssh->error;
 
-$ssh->system({stdout_file => ['>', "$sq_cwd/test.dat.deleteme"],
-              stderr_discard => 1 }, "$CAT $sq_cwd/test.dat");
+$ssh->system({stdout_file => ['>', $delete_me],
+              stderr_discard => 1 }, "$CAT $sq_test_dat");
 is ($ssh->error, 0, "system ok");
-$output = $ssh->capture("$CAT $sq_cwd/test.dat.deleteme");
+$output = $ssh->capture("$CAT $sq_delete_me");
 is ($ssh->error, 0, "system ok") or diag "error: ", $ssh->error;
 is ($output, $lines, "redirection works");
-unlink "$sq_cwd/test.dat.deleteme";
+unlink $delete_me;
 
-$output = $ssh->capture(cd => $sq_cwd, \\'&&', $CAT => 'test.dat');
+$output = $ssh->capture(cd => $sq_test_dir, \\'&&', $CAT => 'test.dat');
 is ($output, $lines) or diag "error: ", $ssh->error;
 
 $output = $ssh->capture({stdin_data => \@lines}, $CAT);
@@ -189,12 +196,12 @@ SKIP: {
     $output = $ssh->capture({stdin_data => \@lines, stderr_to_stdout => 1}, "$CAT >&2");
     is ($output, $lines);
 
-    ($output, $errput) = $ssh->capture2("$CAT $sq_cwd/test.dat 1>&2");
+    ($output, $errput) = $ssh->capture2("$CAT $sq_test_dat 1>&2");
     is ($errput, $lines);
     is ($output, '');
 }
 
-my $fh = $ssh->pipe_out("$CAT $sq_cwd/test.dat");
+my $fh = $ssh->pipe_out("$CAT $sq_test_dat");
 ok($fh, "pipe_out");
 $output = join('', <$fh>);
 is($output, $lines, "pipe_out lines");
@@ -279,4 +286,3 @@ SKIP: {
     }
     is ($ssh4->error+0, OSSH_MASTER_FAILED, "bad password");
 }
-
