@@ -23,6 +23,7 @@ t/test_server_key.pub
 t/test_user_key
 t/test_user_key.pub
 t/known_hosts
+t/mscmd-quoting.t
 t/quoting.t
 t/uri.t
 examples/expect.pl

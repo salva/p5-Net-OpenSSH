@@ -13,6 +13,7 @@ sub quote {
         croak "can't quote newlines to pass through MS cmd.exe";
     }
     $arg =~ s/([()%!^"<>&|])/^$1/g;
+    $arg = qq|"$arg"| if $arg eq '' or $arg =~ /[ \t]/;
     $arg;
 }
 
