@@ -1865,7 +1865,7 @@ sub _io3 {
                         _debug "stdout, bytes read: ", $read, " at offset $offset";
                         $read and $debug & 128 and _hexdump substr $bout, $offset;
                     }
-                    unless ($read or grep $! == $_, @retriable) {
+                    unless (defined($read) ? $read : grep $! == $_, @retriable) {
                         close $out;
                         undef $cout;
                         $recalc_vecs = 1;
@@ -1874,7 +1874,7 @@ sub _io3 {
                 if ($cerr and vec($rv1, $fnoerr, 1)) {
                     my $read = sysread($err, $berr, 20480, length($berr));
                     $debug and $debug & 64 and _debug "stderr, bytes read: ", $read;
-                    unless ($read or grep $! == $_, @retriable) {
+                    unless (defined($read) ? $read : grep $! == $_, @retriable) {
                         close $err;
                         undef $cerr;
                         $recalc_vecs = 1;
@@ -1895,7 +1895,7 @@ sub _io3 {
                         }
                         # fallback when stdin queue is exhausted
                     }
-                    elsif (grep $! == $_, @retriable) {
+                    elsif (!defined($written) and grep $! == $_, @retriable) {
                         next FAST;
                     }
                     close $in unless $keep_in_open;
