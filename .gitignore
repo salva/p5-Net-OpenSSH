@@ -6,3 +6,9 @@ MYMETA.yml
 Makefile
 Makefile.old
 t/sshd.log
+pod2htmd.tmp
+misquoted.txt
+test.dat
+.Rhistory
+examples/scp_any_log.pl
+examples/scp_pty.pl
