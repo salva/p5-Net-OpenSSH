@@ -7,6 +7,8 @@ use Net::OpenSSH ();
 
 our $debug;
 
+my $max_scp_header_length = 64 * 1024;
+
 _sub_options scp_cat => qw(); # stderr_discard stderr_fh stderr_file);
 
 sub scp_cat {
@@ -56,7 +58,11 @@ sub scp_cat {
             my $buf = '';
             $debug and $debug & 256 and _debug "reading header";
             do {
-                sysread($out, $buf, ($on_error ? 1 : 10000), length $buf) or POSIX::_exit(1);
+                length($buf) < $max_scp_header_length or POSIX::_exit(1);
+                my $read_len = ($on_error ? 1 : 10000);
+                $read_len = $max_scp_header_length - length($buf)
+                    if length($buf) + $read_len > $max_scp_header_length;
+                sysread($out, $buf, $read_len, length $buf) or POSIX::_exit(1);
             } until $buf =~ /\x0A/;
 
             $debug and $debug & 256 and _debug "switch: $switch, header: $buf";
@@ -65,7 +71,8 @@ sub scp_cat {
                 print STDERR $buf unless $quiet;
             }
             elsif ($switch eq 'C') {
-                my $size = (split /\s+/, $buf)[1];
+                $buf =~ /\A[0-7]{4}\s+(\d+)\s+.+\x0A\z/ or POSIX::_exit(1);
+                my $size = $1;
                 $debug and $debug & 256 and _debug "transferring file of size $size";
                     syswrite($in, "\x00") == 1 or POSIX::_exit(1);
                 while ($size) {
